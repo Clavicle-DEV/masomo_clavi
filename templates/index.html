@@ -1,0 +1,2936 @@
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Clavis — Study Help</title>
+
+    <link rel="icon"
+          type="image/x-icon"
+          href="{{ url_for('static', filename='favicon.ico') }}">
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F6F1E5;
+    --paper: #FFFDF8;
+    --chalk: #1F3B30;
+    --chalk-light: #2d5242;
+    --gold: #D9A62E;
+    --red: #B8433A;
+    --ink: #21281F;
+    --muted: #788675;
+    --line: #E4DCC8;
+  }
+
+  [data-theme="dark"] {
+    --bg: #1d3033;
+    --paper: #1C2B24;
+    --chalk: #191846;
+    --chalk-light: #2B4F40;
+    --gold: #E8BE55;
+    --red: #D9645A;
+    --ink: #EDE7D6;
+    --muted: #8FA097;
+    --line: #2E3E35;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    transition: background 0.2s ease, color 0.2s ease;
+  }
+
+  .layout {
+    display: flex;
+    justify-content: center;
+  }
+
+  .app {
+    max-width: 780px;
+    width: 100%;
+    margin: 0;
+    padding: 32px 20px 100px;
+  }
+
+  /* ---------- Header ---------- */
+  header.top {
+    margin-bottom: 24px;
+  }
+
+  .brand-block {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px 8px 10px;
+    border: 1px solid rgba(217, 166, 46, 0.22);
+    border-radius: 999px;
+    background: linear-gradient(135deg, rgba(17, 46, 35, 0.96), rgba(25, 66, 46, 0.92));
+    box-shadow: 0 16px 34px rgba(17, 46, 35, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+    backdrop-filter: blur(10px);
+    position: relative;
+  }
+  .brand::after {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: inherit;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    pointer-events: none;
+  }
+  [data-theme="dark"] .brand {
+    color: var(--ink);
+    background: linear-gradient(135deg, rgba(5, 22, 16, 0.98), rgba(18, 50, 36, 0.94));
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+  .brand .brand-badge {
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.16));
+  }
+  .brand-wordmark {
+    font-family: 'Fraunces', serif;
+    font-weight: 700;
+    font-size: 30px;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    color: #F8F1DA;
+    text-transform: lowercase;
+    display: inline-flex;
+    align-items: center;
+  }
+  .brand-wordmark span {
+    color: var(--gold);
+    margin-left: 0.02em;
+    display: inline-block;
+    transform: translateY(-1px);
+    text-shadow: 0 0 14px rgba(217, 166, 46, 0.28);
+  }
+
+  .tagline {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: 0.01em;
+  }
+
+  /* ---------- Right-side sidebar nav (desktop) ---------- */
+  nav.main-nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 64px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background: var(--paper);
+    border-right: 1px solid var(--line);
+    padding: 28px 10px;
+    z-index: 100;
+    overflow: hidden;
+    transition: width 0.18s ease;
+  }
+
+  nav.main-nav.expanded {
+    width: 168px;
+    padding: 28px 14px;
+  }
+
+  nav.main-nav .nav-brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 24px;
+    padding: 0 6px;
+  }
+  nav.main-nav .brand-badge {
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+  }
+  nav.main-nav .nav-brand-text {
+    display: none;
+    font-family: 'Fraunces', serif;
+    font-weight: 700;
+    font-size: 20px;
+    letter-spacing: -0.025em;
+    color: var(--chalk);
+    white-space: nowrap;
+  }
+  nav.main-nav.expanded .nav-brand-text { display: inline; }
+  [data-theme="dark"] nav.main-nav .nav-brand-text { color: var(--ink); }
+  nav.main-nav .nav-brand-text span { color: var(--gold); }
+
+  nav.main-nav button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    border: none;
+    background: transparent;
+    padding: 11px 12px;
+    border-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+    text-align: left;
+    width: 100%;
+  }
+
+  nav.main-nav.expanded button {
+    justify-content: flex-start;
+  }
+
+  nav.main-nav button png { width: 18px; height: 18px; flex-shrink: 0; }
+
+  nav.main-nav .nav-label {
+    display: none;
+  }
+  nav.main-nav.expanded .nav-label {
+    display: inline;
+  }
+
+  nav.main-nav button.active {
+    background: var(--chalk);
+    color: var(--paper);
+  }
+
+  nav.main-nav button:not(.active):hover {
+    background: var(--bg);
+  }
+
+  /* ---------- Bottom tab bar (mobile) ---------- */
+  @media (max-width: 720px) {
+    .layout { display: block; }
+    .app { max-width: 100%; padding: 24px 16px 90px; }
+
+    nav.main-nav,
+    nav.main-nav.expanded {
+      position: fixed;
+      top: auto;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: auto;
+      width: 100%;
+      flex-direction: row;
+      justify-content: space-around;
+      border-right: none;
+      border-top: 1px solid var(--line);
+      padding: 8px 4px;
+      padding-bottom: max(8px, env(safe-area-inset-bottom));
+    }
+
+    nav.main-nav .nav-brand,
+    nav.main-nav.expanded .nav-brand { display: none !important; }
+
+    nav.main-nav .nav-label,
+    nav.main-nav.expanded .nav-label { display: inline; }
+
+    nav.main-nav button,
+    nav.main-nav.expanded button {
+      flex-direction: column;
+      justify-content: center;
+      gap: 4px;
+      font-size: 11px;
+      padding: 6px 4px;
+      width: auto;
+      flex: 1;
+      text-align: center;
+      align-items: center;
+    }
+  }
+
+  /* ---------- Welcome overlay ---------- */
+  .welcome-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(20, 32, 27, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+  }
+
+  .welcome-card {
+    background: var(--paper);
+    border-radius: 12px;
+    max-width: 420px;
+    width: 100%;
+    padding: 36px 32px;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  }
+
+  .welcome-card .brand {
+    font-size: 24px;
+    margin-bottom: 4px;
+  }
+
+  .welcome-card h2 {
+    font-family: 'Fraunces', serif;
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--chalk);
+    margin: 16px 0 10px;
+  }
+  [data-theme="dark"] .welcome-card h2 { color: var(--ink); }
+
+  .welcome-card p {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.6;
+    margin: 0 0 24px;
+  }
+
+  .welcome-card button {
+    background: var(--chalk);
+    color: var(--paper);
+    border: none;
+    border-radius: 8px;
+    padding: 13px 28px;
+    font-weight: 700;
+    font-size: 15px;
+    cursor: pointer;
+    width: 100%;
+  }
+
+  /* ---------- Screens ---------- */
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* ---------- Home screen ---------- */
+  .hero { margin-bottom: 32px; }
+
+  .hero h1 {
+    font-family: 'Fraunces', serif;
+    font-size: clamp(28px, 4vw, 40px);
+    font-weight: 600;
+    line-height: 1.15;
+    margin: 0 0 10px;
+    color: var(--chalk);
+  }
+  [data-theme="dark"] .hero h1 { color: var(--ink); }
+
+  .hero p {
+    font-size: 16px;
+    color: var(--muted);
+    max-width: 520px;
+    line-height: 1.5;
+  }
+
+  .level-toggle {
+    display: inline-flex;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 4px;
+    margin: 20px 0 8px;
+  }
+
+  .level-toggle button {
+    border: none;
+    background: transparent;
+    padding: 9px 20px;
+    border-radius: 999px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .level-toggle button.active {
+    background: var(--chalk);
+    color: var(--paper);
+  }
+
+  .sub-level-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 4px 0 8px;
+  }
+
+  .sub-level-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+
+  .sub-level-select {
+    border: 1px solid var(--line);
+    background: var(--paper);
+    color: var(--ink);
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .sub-level-select:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
+
+  .subjects {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 24px 18px;
+    margin-top: 28px;
+  }
+  .subjects-toolbar { display:flex; align-items:center; justify-content:space-between; gap:16px; margin:30px 0 -8px; }
+  .subjects-toolbar h2 { font-family:'Fraunces', serif; font-size:22px; letter-spacing:-.03em; margin:0; color:var(--chalk); }
+  .subject-count { font-size:12px; font-weight:700; color:var(--muted); background:var(--paper); border:1px solid var(--line); border-radius:999px; padding:7px 10px; }
+  .subject-card.level-hidden { display:none; }
+
+  .subject-card {
+    position: relative;
+    background: var(--chalk);
+    border-radius: 3px 8px 8px 3px;
+    cursor: pointer;
+    aspect-ratio: 2 / 3;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 20px 14px 16px 18px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    box-shadow:
+      0 3px 0 rgba(0,0,0,0.15),
+      0 10px 18px rgba(0,0,0,0.18);
+  }
+
+  .subject-card:hover {
+    transform: translateY(-4px) rotate(-0.5deg);
+    box-shadow:
+      0 3px 0 rgba(0,0,0,0.15),
+      0 18px 30px rgba(0,0,0,0.28);
+  }
+
+  /* spine shadow along the left edge */
+  .subject-card::before {
+    content: "";
+    position: absolute;
+    top: 0; bottom: 0; left: 0;
+    width: 10px;
+    background: linear-gradient(to right, rgba(0,0,0,0.35), transparent);
+    border-radius: 3px 0 0 3px;
+  }
+
+  /* page-edge stripes along the right edge, like a closed book */
+  .subject-card::after {
+    content: "";
+    position: absolute;
+    top: 3px; bottom: 3px; right: 0;
+    width: 7px;
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(255,253,248,0.9) 0px, rgba(255,253,248,0.9) 2px,
+      rgba(230,222,200,0.7) 2px, rgba(230,222,200,0.7) 4px
+    );
+    border-radius: 0 4px 4px 0;
+    box-shadow: 1px 0 2px rgba(0,0,0,0.2) inset;
+  }
+
+  .subject-card.math { background: var(--chalk); }
+  .subject-card.english { background: #7A3B2E; }
+  .subject-card.physics { background: #2E4C6E; }
+  .subject-card.chemistry { background: #5B3358; }
+  .subject-card.biology { background: #2F5D45; }
+  .subject-card.kiswahili { background: #8C4A2F; }
+  .subject-card.geography { background: #3B4A5E; }
+  .subject-card.business { background: #5C4A26; }
+  .subject-card.history { background: #4A3B2E; }
+  .subject-card.computer { background: #263544; }
+
+  .subject-icon {
+    width: 26px; height: 26px;
+    color: var(--gold);
+    opacity: 0.85;
+    margin-left: 6px;
+  }
+
+  .subject-title-block {
+    margin-left: 6px;
+  }
+
+  .subject-name {
+    font-family: 'Fraunces', serif;
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--paper);
+    margin: 0 0 6px;
+    line-height: 1.15;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  }
+
+  .subject-name-rule {
+    width: 26px;
+    height: 2px;
+    background: var(--gold);
+    opacity: 0.8;
+    margin-bottom: 8px;
+    border-radius: 2px;
+  }
+
+  .subject-sub {
+    font-size: 11.5px;
+    color: rgba(255,253,248,0.65);
+    line-height: 1.35;
+  }
+
+  /* ---------- Chat screen ---------- */
+  .chat-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+
+  .back-btn {
+    border: 1px solid var(--line);
+    background: var(--paper);
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--chalk);
+    cursor: pointer;
+  }
+  [data-theme="dark"] .back-btn { color: var(--ink); }
+
+  .chat-subject-label {
+    font-family: 'Fraunces', serif;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--chalk);
+  }
+  [data-theme="dark"] .chat-subject-label { color: var(--ink); }
+
+  .chat-level-label { font-size: 13px; color: var(--muted); }
+
+  .notebook {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    position: relative;
+    padding: 24px 24px 24px 44px;
+    min-height: 420px;
+    max-height: 55vh;
+    overflow-y: auto;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      transparent, transparent 31px,
+      var(--line) 32px
+    );
+    background-position: 0 8px;
+  }
+
+  .notebook::before {
+    content: "";
+    position: absolute;
+    top: 0; bottom: 0; left: 30px;
+    width: 1px;
+    background: var(--red);
+    opacity: 0.55;
+  }
+
+  .msg { margin-bottom: 18px; line-height: 32px; font-size: 15px; max-width: 90%; }
+  .msg.user { margin-left: auto; text-align: right; color: var(--chalk-light); font-weight: 600; }
+  [data-theme="dark"] .msg.user { color: var(--gold); }
+  .msg.tutor { color: var(--ink); }
+
+  .msg.tutor .label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--red);
+    line-height: 16px;
+    margin-top: 4px;
+  }
+
+  .msg-content { white-space: pre-wrap; }
+
+  .empty-hint { color: var(--muted); font-size: 14px; line-height: 32px; }
+
+  .composer { display: flex; gap: 10px; margin-top: 16px; }
+
+  .composer input {
+    flex: 1;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    border-radius: 8px;
+    padding: 13px 16px;
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    color: var(--ink);
+  }
+
+  .composer input:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
+
+  .composer button {
+    background: var(--chalk);
+    color: var(--paper);
+    border: none;
+    border-radius: 8px;
+    padding: 0 22px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  .composer button:disabled { opacity: 0.5; cursor: default; }
+  .composer-tools { position: relative; }
+  .tool-trigger { width: 46px; height: 46px; border: 1px solid var(--line); border-radius: 13px; background: var(--paper); color: var(--chalk); font-size: 27px; line-height: 1; cursor: pointer; transition: .18s ease; }
+  .tool-trigger:hover, .tool-trigger[aria-expanded="true"] { background: var(--chalk); color: var(--paper); transform: rotate(90deg); }
+  .tools-menu { position: absolute; z-index: 20; bottom: 56px; left: 0; min-width: 210px; padding: 8px; background: var(--paper); border: 1px solid var(--line); border-radius: 15px; box-shadow: 0 16px 35px rgba(20,48,37,.18); }
+  .tools-menu[hidden] { display:none; }
+  .tools-menu button { display:flex; align-items:center; gap:11px; width:100%; padding:11px; border:0; background:transparent; color:var(--ink); font:600 13px 'Inter',sans-serif; text-align:left; border-radius:10px; cursor:pointer; }
+  .tools-menu button:hover { background:var(--bg); }.tool-icon{font-size:18px;width:23px;text-align:center}.tool-copy small{display:block;font-size:11px;color:var(--muted);font-weight:400;margin-top:2px}
+  .attachment-preview { display:none; align-items:center; gap:10px; margin:10px 0 0; padding:8px 10px; background:var(--paper); border:1px solid var(--line); border-radius:12px; font-size:12px; }.attachment-preview.visible{display:flex}.attachment-preview img{width:38px;height:38px;border-radius:7px;object-fit:cover}.attachment-preview button{margin-left:auto;border:0;background:transparent;color:var(--red);font-size:18px;cursor:pointer}
+  .goal-popover { position:absolute; z-index:21; bottom:56px; left:0; width:min(310px,calc(100vw - 44px)); padding:14px; background:var(--paper); border:1px solid var(--line); border-radius:15px; box-shadow:0 16px 35px rgba(20,48,37,.18); }.goal-popover[hidden]{display:none}.goal-popover strong{font-family:'Fraunces',serif;font-size:17px}.goal-popover p{font-size:12px;color:var(--muted);margin:3px 0 10px}.goal-popover input{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px;font:13px 'Inter',sans-serif}.goal-popover button{margin-top:8px;border:0;border-radius:9px;background:var(--chalk);color:var(--paper);padding:9px 12px;font-weight:700;cursor:pointer}
+  .goal-banner { margin-top: 12px; padding: 8px 14px; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; font-size: 12.5px; color: var(--ink); font-weight: 600; }
+  .goal-banner[hidden] { display: none; }
+
+  .typing-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .tutor-avatar { width: 40px; height: 40px; flex-shrink: 0; }
+  .tutor-avatar svg { width: 100%; height: 100%; }
+  .typing-label { font-size: 13px; color: var(--muted); font-style: italic; }
+
+  /* ---------- Dashboard ---------- */
+  .dash-title {
+    font-family: 'Fraunces', serif;
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--chalk);
+    margin: 0 0 24px;
+  }
+  [data-theme="dark"] .dash-title { color: var(--ink); }
+
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+
+  .stat-card {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 20px;
+  }
+
+  .stat-num {
+    font-family: 'Fraunces', serif;
+    font-size: 34px;
+    font-weight: 700;
+    color: var(--chalk);
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+  [data-theme="dark"] .stat-num { color: var(--gold); }
+
+  .stat-label { font-size: 13px; color: var(--muted); }
+
+  .section-heading {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 14px;
+  }
+
+  .subject-bars { display: flex; flex-direction: column; gap: 10px; margin-bottom: 32px; }
+
+  .subject-bar-row { display: flex; align-items: center; gap: 12px; font-size: 14px; }
+  .subject-bar-row .bar-name { width: 130px; flex-shrink: 0; color: var(--ink); }
+  .subject-bar-row .bar-track {
+    flex: 1;
+    height: 10px;
+    background: var(--line);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .subject-bar-row .bar-fill { height: 100%; background: var(--gold); border-radius: 999px; }
+  .subject-bar-row .bar-count { width: 26px; text-align: right; color: var(--muted); font-size: 13px; }
+
+  .quick-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .quick-link-btn {
+    border: 1px solid var(--line);
+    background: var(--paper);
+    color: var(--ink);
+    padding: 10px 16px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .empty-dash {
+    color: var(--muted);
+    font-size: 14px;
+    background: var(--paper);
+    border: 1px dashed var(--line);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 24px;
+  }
+
+  /* ---------- Settings ---------- */
+  .settings-group {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+
+  .settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .settings-row:last-child { border-bottom: none; }
+
+  .settings-row-label { font-size: 15px; color: var(--ink); font-weight: 600; }
+  .settings-row-sub { font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+  .settings-row-column {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 12px;
+  }
+
+  .settings-row-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+    width: 100%;
+  }
+
+  .danger-btn {
+    border: 1px solid var(--red);
+    background: transparent;
+    color: var(--red);
+    padding: 9px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .danger-btn:hover { background: var(--red); color: var(--paper); }
+
+  /* ---------- Book Finder ---------- */
+  .book-search {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 28px;
+  }
+
+  .book-search input {
+    flex: 1;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    border-radius: 8px;
+    padding: 13px 16px;
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    color: var(--ink);
+  }
+
+  .book-search button {
+    background: var(--chalk);
+    color: var(--paper);
+    border: none;
+    border-radius: 8px;
+    padding: 0 22px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  .book-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 20px;
+  }
+
+  .book-card {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    overflow: hidden;
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .book-cover {
+    width: 100%;
+    aspect-ratio: 2/3;
+    object-fit: cover;
+    background: var(--line);
+  }
+
+  .book-info { padding: 10px 12px 14px; }
+  .book-title { font-size: 13px; font-weight: 700; color: var(--ink); line-height: 1.3; margin-bottom: 4px; }
+  .book-author { font-size: 12px; color: var(--muted); }
+
+  .book-status { color: var(--muted); font-size: 14px; padding: 20px 0; }
+
+  /* ---------- Topics & Exam screens ---------- */
+  .topics-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 8px;
+  }
+
+  .topics-subtitle {
+    color: var(--muted);
+    font-size: 13px;
+    margin-bottom: 4px;
+  }
+
+  .topics-disclaimer {
+    background: var(--paper);
+    border: 1px dashed var(--line);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 12.5px;
+    color: var(--muted);
+    line-height: 1.5;
+    margin: 12px 0 24px;
+  }
+
+  .topic-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
+
+  .topic-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px 18px;
+  }
+
+  .topic-row-left { display: flex; align-items: center; gap: 12px; }
+
+  .topic-badge {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    flex-shrink: 0;
+    background: var(--line);
+    color: var(--muted);
+  }
+
+  .topic-badge.done {
+    background: var(--chalk);
+    color: var(--paper);
+  }
+
+  .topic-name { font-size: 14.5px; font-weight: 600; color: var(--ink); }
+  .topic-score { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  .topic-test-btn {
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--chalk);
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  [data-theme="dark"] .topic-test-btn { color: var(--ink); }
+  .topic-test-btn:hover { background: var(--chalk); color: var(--paper); }
+
+  .final-exam-card {
+    background: var(--chalk);
+    border-radius: 10px;
+    padding: 22px;
+    margin-top: 8px;
+  }
+
+  .final-exam-title {
+    font-family: 'Fraunces', serif;
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--paper);
+    margin-bottom: 6px;
+  }
+
+  .final-exam-sub { font-size: 13px; color: rgba(255,253,248,0.7); margin-bottom: 16px; }
+
+  .final-exam-btn {
+    background: var(--gold);
+    color: var(--chalk);
+    border: none;
+    border-radius: 8px;
+    padding: 11px 22px;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  .final-exam-btn:disabled {
+    background: rgba(255,255,255,0.15);
+    color: rgba(255,255,255,0.4);
+    cursor: not-allowed;
+  }
+
+  .loading-block {
+    text-align: center;
+    color: var(--muted);
+    font-size: 14px;
+    padding: 60px 20px;
+  }
+
+  /* Exam paper styling */
+  .exam-paper {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 28px 26px;
+  }
+
+  .exam-paper-header {
+    text-align: center;
+    border-bottom: 2px solid var(--chalk);
+    padding-bottom: 16px;
+    margin-bottom: 24px;
+  }
+
+  .exam-paper-header .exam-subject {
+    font-family: 'Fraunces', serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--chalk);
+  }
+  [data-theme="dark"] .exam-paper-header .exam-subject { color: var(--ink); }
+
+  .exam-paper-header .exam-meta { font-size: 12.5px; color: var(--muted); margin-top: 4px; }
+
+  .exam-instructions {
+    font-size: 12.5px;
+    color: var(--muted);
+    font-style: italic;
+    margin-bottom: 24px;
+    text-align: center;
+  }
+
+  .exam-question {
+    margin-bottom: 26px;
+    padding-bottom: 22px;
+    border-bottom: 1px solid var(--line);
+  }
+  .exam-question:last-child { border-bottom: none; }
+
+  .exam-question-text {
+    font-size: 15px;
+    color: var(--ink);
+    font-weight: 600;
+    line-height: 1.5;
+    margin-bottom: 14px;
+  }
+
+  .exam-question-marks {
+    font-weight: 400;
+    color: var(--muted);
+    font-style: italic;
+  }
+
+  .exam-options { display: flex; flex-direction: column; gap: 8px; margin-left: 4px; }
+
+  .exam-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 14px;
+    color: var(--ink);
+    cursor: pointer;
+    padding: 6px 8px;
+    border-radius: 6px;
+  }
+
+  .exam-option:hover { background: var(--bg); }
+  .exam-option input { margin-top: 3px; }
+
+  .exam-short-answer textarea {
+    width: 100%;
+    min-height: 90px;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    color: var(--ink);
+    resize: vertical;
+  }
+
+  .exam-short-answer textarea:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
+
+  .exam-submit-btn {
+    background: var(--chalk);
+    color: var(--paper);
+    border: none;
+    border-radius: 8px;
+    padding: 14px 24px;
+    font-weight: 700;
+    font-size: 15px;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 8px;
+  }
+
+  /* Marking scheme / results */
+  .result-summary {
+    background: var(--chalk);
+    border-radius: 10px;
+    padding: 28px;
+    text-align: center;
+    margin-bottom: 24px;
+  }
+
+  .result-score {
+    font-family: 'Fraunces', serif;
+    font-size: 42px;
+    font-weight: 700;
+    color: var(--paper);
+    line-height: 1;
+  }
+
+  .result-percent { font-size: 15px; color: rgba(255,253,248,0.75); margin-top: 6px; }
+
+  .result-verdict {
+    display: inline-block;
+    margin-top: 14px;
+    padding: 6px 16px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .result-verdict.pass { background: var(--gold); color: var(--chalk); }
+  .result-verdict.retry { background: rgba(255,253,248,0.15); color: var(--paper); }
+
+  .marking-item {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 16px 18px;
+    margin-bottom: 14px;
+  }
+
+  .marking-question { font-size: 14px; font-weight: 600; color: var(--ink); margin-bottom: 10px; }
+
+  .marking-row { font-size: 13px; margin-bottom: 6px; line-height: 1.5; }
+  .marking-row strong { color: var(--ink); }
+  .marking-correct { color: #2F5D45; }
+  [data-theme="dark"] .marking-correct { color: #7FBF9E; }
+  .marking-wrong { color: var(--red); }
+
+  .marking-points-list { margin: 8px 0 0 18px; font-size: 13px; color: var(--muted); }
+
+  .self-mark-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+  }
+
+  .self-mark-row input {
+    width: 60px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 13px;
+    text-align: center;
+  }
+
+  .exam-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+  }
+
+  .exam-actions button {
+    flex: 1;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    color: var(--ink);
+    padding: 12px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  .exam-actions button.primary {
+    background: var(--chalk);
+    color: var(--paper);
+    border: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .subject-card { transition: none; }
+  }
+
+  /* ---------- Upgrade button + pricing modal ---------- */
+  .upgrade-nav-btn {
+    background: var(--gold);
+    color: var(--chalk);
+    border: none;
+    border-radius: 999px;
+    padding: 8px 18px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .upgrade-nav-btn:hover { filter: brightness(0.95); }
+
+  .pricing-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(20, 32, 27, 0.55);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1100;
+    padding: 20px;
+  }
+  .pricing-modal-overlay.open { display: flex; }
+
+  .pricing-modal-card {
+    background: var(--paper);
+    border-radius: 12px;
+    max-width: 460px;
+    width: 100%;
+    padding: 32px 28px;
+    position: relative;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .pricing-modal-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: transparent;
+    border: none;
+    font-size: 20px;
+    line-height: 1;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 4px 8px;
+  }
+  .pricing-modal-close:hover { color: var(--ink); }
+
+  .pricing-modal-title {
+    font-family: 'Fraunces', serif;
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--chalk);
+    margin: 0 0 20px;
+  }
+  [data-theme="dark"] .pricing-modal-title { color: var(--ink); }
+
+  /* ---------- Flash messages ---------- */
+  .flash-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  .flash-msg {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 13.5px;
+    line-height: 1.5;
+    border: 1px solid transparent;
+  }
+
+  .flash-danger {
+    background: rgba(184, 67, 58, 0.1);
+    border-color: rgba(184, 67, 58, 0.3);
+    color: var(--red);
+  }
+
+  .flash-success {
+    background: rgba(47, 93, 69, 0.12);
+    border-color: rgba(47, 93, 69, 0.35);
+    color: #2F5D45;
+  }
+  [data-theme="dark"] .flash-success { color: #7FBF9E; }
+
+  .flash-dismiss {
+    background: none;
+    border: none;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    color: inherit;
+    opacity: 0.6;
+    padding: 0 4px;
+    flex-shrink: 0;
+  }
+  .flash-dismiss:hover { opacity: 1; }
+
+  /* ---------- Premium product polish ---------- */
+  body {
+    background:
+      radial-gradient(circle at 80% -10%, rgba(217, 255, 99, 0.26), transparent 28rem),
+      radial-gradient(circle at 8% 88%, rgba(232, 184, 71, 0.13), transparent 24rem),
+      var(--bg);
+  }
+  .app { max-width: 960px; padding: 38px 32px 112px 112px; }
+  nav.main-nav { width: 78px; padding: 30px 13px; box-shadow: 12px 0 34px rgba(31, 59, 48, 0.035); }
+  nav.main-nav.expanded { width: 210px; }
+  nav.main-nav button { border-radius: 12px; margin-bottom: 3px; }
+  nav.main-nav button.active { background: linear-gradient(135deg, #163c2d, #285d42); box-shadow: 0 8px 18px rgba(23, 59, 43, 0.22); }
+  .user-badge-bar { box-shadow: 0 9px 28px rgba(31, 59, 48, 0.06); border-radius: 14px !important; }
+  .hero { background: linear-gradient(120deg, rgba(255,253,248,.88), rgba(239,247,213,.74)); border: 1px solid rgba(31,59,48,.09); border-radius: 22px; padding: clamp(24px,4vw,42px); margin-bottom: 28px; box-shadow: 0 18px 42px rgba(31,59,48,.07); position: relative; overflow: hidden; }
+  .hero::after { content: '✦'; position: absolute; right: 6%; top: 8%; color: rgba(217,166,46,.34); font-size: 88px; font-family: Georgia, serif; }
+  .hero h1 { max-width: 570px; font-size: clamp(32px,4vw,48px); letter-spacing: -.045em; position: relative; z-index: 1; }
+  .hero p, .hero .level-toggle, .hero .sub-level-row { position: relative; z-index: 1; }
+  .subjects { grid-template-columns: repeat(auto-fill, minmax(172px, 1fr)); gap: 22px; margin-top: 30px; }
+  .subject-card { border-radius: 12px 18px 18px 12px; aspect-ratio: 1.15 / 1.35; padding: 22px 17px 18px 21px; box-shadow: 0 5px 0 rgba(0,0,0,.13), 0 15px 28px rgba(15,34,26,.16); }
+  .subject-card:hover { transform: translateY(-7px) rotate(-.8deg) scale(1.015); }
+  .notebook, .stat-card { border-radius: 16px; box-shadow: 0 12px 28px rgba(31,59,48,.06); }
+  .composer input { border-radius: 13px; box-shadow: 0 4px 12px rgba(31,59,48,.05); }
+  .composer button { border-radius: 13px; background: linear-gradient(135deg, #1f3b30, #315d49); box-shadow: 0 8px 16px rgba(31,59,48,.18); }
+  .stat-card { padding: 24px; transition: transform .18s ease; }
+  .stat-card:hover { transform: translateY(-4px); }
+  .quick-link-btn, .back-btn { border-radius: 999px; transition: transform .15s ease, box-shadow .15s ease; }
+  .quick-link-btn:hover, .back-btn:hover { transform: translateY(-2px); box-shadow: 0 7px 16px rgba(31,59,48,.1); }
+  body.focus-mode .user-badge-bar, body.focus-mode header.top, body.focus-mode nav.main-nav { display:none !important; }
+  body.focus-mode .app { max-width: 860px; padding-left: 32px; }
+  body.focus-mode .notebook { max-height: 65vh; }
+  @media (max-width: 720px) { .app { padding: 24px 16px 100px; } .hero { padding: 25px 20px; } .hero::after { font-size: 58px; } }
+</style>
+</head>
+<body>
+
+<div class="welcome-overlay" id="welcomeOverlay" style="display:none;">
+  <div class="welcome-card">
+    <div class="brand"><svg class="brand-badge" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="g-welcome" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#112E23"/>
+            <stop offset="60%" stop-color="#22553C"/>
+            <stop offset="100%" stop-color="#3E825C"/>
+          </linearGradient>
+          <linearGradient id="shine-welcome" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#FFF7D7"/>
+            <stop offset="100%" stop-color="#F0C24A"/>
+          </linearGradient>
+          <filter id="glow-welcome" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur stdDeviation="0.9" result="blur"/>
+            <feMerge>
+              <feMergeNode in="blur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+        </defs>
+        <circle cx="20" cy="20" r="16" fill="none" stroke="#F2C34C" stroke-opacity="0.28" stroke-width="1.2"/>
+        <circle cx="20" cy="20" r="13" fill="url(#g-welcome)"/>
+        <path d="M20 6.5l7.4 2.5v6.8c0 4.7-2.8 8.8-7.4 11.8-4.6-3-7.4-7.1-7.4-11.8V9L20 6.5z" fill="#F7F0DB" opacity="0.96"/>
+        <path d="M14 13.2h12v6.5c0 3.2-2.2 6.2-6 8.1-3.8-1.9-6-4.9-6-8.1v-6.5z" fill="none" stroke="#173B2B" stroke-width="1.1"/>
+        <path d="M15.4 13.8h9.2c1 0 1.8.8 1.8 1.8v4.4c0 2.3-1.3 4-3.3 5.2-2-1.2-3.3-2.9-3.3-5.2v-4.4c0-1-.8-1.8-1.8-1.8z" fill="url(#shine-welcome)"/>
+        <path d="M20 10.8l3.2-2.2 1 1.5-3.2 2.2-1-1.5z" fill="#FFF4C2"/>
+        <circle cx="25.2" cy="10" r="1.15" fill="#FFF4C2" filter="url(#glow-welcome)"/>
+        <path d="M12.5 24.4c3.3-1.9 6.5-2.5 8.8-2.5" stroke="#F0C24A" stroke-width="1.1" stroke-linecap="round" opacity="0.9"/>
+        <path d="M21.8 8.2c1.8 0.8 3.1 2.1 4.1 3.8" stroke="#F2C34C" stroke-width="1.1" stroke-linecap="round" opacity="0.8"/>
+      </svg><span class="brand-wordmark">Clavis</span></div>
+    <h2>Karibu, welcome! 👋</h2>
+    <p>Clavis is your tutor study buddy — pick a level, choose a subject, and ask anything. Your questions, progress, and settings stay right here in your browser. New accounts get a free trial period before a plan is required.</p>
+    <button id="welcomeStartBtn">Get started</button>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="main-nav" id="mainNav">
+    <div class="nav-brand">
+      <svg class="brand-badge" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#112E23"/>
+            <stop offset="60%" stop-color="#22553C"/>
+            <stop offset="100%" stop-color="#3E825C"/>
+          </linearGradient>
+          <linearGradient id="shine" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#FFF7D7"/>
+            <stop offset="100%" stop-color="#F0C24A"/>
+          </linearGradient>
+          <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur stdDeviation="0.9" result="blur"/>
+            <feMerge>
+              <feMergeNode in="blur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+        </defs>
+        <circle cx="20" cy="20" r="16" fill="none" stroke="#F2C34C" stroke-opacity="0.28" stroke-width="1.2"/>
+        <circle cx="20" cy="20" r="13" fill="url(#g)"/>
+        <path d="M20 6.5l7.4 2.5v6.8c0 4.7-2.8 8.8-7.4 11.8-4.6-3-7.4-7.1-7.4-11.8V9L20 6.5z" fill="#F7F0DB" opacity="0.96"/>
+        <path d="M14 13.2h12v6.5c0 3.2-2.2 6.2-6 8.1-3.8-1.9-6-4.9-6-8.1v-6.5z" fill="none" stroke="#173B2B" stroke-width="1.1"/>
+        <path d="M15.4 13.8h9.2c1 0 1.8.8 1.8 1.8v4.4c0 2.3-1.3 4-3.3 5.2-2-1.2-3.3-2.9-3.3-5.2v-4.4c0-1-.8-1.8-1.8-1.8z" fill="url(#shine)"/>
+        <path d="M20 10.8l3.2-2.2 1 1.5-3.2 2.2-1-1.5z" fill="#FFF4C2"/>
+        <circle cx="25.2" cy="10" r="1.15" fill="#FFF4C2" filter="url(#glow)"/>
+        <path d="M12.5 24.4c3.3-1.9 6.5-2.5 8.8-2.5" stroke="#F0C24A" stroke-width="1.1" stroke-linecap="round" opacity="0.9"/>
+        <path d="M21.8 8.2c1.8 0.8 3.1 2.1 4.1 3.8" stroke="#F2C34C" stroke-width="1.1" stroke-linecap="round" opacity="0.8"/>
+      </svg>
+      <span class="nav-brand-text">Clavis</span>
+    </div>
+    <button data-screen="homeScreen" class="active">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11l9-7 9 7M5 10v9a1 1 0 001 1h4v-6h4v6h4a1 1 0 001-1v-9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span class="nav-label">Home</span>
+    </button>
+    <button data-screen="dashboardScreen">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+      <span class="nav-label">Dashboard</span>
+    </button>
+    <button data-screen="bookScreen">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5c3-1.5 6-1.5 8 0v14c-2-1.5-5-1.5-8 0V5z" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 5c-3-1.5-6-1.5-8 0v14c2-1.5 5-1.5 8 0V5z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span class="nav-label">Book Finder</span>
+    </button>
+    <button data-screen="settingsScreen">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span class="nav-label">Settings</span>
+    </button>
+  </nav>
+
+<div class="app">
+
+  <!-- USER ACCOUNT STATUS BAR -->
+  {% with flashed = get_flashed_messages(with_categories=true) %}
+    {% if flashed %}
+      <div class="flash-stack">
+        {% for category, message in flashed %}
+          <div class="flash-msg flash-{{ category }}">
+            <span>{{ message }}</span>
+            <button type="button" class="flash-dismiss" onclick="this.parentElement.remove()">&times;</button>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <div class="user-badge-bar" style="display: flex; justify-content: space-between; align-items: center; background: var(--paper); border: 1px solid var(--line); padding: 10px 16px; border-radius: 8px; margin-bottom: 24px; font-size: 13px;">
+    <div class="user-info" style="display: flex; align-items: center; gap: 8px; font-weight: 500;">
+      <span>👤 {{ user.email }}</span>
+      {% if is_admin_user %}
+        <span class="status-tag" style="background: var(--chalk); color: var(--paper); padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase;">Admin / Owner</span>
+      {% elif user.is_premium %}
+        <span class="status-tag" style="background: var(--chalk); color: var(--paper); padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase;">Premium</span>
+      {% else %}
+        <span class="status-tag" style="background: var(--gold); color: var(--chalk); padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase;">Free Trial</span>
+      {% endif %}
+    </div>
+    <div style="display: flex; align-items: center; gap: 14px;">
+      {% if not is_admin_user and not subscription_expired %}
+      <button type="button" class="upgrade-nav-btn" id="upgradeBtn">Upgrade</button>
+      {% endif %}
+      <a href="/logout" style="color: var(--red); text-decoration: none; font-weight: 600;">Log Out</a>
+    </div>
+  </div>
+
+  {% if subscription_expired %}
+  <div class="paywall-container" style="background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 40px 24px; text-align: center; margin-top: 20px;">
+    <h2 style="font-family: 'Fraunces', serif; font-size: 28px; color: var(--chalk); margin-bottom: 12px;">⚠️ Free Trial Ended</h2>
+    <p style="color: var(--muted); font-size: 15px; max-width: 480px; margin: 0 auto 32px; line-height: 1.6;">Choose a plan below to keep using your Clavis tutor.</p>
+
+    <div style="max-width: 480px; margin: 0 auto;">
+      <label style="border: 2px solid var(--line); border-radius: 8px; padding: 16px; margin-bottom: 16px; text-align: left; display: flex; align-items: center; justify-content: space-between; background: var(--paper); cursor: pointer;" for="day">
+        <div style="display: flex; align-items: center;">
+          <input type="radio" id="day" name="tier" value="day" checked style="transform: scale(1.3); margin-right: 14px;">
+          <div>
+            <div style="font-size: 16px; font-weight: 700;">Day Pass</div>
+            <div style="color: var(--muted); font-size: 13px;">Full access for 24 hours.</div>
+          </div>
+        </div>
+        <div style="font-size: 22px; font-weight: 700; color: var(--chalk); font-family: 'Fraunces', serif;">KES 200</div>
+      </label>
+
+      <label style="border: 2px solid var(--line); border-radius: 8px; padding: 16px; margin-bottom: 16px; text-align: left; display: flex; align-items: center; justify-content: space-between; background: var(--paper); cursor: pointer;" for="month">
+        <div style="display: flex; align-items: center;">
+          <input type="radio" id="month" name="tier" value="month" style="transform: scale(1.3); margin-right: 14px;">
+          <div>
+            <div style="font-size: 16px; font-weight: 700;">Monthly</div>
+            <div style="color: var(--muted); font-size: 13px;">Full access for 30 days.</div>
+          </div>
+        </div>
+        <div style="font-size: 22px; font-weight: 700; color: var(--chalk); font-family: 'Fraunces', serif;">KES 5,000</div>
+      </label>
+
+      <button type="button" id="mpesaPayBtnPaywall" style="width: 100%; background: #1F9254; color: #fff; border: none; border-radius: 8px; padding: 16px; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 10px;">Pay with M-Pesa</button>
+    </div>
+
+    <script>
+      (function () {
+        var btn = document.getElementById('mpesaPayBtnPaywall');
+        if (btn) {
+          btn.addEventListener('click', function () {
+            var checked = document.querySelector('.paywall-container input[name="tier"]:checked');
+            var tier = checked ? checked.value : 'day';
+            window.location.href = '/pay-mpesa?tier=' + encodeURIComponent(tier);
+          });
+        }
+      })();
+    </script>
+  </div>
+
+  {% else %}
+
+  <header class="top">
+    <div class="brand-block">
+      <div class="brand"><svg class="brand-badge" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="g-header" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#15352A"/>
+            <stop offset="60%" stop-color="#23553C"/>
+            <stop offset="100%" stop-color="#3E7F5B"/>
+          </linearGradient>
+          <linearGradient id="shine-header" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#FFF6C9"/>
+            <stop offset="100%" stop-color="#F2C34C"/>
+          </linearGradient>
+          <filter id="glow-header" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur stdDeviation="0.9" result="blur"/>
+            <feMerge>
+              <feMergeNode in="blur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+        </defs>
+        <circle cx="20" cy="20" r="16" fill="none" stroke="#F2C34C" stroke-opacity="0.24" stroke-width="1.2"/>
+        <circle cx="20" cy="20" r="13" fill="url(#g-header)"/>
+        <path d="M20 6.5l7.4 2.5v6.8c0 4.7-2.8 8.8-7.4 11.8-4.6-3-7.4-7.1-7.4-11.8V9L20 6.5z" fill="#F7F0DB" opacity="0.96"/>
+        <path d="M14 13.2h12v6.5c0 3.2-2.2 6.2-6 8.1-3.8-1.9-6-4.9-6-8.1v-6.5z" fill="none" stroke="#173B2B" stroke-width="1.1"/>
+        <path d="M15.4 13.8h9.2c1 0 1.8.8 1.8 1.8v4.4c0 2.3-1.3 4-3.3 5.2-2-1.2-3.3-2.9-3.3-5.2v-4.4c0-1-.8-1.8-1.8-1.8z" fill="url(#shine-header)"/>
+        <path d="M20 10.8l3.2-2.2 1 1.5-3.2 2.2-1-1.5z" fill="#FFF4C2"/>
+        <circle cx="25.2" cy="10" r="1.15" fill="#FFF4C2" filter="url(#glow-header)"/>
+        <path d="M12.5 24.4c3.3-1.9 6.5-2.5 8.8-2.5" stroke="#F0C24A" stroke-width="1.1" stroke-linecap="round" opacity="0.9"/>
+        <path d="M21.8 8.2c1.8 0.8 3.1 2.1 4.1 3.8" stroke="#F2C34C" stroke-width="1.1" stroke-linecap="round" opacity="0.8"/>
+      </svg><span class="brand-wordmark">Clavis</span></div>
+      <div class="tagline">Study help — Maths, English &amp; more</div>
+    </div>
+  </header>
+  <!-- ============ HOME SCREEN ============ -->
+  <div class="screen active" id="homeScreen">
+    <div class="hero">
+      <h1>Ask a question.<br>Get a clear explanation.</h1>
+      <p>A study buddy for students who can't always get extra tuition. Pick a level, choose a subject, and ask anything.</p>
+
+      <div class="level-toggle" id="levelToggle">
+        <button data-level="cbc">CBC</button>
+        <button data-level="upper_primary">Upper Primary</button>
+        <button data-level="junior_school">Junior School</button>
+        <button data-level="secondary" class="active">Secondary (KCSE)</button>
+        <button data-level="senior_school">Senior School</button>
+      </div>
+
+      <div class="sub-level-row" id="subLevelRow">
+        <label for="gradeFormSelect" class="sub-level-label" id="subLevelLabel">Form:</label>
+        <select id="gradeFormSelect" class="sub-level-select"></select>
+      </div>
+    </div>
+
+    <div class="subjects-toolbar">
+      <h2 id="subjectsTitle">Choose a subject</h2>
+      <span class="subject-count" id="subjectCount" aria-live="polite"></span>
+    </div>
+    <div class="subjects">
+      <div class="subject-card math" data-subject="Mathematics">
+        <svg class="subject-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M4 4h16M4 20h16M8 4l8 16M16 4l-8 16" stroke-linecap="round"/>
+        </svg>
+        <div class="subject-title-block">
+          <div class="subject-name">Mathematics</div>
+          <div class="subject-name-rule"></div>
+          <div class="subject-sub">Algebra, geometry, equations &amp; more</div>
+        </div>
+      </div>
+
+      <div class="subject-card english" data-subject="English">
+        <svg class="subject-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M4 20L18 6M18 6l-3 .3M18 6l-.3 3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div class="subject-title-block">
+          <div class="subject-name">English</div>
+          <div class="subject-name-rule"></div>
+          <div class="subject-sub">Grammar, comprehension &amp; essays</div>
+        </div>
+      </div>
+
+      <div class="subject-card physics" data-subject="Physics">
+        <svg class="subject-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <circle cx="12" cy="12" r="2.2"/>
+          <ellipse cx="12" cy="12" rx="9" ry="3.6"/>
+          <ellipse cx="12" cy="12" rx="9" ry="3.6" transform="rotate(60 12 12)"/>
+          <ellipse cx="12" cy="12" rx="9" ry="3.6" transform="rotate(120 12 12)"/>
+        </svg>
+        <div class="subject-title-block">
+          <div class="subject-name">Physics</div>
+          <div class="subject-name-rule"></div>
+          <div class="subject-sub">Forces, energy, waves &amp; circuits</div>
+        </div>
+      </div>
+
+      <div class="subject-card chemistry" data-subject="Chemistry">
+        <svg class="subject-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M9 3h6M10 3v6l-5.2 9a2 2 0 001.7 3h11a2 2 0 001.7-3L14 9V3" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M7.5 15h9" stroke-linecap="round"/>
+        </svg>
+        <div class="subject-title-block">
+          <div class="subject-name">Chemistry</div>
+          <div class="subject-name-rule"></div>
+          <div class="subject-sub">Elements, reactions &amp; equations</div>
+        </div>
+      </div>
+
+      <div class="subject-card agriculture" data-subject="Agriculture">
+        <svg class="subject-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M5 20c3-1 6-1 9 0 3-1 6-1 9 0" stroke-linecap="round"/>
+          <path d="M8 20V9m8 11V9M12 9c2-3 4-4 6-4-1 3-3 4-6 4z" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div class="subject-title-block">
+          <div class="subject-name">Agriculture</div>
+          <div class="subject-name-rule"></div>
+          <div class="subject-sub">Crops, livestock &amp; farm practices</div>
+        </div>
+      </div>
+
+      <div class="subject-card home-science" data-subject="Home Science">
+        <svg class="subject-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M6 20V10l6-4 6 4v10" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M9 20v-5h6v5" stroke-linecap="round"/>
+        </svg>
+        <div class="subject-title-block">
+          <div class="subject-name">Home Science</div>
+          <div class="subject-name-rule"></div>
+          <div class="subject-sub">Nutrition, family life &amp; skills</div>
+        </div>
+      </div>
+
+      <div class="subject-card creative-arts" data-subject="Creative Arts">
+        <svg class="subject-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M5 19l5-5 5 5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M10 14l7-7 2 2-7 7" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div class="subject-title-block">
+          <div class="subject-name">Creative Arts</div>
+          <div class="subject-name-rule"></div>
+          <div class="subject-sub">Drawing, music &amp; performance</div>
+        </div>
+      </div>
+
+      <div class="subject-card biology" data-subject="Biology">
+        <svg class="subject-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M12 21C7 21 3 17 3 12 3 7 7 3 12 3c1 5 5 9 9 9 0 5-4 9-9 9z" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M6 18c4-4 6-8 6-14" stroke-linecap="round"/>
+        </svg>
+        <div class="subject-title-block">
+          <div class="subject-name">Biology</div>
+          <div class="subject-name-rule"></div>
+          <div class="subject-sub">Cells, ecosystems &amp; the human body</div>
+        </div>
+      </div>
+
+      <div class="subject-card kiswahili" data-subject="Kiswahili">
+        <svg class="subject-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M4 5c3-1.5 6-1.5 8 0v14c-2-1.5-5-1.5-8 0V5z" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M20 5c-3-1.5-6-1.5-8 0v14c2-1.5 5-1.5 8 0V5z" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div class="subject-title-block">
+          <div class="subject-name">Kiswahili</div>
+          <div class="subject-name-rule"></div>
+          <div class="subject-sub">Sarufi, insha na ufahamu</div>
+        </div>
+      </div>
+
+      <div class="subject-card geography" data-subject="Geography">
+        <svg class="subject-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <circle cx="12" cy="12" r="9"/>
+          <path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18" stroke-linecap="round"/>
+        </svg>
+        <div class="subject-title-block">
+          <div class="subject-name">Geography</div>
+          <div class="subject-name-rule"></div>
+          <div class="subject-sub">Maps, climate &amp; the environment</div>
+        </div>
+      </div>
+
+      <div class="subject-card religious-education" data-subject="Religious Education">
+        <svg class="subject-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M6 4h12a2 2 0 012 2v14l-7-3-7 3V6a2 2 0 012-2z" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div class="subject-title-block">
+          <div class="subject-name">Religious Education</div>
+          <div class="subject-name-rule"></div>
+          <div class="subject-sub">Values, ethics &amp; life lessons</div>
+        </div>
+      </div>
+
+      <div class="subject-card social-studies" data-subject="Social Studies">
+        <svg class="subject-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M4 20V8l8-4 8 4v12" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M4 20h16" stroke-linecap="round"/>
+        </svg>
+        <div class="subject-title-block">
+          <div class="subject-name">Social Studies</div>
+          <div class="subject-name-rule"></div>
+          <div class="subject-sub">Citizenship, history &amp; society</div>
+        </div>
+      </div>
+
+      <div class="subject-card business" data-subject="Business Studies">
+        <svg class="subject-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <rect x="3" y="8" width="18" height="11" rx="2"/>
+          <path d="M8 8V6a2 2 0 012-2h4a2 2 0 012 2v2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M3 13h18" stroke-linecap="round"/>
+        </svg>
+        <div class="subject-title-block">
+          <div class="subject-name">Business Studies</div>
+          <div class="subject-name-rule"></div>
+          <div class="subject-sub">Commerce, accounting &amp; entrepreneurship</div>
+        </div>
+      </div>
+
+      <div class="subject-card history" data-subject="History">
+        <svg class="subject-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M6 4h9l3 3v13a1 1 0 01-1 1H6a1 1 0 01-1-1V5a1 1 0 011-1z" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M15 4v3h3" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M8 11h8M8 15h8M8 19h5" stroke-linecap="round"/>
+        </svg>
+        <div class="subject-title-block">
+          <div class="subject-name">History</div>
+          <div class="subject-name-rule"></div>
+          <div class="subject-sub">Kenyan &amp; world history, government</div>
+        </div>
+      </div>
+
+      <div class="subject-card computer" data-subject="Computer Studies">
+        <svg class="subject-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <rect x="3" y="4" width="18" height="12" rx="1.5"/>
+          <path d="M8 20h8M12 16v4" stroke-linecap="round"/>
+        </svg>
+        <div class="subject-title-block">
+          <div class="subject-name">Computer Studies</div>
+          <div class="subject-name-rule"></div>
+          <div class="subject-sub">Programming, hardware &amp; ICT skills</div>
+        </div>
+      </div>
+
+      <div class="subject-card science-tech" data-subject="Science and Technology">
+        <svg class="subject-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M12 3l7 4v5c0 4.2-2.7 7.8-7 9-4.3-1.2-7-4.8-7-9V7l7-4z" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div class="subject-title-block">
+          <div class="subject-name">Science and Technology</div>
+          <div class="subject-name-rule"></div>
+          <div class="subject-sub">Practical science &amp; innovation</div>
+        </div>
+      </div>
+
+      <div class="subject-card ict" data-subject="ICT">
+        <svg class="subject-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <rect x="4" y="5" width="16" height="12" rx="2"/>
+          <path d="M8 19h8" stroke-linecap="round"/>
+        </svg>
+        <div class="subject-title-block">
+          <div class="subject-name">ICT</div>
+          <div class="subject-name-rule"></div>
+          <div class="subject-sub">Digital literacy &amp; applications</div>
+        </div>
+      </div>
+
+      <div class="subject-card pre-technical" data-subject="Pre-Technical Studies">
+        <svg class="subject-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M5 19h14" stroke-linecap="round"/>
+          <path d="M8 19V9l4-3 4 3v10" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div class="subject-title-block">
+          <div class="subject-name">Pre-Technical Studies</div>
+          <div class="subject-name-rule"></div>
+          <div class="subject-sub">Practical skills &amp; technology</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ CHAT SCREEN ============ -->
+  <div class="screen" id="chatScreen">
+    <div class="chat-header">
+      <button class="back-btn" id="backBtn">&larr; Subjects</button>
+      <div>
+        <div class="chat-subject-label" id="chatSubjectLabel">Mathematics</div>
+        <div class="chat-level-label" id="chatLevelLabel">Secondary (KCSE)</div>
+      </div>
+      <button class="back-btn" id="topicsNavBtn" style="margin-left:auto;">📚 Topics &amp; Tests</button>
+    </div>
+
+    <div class="notebook" id="notebook">
+      <div class="empty-hint" id="emptyHint">Type a question below to get started — e.g. "How do I factorise a quadratic equation?"</div>
+    </div>
+
+    <div class="goal-banner" id="goalBanner" hidden></div>
+    <div class="composer">
+      <div class="composer-tools">
+        <button type="button" class="tool-trigger" id="toolsBtn" aria-label="More learning tools" aria-expanded="false">+</button>
+        <div class="tools-menu" id="toolsMenu" hidden>
+          <button type="button" id="attachFileBtn"><span class="tool-icon">⌁</span><span class="tool-copy">Add a file<small>Attach notes or a question image</small></span></button>
+          <button type="button" id="cameraBtn"><span class="tool-icon">◉</span><span class="tool-copy">Take a photo<small>Ask Clavis about what you see</small></span></button>
+          <button type="button" id="goalBtn"><span class="tool-icon">✦</span><span class="tool-copy">Set a study goal<small>Save today’s focus</small></span></button>
+        </div>
+        <div class="goal-popover" id="goalPopover" hidden>
+          <strong>Today’s study goal</strong><p>Keep it small and specific.</p>
+          <input id="goalInput" type="text" maxlength="120" placeholder="e.g. Finish 10 algebra questions">
+          <button type="button" id="saveGoalBtn">Save goal</button>
+        </div>
+      </div>
+      <input type="text" id="questionInput" placeholder="Ask your question..." />
+      <button id="sendBtn">Ask</button>
+    </div>
+    <div class="attachment-preview" id="attachmentPreview"><img id="attachmentThumb" alt="Attached image"><span id="attachmentName"></span><button type="button" id="removeAttachmentBtn" aria-label="Remove attachment">×</button></div>
+    <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp,.txt,.md,.csv" hidden>
+    <input type="file" id="cameraInput" accept="image/jpeg,image/png,image/webp" capture="environment" hidden>
+    <div class="typing-row" id="typingIndicator" style="visibility:hidden;">
+      <div class="tutor-avatar" id="tutorAvatar"></div>
+      <span class="typing-label" id="typingLabel">Tutor is thinking...</span>
+    </div>
+  </div>
+
+  <!-- ============ TOPICS SCREEN ============ -->
+  <div class="screen" id="topicsScreen">
+    <div class="topics-header">
+      <button class="back-btn" id="topicsBackBtn">&larr; Back</button>
+      <div>
+        <div class="chat-subject-label" id="topicsSubjectLabel">Mathematics</div>
+        <div class="chat-level-label" id="topicsLevelLabel">Secondary — Form 1</div>
+      </div>
+    </div>
+
+    <div class="topics-disclaimer">
+      These topics are generated as a study guide to help structure your revision —
+      they're not the official KICD/KNEC syllabus, so please cross-check against your
+      school's actual scheme of work.
+    </div>
+
+    <div id="topicsLoading" class="loading-block" style="display:none;">Loading topics...</div>
+    <div class="topic-list" id="topicList"></div>
+
+    <div class="final-exam-card">
+      <div class="final-exam-title">Final Subject Exam</div>
+      <div class="final-exam-sub" id="finalExamProgress">Complete all topics above to unlock this.</div>
+      <button class="final-exam-btn" id="finalExamBtn" disabled>Take Final Exam</button>
+    </div>
+  </div>
+
+  <!-- ============ EXAM SCREEN ============ -->
+  <div class="screen" id="examScreen">
+    <div class="topics-header">
+      <button class="back-btn" id="examBackBtn">&larr; Back to Topics</button>
+    </div>
+
+    <div id="examLoading" class="loading-block">Building your test...</div>
+    <div id="examTakingView" style="display:none;"></div>
+    <div id="examResultsView" style="display:none;"></div>
+  </div>
+
+
+  <!-- ============ DASHBOARD SCREEN ============ -->
+  <div class="screen" id="dashboardScreen">
+    <h2 class="dash-title">Your progress</h2>
+
+    <div id="dashEmptyState" class="empty-dash" style="display:none;">
+      You haven't asked any questions yet — pick a subject on the Home tab to get started, and your stats will show up here.
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-num" id="statTotal">0</div>
+        <div class="stat-label">Questions asked</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="statStreak">0</div>
+        <div class="stat-label">Day streak</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="statTopSubject">—</div>
+        <div class="stat-label">Most studied subject</div>
+      </div>
+    </div>
+
+    <div id="subjectBarsWrap">
+      <h3 class="section-heading">Questions by subject</h3>
+      <div class="subject-bars" id="subjectBars"></div>
+    </div>
+
+    <h3 class="section-heading">Quick links</h3>
+    <div class="quick-links" id="dashQuickLinks"></div>
+  </div>
+
+  <!-- ============ SETTINGS SCREEN ============ -->
+  <div class="screen" id="settingsScreen">
+    <h2 class="dash-title">Settings</h2>
+
+    <div class="settings-group">
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">Dark mode</div>
+          <div class="settings-row-sub">Easier on the eyes at night</div>
+        </div>
+        <div class="level-toggle" id="themeToggle">
+          <button data-theme="light" class="active">Light</button>
+          <button data-theme="dark">Dark</button>
+        </div>
+      </div>
+
+      <div class="settings-row settings-row-column">
+        <div>
+          <div class="settings-row-label">Default level</div>
+          <div class="settings-row-sub">Used when you open Clavis</div>
+        </div>
+        <div class="settings-row-controls">
+          <div class="level-toggle" id="defaultLevelToggle">
+            <button data-level="cbc">CBC</button>
+            <button data-level="upper_primary">Upper Primary</button>
+            <button data-level="junior_school">Junior School</button>
+            <button data-level="secondary" class="active">Secondary</button>
+            <button data-level="senior_school">Senior School</button>
+          </div>
+          <div class="sub-level-row" id="settingsSubLevelRow">
+            <label for="settingsGradeFormSelect" class="sub-level-label" id="settingsSubLevelLabel">Form:</label>
+            <select id="settingsGradeFormSelect" class="sub-level-select"></select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-group">
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">Tutor response style</div>
+          <div class="settings-row-sub">Choose quick answers or deeper explanations</div>
+        </div>
+        <div class="level-toggle" id="responseStyleToggle">
+          <button data-style="concise">Quick</button>
+          <button data-style="detailed" class="active">Detailed</button>
+        </div>
+      </div>
+
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">Focus mode</div>
+          <div class="settings-row-sub">A distraction-free study workspace</div>
+        </div>
+        <div class="level-toggle" id="focusModeToggle">
+          <button data-focus="off" class="active">Off</button>
+          <button data-focus="on">On</button>
+        </div>
+      </div>
+
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">Clear chat history</div>
+          <div class="settings-row-sub">Removes the current conversation</div>
+        </div>
+        <button class="danger-btn" id="clearChatBtn">Clear chat</button>
+      </div>
+
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">Reset progress stats</div>
+          <div class="settings-row-sub">Clears your dashboard stats and streak</div>
+        </div>
+        <button class="danger-btn" id="resetStatsBtn">Reset stats</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ BOOK FINDER SCREEN ============ -->
+  <div class="screen" id="bookScreen">
+    <h2 class="dash-title">Book Finder</h2>
+    <div class="book-search">
+      <input type="text" id="bookQuery" placeholder="Search by title, author, or topic..." />
+      <button id="bookSearchBtn">Search</button>
+    </div>
+    <div class="book-status" id="bookStatus">Search for a book above — e.g. "KCSE Chemistry" or an author's name.</div>
+    <div class="book-grid" id="bookGrid"></div>
+  </div>
+
+  <!-- ============ PRICING MODAL (opened via the Upgrade button) ============ -->
+  <div class="pricing-modal-overlay" id="pricingModalOverlay">
+    <div class="pricing-modal-card">
+      <button type="button" class="pricing-modal-close" id="pricingModalClose" aria-label="Close">&times;</button>
+      <h2 class="pricing-modal-title">Upgrade your plan</h2>
+      <label style="border: 2px solid var(--line); border-radius: 8px; padding: 16px; margin-bottom: 16px; text-align: left; display: flex; align-items: center; justify-content: space-between; background: var(--paper); cursor: pointer;" for="modal_day">
+        <div style="display: flex; align-items: center;">
+          <input type="radio" id="modal_day" name="tier" value="day" checked style="transform: scale(1.3); margin-right: 14px;">
+          <div>
+            <div style="font-size: 16px; font-weight: 700;">Day Pass</div>
+            <div style="color: var(--muted); font-size: 13px;">Full access for 24 hours.</div>
+          </div>
+        </div>
+        <div style="font-size: 22px; font-weight: 700; color: var(--chalk); font-family: 'Fraunces', serif;">KES 200</div>
+      </label>
+
+      <label style="border: 2px solid var(--line); border-radius: 8px; padding: 16px; margin-bottom: 16px; text-align: left; display: flex; align-items: center; justify-content: space-between; background: var(--paper); cursor: pointer;" for="modal_month">
+        <div style="display: flex; align-items: center;">
+          <input type="radio" id="modal_month" name="tier" value="month" style="transform: scale(1.3); margin-right: 14px;">
+          <div>
+            <div style="font-size: 16px; font-weight: 700;">Monthly</div>
+            <div style="color: var(--muted); font-size: 13px;">Full access for 30 days.</div>
+          </div>
+        </div>
+        <div style="font-size: 22px; font-weight: 700; color: var(--chalk); font-family: 'Fraunces', serif;">KES 5,000</div>
+      </label>
+
+      <button type="button" id="mpesaPayBtn" style="width: 100%; background: #1F9254; color: #fff; border: none; border-radius: 8px; padding: 16px; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 10px;">Pay with M-Pesa</button>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var mpesaBtn = document.getElementById('mpesaPayBtn');
+      if (mpesaBtn) {
+        mpesaBtn.addEventListener('click', function () {
+          var checked = document.querySelector('.pricing-modal-card input[name="tier"]:checked');
+          var tier = checked ? checked.value : 'day';
+          window.location.href = '/pay-mpesa?tier=' + encodeURIComponent(tier);
+        });
+      }
+    })();
+  </script>
+
+  {% endif %}
+
+</div>
+</div>
+
+<script>
+  /* ---------------- Shared state (declared early so settings load logic can use them) ---------------- */
+  let currentLevel = 'secondary';
+  let currentGradeForm = 'Form 1';
+  let currentSubject = null;
+  let conversationHistory = [];
+
+  /* DOM references needed early (before any settings/init logic runs) */
+  const levelToggle = document.getElementById('levelToggle');
+  const notebook = document.getElementById('notebook');
+  const emptyHint = document.getElementById('emptyHint');
+  const questionInput = document.getElementById('questionInput');
+  const sendBtn = document.getElementById('sendBtn');
+  const typingIndicator = document.getElementById('typingIndicator');
+  const typingLabel = document.getElementById('typingLabel');
+  const chatSubjectLabel = document.getElementById('chatSubjectLabel');
+  const chatLevelLabel = document.getElementById('chatLevelLabel');
+  const backBtn = document.getElementById('backBtn');
+  const gradeFormSelect = document.getElementById('gradeFormSelect');
+  const subjectCount = document.getElementById('subjectCount');
+  const subjectsTitle = document.getElementById('subjectsTitle');
+
+  const SUBJECTS_BY_LEVEL = {
+    cbc: ['Mathematics', 'English', 'Kiswahili', 'Science and Technology', 'Social Studies', 'Creative Arts'],
+    upper_primary: ['Mathematics', 'English', 'Kiswahili', 'Science and Technology', 'Social Studies', 'Agriculture', 'Creative Arts'],
+    junior_school: ['Mathematics', 'English', 'Kiswahili', 'Science and Technology', 'Social Studies', 'Pre-Technical Studies', 'Agriculture', 'Creative Arts', 'ICT', 'Business Studies'],
+    secondary: ['Mathematics', 'English', 'Physics', 'Chemistry', 'Agriculture', 'Home Science', 'Creative Arts', 'Biology', 'Kiswahili', 'Geography', 'Religious Education', 'Business Studies', 'History', 'Computer Studies'],
+    senior_school: ['Mathematics', 'English', 'Physics', 'Chemistry', 'Agriculture', 'Home Science', 'Creative Arts', 'Biology', 'Kiswahili', 'Geography', 'Religious Education', 'Business Studies', 'History', 'Computer Studies']
+  };
+
+  function levelDisplayName(level) {
+    return ({ cbc: 'CBC', upper_primary: 'Upper Primary', junior_school: 'Junior School', secondary: 'Secondary (KCSE)', senior_school: 'Senior School' })[level] || 'Your level';
+  }
+
+  function getVisibleSubjects() {
+    return SUBJECTS_BY_LEVEL[currentLevel] || [];
+  }
+
+  function filterSubjectsForLevel() {
+    const allowed = new Set(getVisibleSubjects());
+    document.querySelectorAll('.subject-card').forEach(card => {
+      card.classList.toggle('level-hidden', !allowed.has(card.dataset.subject));
+    });
+    subjectsTitle.textContent = `${levelDisplayName(currentLevel)} subjects`;
+    subjectCount.textContent = `${allowed.size} subjects available`;
+  }
+
+  /* ---------------- Navigation ---------------- */
+  const mainNav = document.getElementById('mainNav');
+  const screens = document.querySelectorAll('.screen');
+
+  function showScreen(id) {
+    screens.forEach(s => s.classList.toggle('active', s.id === id));
+    [...mainNav.children].forEach(b => b.classList.toggle('active', b.dataset.screen === id));
+    if (id === 'dashboardScreen') renderDashboard();
+  }
+
+  mainNav.addEventListener('click', (e) => {
+    const isDesktop = window.matchMedia('(min-width: 721px)').matches;
+
+    if (isDesktop && !mainNav.classList.contains('expanded')) {
+      // First click on a collapsed nav just expands it and reveals labels.
+      mainNav.classList.add('expanded');
+      return;
+    }
+
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    showScreen(btn.dataset.screen);
+
+    if (isDesktop) mainNav.classList.remove('expanded');
+  });
+
+  document.addEventListener('click', (e) => {
+    const isDesktop = window.matchMedia('(min-width: 721px)').matches;
+    if (isDesktop && mainNav.classList.contains('expanded') && !mainNav.contains(e.target)) {
+      mainNav.classList.remove('expanded');
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') mainNav.classList.remove('expanded');
+  });
+
+  /* ---------------- Settings: theme + default level ---------------- */
+  const themeToggle = document.getElementById('themeToggle');
+  const defaultLevelToggle = document.getElementById('defaultLevelToggle');
+  const responseStyleToggle = document.getElementById('responseStyleToggle');
+  const focusModeToggle = document.getElementById('focusModeToggle');
+  let tutorResponseStyle = 'detailed';
+
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    [...themeToggle.children].forEach(b => b.classList.toggle('active', b.dataset.theme === theme));
+    localStorage.setItem('clavi_theme', theme);
+  }
+
+  themeToggle.addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    applyTheme(btn.dataset.theme);
+  });
+
+  function applyResponseStyle(style) {
+    tutorResponseStyle = style;
+    [...responseStyleToggle.children].forEach(b => b.classList.toggle('active', b.dataset.style === style));
+    localStorage.setItem('clavi_response_style', style);
+  }
+
+  responseStyleToggle.addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (btn) applyResponseStyle(btn.dataset.style);
+  });
+
+  function applyFocusMode(enabled) {
+    document.body.classList.toggle('focus-mode', enabled);
+    [...focusModeToggle.children].forEach(b => b.classList.toggle('active', (b.dataset.focus === 'on') === enabled));
+    localStorage.setItem('clavi_focus_mode', enabled ? 'on' : 'off');
+  }
+
+  focusModeToggle.addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (btn) applyFocusMode(btn.dataset.focus === 'on');
+  });
+
+  /* ---------------- CBC grade / Secondary form options ---------------- */
+  const CBC_GRADES = ['Grade 3', 'Grade 4', 'Grade 5', 'Grade 6', 'Grade 7', 'Grade 8', 'Grade 9'];
+  const UPPER_PRIMARY_GRADES = ['Grade 4', 'Grade 5', 'Grade 6'];
+  const JUNIOR_SCHOOL_GRADES = ['Grade 7', 'Grade 8', 'Grade 9'];
+  const SECONDARY_FORMS = ['Form 1', 'Form 2', 'Form 3', 'Form 4'];
+  const SENIOR_SCHOOL_GRADES = ['Grade 10', 'Grade 11', 'Grade 12'];
+
+  function populateGradeFormSelect(selectEl, level, savedValue) {
+    const options = level === 'cbc'
+      ? CBC_GRADES
+      : level === 'upper_primary'
+        ? UPPER_PRIMARY_GRADES
+        : level === 'junior_school'
+          ? JUNIOR_SCHOOL_GRADES
+          : level === 'senior_school'
+            ? SENIOR_SCHOOL_GRADES
+            : SECONDARY_FORMS;
+    selectEl.innerHTML = options.map(o => `<option value="${o}">${o}</option>`).join('');
+    if (savedValue && options.includes(savedValue)) {
+      selectEl.value = savedValue;
+    }
+  }
+
+  function applyDefaultLevel(level, gradeForm) {
+    [...defaultLevelToggle.children].forEach(b => b.classList.toggle('active', b.dataset.level === level));
+    localStorage.setItem('clavi_default_level', level);
+
+    document.getElementById('settingsSubLevelLabel').textContent = level === 'cbc' || level === 'upper_primary' || level === 'junior_school' || level === 'senior_school' ? 'Grade:' : 'Form:';
+    populateGradeFormSelect(document.getElementById('settingsGradeFormSelect'), level, gradeForm);
+    const chosenGradeForm = document.getElementById('settingsGradeFormSelect').value;
+    localStorage.setItem('clavi_default_grade_form', chosenGradeForm);
+
+    // sync the home screen toggle + selector too
+    currentLevel = level;
+    currentGradeForm = chosenGradeForm;
+    [...levelToggle.children].forEach(b => b.classList.toggle('active', b.dataset.level === level));
+    document.getElementById('subLevelLabel').textContent = level === 'cbc' || level === 'upper_primary' || level === 'junior_school' || level === 'senior_school' ? 'Grade:' : 'Form:';
+    populateGradeFormSelect(document.getElementById('gradeFormSelect'), level, chosenGradeForm);
+    filterSubjectsForLevel();
+  }
+
+  defaultLevelToggle.addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    applyDefaultLevel(btn.dataset.level, null);
+  });
+
+  document.getElementById('settingsGradeFormSelect').addEventListener('change', (e) => {
+    localStorage.setItem('clavi_default_grade_form', e.target.value);
+    currentGradeForm = e.target.value;
+    document.getElementById('gradeFormSelect').value = e.target.value;
+  });
+
+  document.getElementById('clearChatBtn').addEventListener('click', () => {
+    conversationHistory = [];
+    notebook.innerHTML = '';
+    notebook.appendChild(emptyHint);
+    emptyHint.style.display = 'block';
+  });
+
+  document.getElementById('resetStatsBtn').addEventListener('click', () => {
+    if (!confirm('Reset all your progress stats and streak? This can\'t be undone.')) return;
+    localStorage.removeItem('clavi_stats');
+    renderDashboard();
+  });
+
+  /* Load saved theme/level on startup */
+  (function loadSettings() {
+    const savedTheme = localStorage.getItem('clavi_theme') || 'light';
+    applyTheme(savedTheme);
+    const savedLevel = localStorage.getItem('clavi_default_level') || 'secondary';
+    const savedGradeForm = localStorage.getItem('clavi_default_grade_form') || null;
+    applyDefaultLevel(savedLevel, savedGradeForm);
+    applyResponseStyle(localStorage.getItem('clavi_response_style') || 'detailed');
+    applyFocusMode(localStorage.getItem('clavi_focus_mode') === 'on');
+  })();
+
+  /* ---------------- Stats tracking ---------------- */
+  function getStats() {
+    const raw = localStorage.getItem('clavi_stats');
+    return raw ? JSON.parse(raw) : { total: 0, bySubject: {}, lastActiveDate: null, streak: 0 };
+  }
+
+  function saveStats(stats) {
+    localStorage.setItem('clavi_stats', JSON.stringify(stats));
+  }
+
+  function recordQuestion(subject) {
+    const stats = getStats();
+    stats.total += 1;
+    stats.bySubject[subject] = (stats.bySubject[subject] || 0) + 1;
+
+    const today = new Date().toISOString().slice(0, 10);
+    if (stats.lastActiveDate !== today) {
+      const y = new Date();
+      y.setDate(y.getDate() - 1);
+      const yesterday = y.toISOString().slice(0, 10);
+      stats.streak = (stats.lastActiveDate === yesterday) ? stats.streak + 1 : 1;
+      stats.lastActiveDate = today;
+    }
+    saveStats(stats);
+  }
+
+  function renderDashboard() {
+    const stats = getStats();
+    const dashEmptyState = document.getElementById('dashEmptyState');
+    const subjectBarsWrap = document.getElementById('subjectBarsWrap');
+
+    document.getElementById('statTotal').textContent = stats.total;
+    document.getElementById('statStreak').textContent = stats.streak;
+
+    const entries = Object.entries(stats.bySubject).sort((a, b) => b[1] - a[1]);
+    document.getElementById('statTopSubject').textContent = entries.length ? entries[0][0] : '—';
+
+    if (stats.total === 0) {
+      dashEmptyState.style.display = 'block';
+      subjectBarsWrap.style.display = 'none';
+    } else {
+      dashEmptyState.style.display = 'none';
+      subjectBarsWrap.style.display = 'block';
+      const maxCount = entries.length ? entries[0][1] : 1;
+      const barsEl = document.getElementById('subjectBars');
+      barsEl.innerHTML = entries.map(([subject, count]) => `
+        <div class="subject-bar-row">
+          <div class="bar-name">${subject}</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${(count / maxCount) * 100}%"></div></div>
+          <div class="bar-count">${count}</div>
+        </div>
+      `).join('');
+    }
+
+    const quickLinksEl = document.getElementById('dashQuickLinks');
+    quickLinksEl.innerHTML = getVisibleSubjects().map(s => `<button class="quick-link-btn" data-subject="${s}">${s}</button>`).join('');
+    quickLinksEl.querySelectorAll('.quick-link-btn').forEach(btn => {
+      btn.addEventListener('click', () => openSubjectChat(btn.dataset.subject));
+    });
+  }
+
+  /* ---------------- Home / Chat logic ---------------- */
+  levelToggle.addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    currentLevel = btn.dataset.level;
+    [...levelToggle.children].forEach(b => b.classList.toggle('active', b === btn));
+
+    document.getElementById('subLevelLabel').textContent = currentLevel === 'cbc' || currentLevel === 'upper_primary' || currentLevel === 'junior_school' || currentLevel === 'senior_school' ? 'Grade:' : 'Form:';
+    populateGradeFormSelect(gradeFormSelect, currentLevel, null);
+    currentGradeForm = gradeFormSelect.value;
+    filterSubjectsForLevel();
+  });
+
+  gradeFormSelect.addEventListener('change', (e) => {
+    currentGradeForm = e.target.value;
+  });
+
+  function openSubjectChat(subject) {
+    currentSubject = subject;
+    conversationHistory = [];
+    notebook.innerHTML = '';
+    notebook.appendChild(emptyHint);
+    emptyHint.style.display = 'block';
+
+    chatSubjectLabel.textContent = currentSubject;
+    chatLevelLabel.textContent = currentLevel === 'cbc'
+      ? `CBC — ${currentGradeForm}`
+      : currentLevel === 'upper_primary'
+        ? `Upper Primary — ${currentGradeForm}`
+        : currentLevel === 'junior_school'
+          ? `Junior School — ${currentGradeForm}`
+          : currentLevel === 'senior_school'
+            ? `Senior School — ${currentGradeForm}`
+            : `Secondary — ${currentGradeForm} (KCSE)`;
+
+    showScreen('chatScreen');
+    questionInput.focus();
+  }
+
+  document.querySelectorAll('.subject-card').forEach(card => {
+    card.addEventListener('click', () => openSubjectChat(card.dataset.subject));
+  });
+
+  backBtn.addEventListener('click', () => showScreen('homeScreen'));
+
+  function addMessage(role, text, attachment) {
+    if (emptyHint.style.display !== 'none') emptyHint.style.display = 'none';
+    const div = document.createElement('div');
+    div.className = 'msg ' + (role === 'user' ? 'user' : 'tutor');
+    if (role === 'tutor') {
+      div.innerHTML = '<span class="label">Tutor</span><span class="msg-content"></span>';
+      div.querySelector('.msg-content').textContent = text;
+    } else {
+      if (attachment && attachment.data) {
+        const img = document.createElement('img');
+        img.src = attachment.data;
+        img.alt = attachment.name || 'Attached image';
+        img.style.cssText = 'display:block;max-width:180px;max-height:180px;border-radius:10px;margin-bottom:6px;object-fit:cover;';
+        div.appendChild(img);
+      }
+      const span = document.createElement('span');
+      span.textContent = text;
+      div.appendChild(span);
+    }
+    notebook.appendChild(div);
+    notebook.scrollTop = notebook.scrollHeight;
+    return div;
+  }
+
+  /* ---------------- Tutor avatar (Lottie AI character) ---------------- */
+  // Frame ranges pulled from the file's own named markers (idle/yes/no/alert/thinking/jump).
+  const AVATAR_SEGMENTS = {
+    idle: [0, 29],
+    yes: [31, 105],
+    no: [106, 180],
+    alert: [181, 270],
+    thinking: [271, 390],
+    jump: [391, 479],
+  };
+
+  let tutorAvatarAnim = null;
+
+  function getTutorAvatarAnim() {
+    if (!tutorAvatarAnim && window.lottie) {
+      tutorAvatarAnim = lottie.loadAnimation({
+        container: document.getElementById('tutorAvatar'),
+        renderer: 'svg',
+        loop: false,
+        autoplay: false,
+        path: '/static/animations/ai_robo.json'
+      });
+    }
+    return tutorAvatarAnim;
+  }
+
+  function playAvatarState(state, loop) {
+    const anim = getTutorAvatarAnim();
+    if (!anim) return;
+    const segment = AVATAR_SEGMENTS[state];
+    if (!segment) return;
+    anim.setLoop(!!loop);
+    anim.playSegments(segment, true);
+  }
+
+  async function askTutor(question, attachment) {
+    conversationHistory.push({ role: 'user', content: question });
+
+    const body = {
+      subject: currentSubject,
+      level: currentLevel,
+      gradeForm: currentGradeForm,
+      responseStyle: tutorResponseStyle,
+      messages: conversationHistory
+    };
+    if (attachment) body.attachment = attachment;
+
+    const response = await fetch("/api/tutor", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+      let errMsg = "Server error: " + response.status;
+      try {
+        const errData = await response.json();
+        if (errData.error) errMsg = errData.error;
+      } catch (_) {}
+      throw new Error(errMsg);
+    }
+
+    const data = await response.json();
+    const answer = data.answer || "Sorry, I couldn't come up with an answer just now — try asking again.";
+    conversationHistory.push({ role: 'assistant', content: answer });
+    return answer;
+  }
+
+  async function handleSend() {
+    const question = questionInput.value.trim();
+    const attachment = pendingAttachment;
+    if (!question && !attachment) return;
+
+    const displayText = question || 'Take a look at this image.';
+    addMessage('user', displayText, attachment);
+    questionInput.value = '';
+    clearAttachment();
+    sendBtn.disabled = true;
+    typingIndicator.style.visibility = 'visible';
+    typingLabel.textContent = 'Tutor is thinking...';
+    playAvatarState('thinking', true);
+
+    try {
+      const answer = await askTutor(displayText, attachment);
+      addMessage('tutor', answer);
+      recordQuestion(currentSubject);
+      typingLabel.textContent = 'Got it!';
+      playAvatarState('yes', false);
+      setTimeout(() => { typingIndicator.style.visibility = 'hidden'; }, 900);
+    } catch (err) {
+      addMessage('tutor', err.message || "Something went wrong reaching the tutor. Please try again.");
+      console.error(err);
+      typingLabel.textContent = 'Something went wrong';
+      playAvatarState('alert', false);
+      setTimeout(() => { typingIndicator.style.visibility = 'hidden'; }, 900);
+    } finally {
+      sendBtn.disabled = false;
+      questionInput.focus();
+    }
+  }
+
+  sendBtn.addEventListener('click', handleSend);
+  questionInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleSend(); });
+
+  /* ---------------- Composer "+" menu: attach file, camera, study goal ---------------- */
+  const toolsBtn = document.getElementById('toolsBtn');
+  const toolsMenu = document.getElementById('toolsMenu');
+  const attachFileBtn = document.getElementById('attachFileBtn');
+  const cameraBtn = document.getElementById('cameraBtn');
+  const goalBtn = document.getElementById('goalBtn');
+  const goalPopover = document.getElementById('goalPopover');
+  const goalInput = document.getElementById('goalInput');
+  const saveGoalBtn = document.getElementById('saveGoalBtn');
+  const fileInput = document.getElementById('fileInput');
+  const cameraInput = document.getElementById('cameraInput');
+  const attachmentPreview = document.getElementById('attachmentPreview');
+  const attachmentThumb = document.getElementById('attachmentThumb');
+  const attachmentName = document.getElementById('attachmentName');
+  const removeAttachmentBtn = document.getElementById('removeAttachmentBtn');
+  const goalBanner = document.getElementById('goalBanner');
+
+  let pendingAttachment = null; // { data: 'data:image/...;base64,...', type: 'image/png', name: '...' }
+
+  function closeToolsMenu() {
+    toolsMenu.hidden = true;
+    toolsBtn.setAttribute('aria-expanded', 'false');
+  }
+  function closeGoalPopover() { goalPopover.hidden = true; }
+
+  toolsBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const willOpen = toolsMenu.hidden;
+    closeGoalPopover();
+    toolsMenu.hidden = !willOpen;
+    toolsBtn.setAttribute('aria-expanded', String(willOpen));
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!toolsMenu.hidden && !toolsMenu.contains(e.target) && e.target !== toolsBtn) closeToolsMenu();
+    if (!goalPopover.hidden && !goalPopover.contains(e.target) && e.target !== goalBtn) closeGoalPopover();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { closeToolsMenu(); closeGoalPopover(); }
+  });
+
+  attachFileBtn.addEventListener('click', () => { closeToolsMenu(); fileInput.click(); });
+  cameraBtn.addEventListener('click', () => { closeToolsMenu(); cameraInput.click(); });
+
+  function todayKey() { return new Date().toISOString().slice(0, 10); }
+
+  function getTodayGoal() {
+    try {
+      const raw = JSON.parse(localStorage.getItem('clavi_daily_goal') || 'null');
+      if (raw && raw.date === todayKey()) return raw.text;
+    } catch (_) {}
+    return null;
+  }
+
+  function renderGoalBanner() {
+    const g = getTodayGoal();
+    if (g) {
+      goalBanner.textContent = "🎯 Today's focus: " + g;
+      goalBanner.hidden = false;
+    } else {
+      goalBanner.hidden = true;
+    }
+  }
+
+  goalBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeToolsMenu();
+    const existing = getTodayGoal();
+    goalInput.value = existing || '';
+    goalPopover.hidden = !goalPopover.hidden;
+    if (!goalPopover.hidden) goalInput.focus();
+  });
+
+  saveGoalBtn.addEventListener('click', () => {
+    const text = goalInput.value.trim();
+    if (!text) { goalInput.focus(); return; }
+    localStorage.setItem('clavi_daily_goal', JSON.stringify({ date: todayKey(), text }));
+    renderGoalBanner();
+    closeGoalPopover();
+  });
+  goalInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') saveGoalBtn.click(); });
+
+  renderGoalBanner();
+
+  const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+  const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
+  function clearAttachment() {
+    pendingAttachment = null;
+    attachmentPreview.classList.remove('visible');
+    attachmentThumb.removeAttribute('src');
+    attachmentThumb.style.display = '';
+    attachmentName.textContent = '';
+  }
+
+  function showAttachmentPreview(name, thumbSrc) {
+    if (thumbSrc) {
+      attachmentThumb.src = thumbSrc;
+      attachmentThumb.style.display = '';
+    } else {
+      attachmentThumb.removeAttribute('src');
+      attachmentThumb.style.display = 'none';
+    }
+    attachmentName.textContent = name;
+    attachmentPreview.classList.add('visible');
+  }
+
+  function handleImageFile(file) {
+    if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
+      addMessage('tutor', 'Please attach a JPG, PNG, or WEBP image.');
+      return;
+    }
+    if (file.size > MAX_IMAGE_BYTES) {
+      addMessage('tutor', 'That image is too large. Please choose one under 5 MB.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      pendingAttachment = { data: reader.result, type: file.type, name: file.name };
+      showAttachmentPreview(file.name, reader.result);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function handleTextFile(file) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const content = String(reader.result || '').slice(0, 4000);
+      const prefix = questionInput.value ? questionInput.value + '\n\n' : '';
+      questionInput.value = prefix + `[Attached: ${file.name}]\n` + content;
+      questionInput.focus();
+    };
+    reader.readAsText(file);
+  }
+
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files && fileInput.files[0];
+    fileInput.value = '';
+    if (!file) return;
+    if (file.type.startsWith('image/')) handleImageFile(file);
+    else handleTextFile(file);
+  });
+
+  cameraInput.addEventListener('change', () => {
+    const file = cameraInput.files && cameraInput.files[0];
+    cameraInput.value = '';
+    if (file) handleImageFile(file);
+  });
+
+  removeAttachmentBtn.addEventListener('click', clearAttachment);
+
+  /* ---------------- Book Finder ---------------- */
+  const bookQuery = document.getElementById('bookQuery');
+  const bookSearchBtn = document.getElementById('bookSearchBtn');
+  const bookGrid = document.getElementById('bookGrid');
+  const bookStatus = document.getElementById('bookStatus');
+
+  async function searchBooks() {
+    const q = bookQuery.value.trim();
+    if (!q) return;
+
+    bookGrid.innerHTML = '';
+    bookStatus.style.display = 'block';
+    bookStatus.textContent = 'Searching...';
+
+    try {
+      const res = await fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(q)}&limit=18`);
+      if (!res.ok) throw new Error('Search failed');
+      const data = await res.json();
+      const docs = data.docs || [];
+
+      if (docs.length === 0) {
+        bookStatus.textContent = 'No books found — try a different search.';
+        return;
+      }
+
+      bookStatus.style.display = 'none';
+      bookGrid.innerHTML = docs.map(book => {
+        const title = book.title || 'Untitled';
+        const author = (book.author_name && book.author_name[0]) || 'Unknown author';
+        const cover = book.cover_i
+          ? `https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg`
+          : 'https://via.placeholder.com/150x220?text=No+Cover';
+        const link = `https://openlibrary.org${book.key}`;
+        return `
+          <a class="book-card" href="${link}" target="_blank" rel="noopener">
+            <img class="book-cover" src="${cover}" alt="${title}" loading="lazy" />
+            <div class="book-info">
+              <div class="book-title">${title}</div>
+              <div class="book-author">${author}</div>
+            </div>
+          </a>
+        `;
+      }).join('');
+    } catch (err) {
+      bookStatus.style.display = 'block';
+      bookStatus.textContent = 'Something went wrong searching for books. Please try again.';
+      console.error(err);
+    }
+  }
+
+  bookSearchBtn.addEventListener('click', searchBooks);
+  bookQuery.addEventListener('keydown', (e) => { if (e.key === 'Enter') searchBooks(); });
+
+  /* ---------------- Topics & Tests ---------------- */
+  const topicsNavBtn = document.getElementById('topicsNavBtn');
+  const topicsBackBtn = document.getElementById('topicsBackBtn');
+  const examBackBtn = document.getElementById('examBackBtn');
+  const topicList = document.getElementById('topicList');
+  const topicsLoading = document.getElementById('topicsLoading');
+  const topicsSubjectLabel = document.getElementById('topicsSubjectLabel');
+  const topicsLevelLabel = document.getElementById('topicsLevelLabel');
+  const finalExamProgress = document.getElementById('finalExamProgress');
+  const finalExamBtn = document.getElementById('finalExamBtn');
+  const examLoading = document.getElementById('examLoading');
+  const examTakingView = document.getElementById('examTakingView');
+  const examResultsView = document.getElementById('examResultsView');
+
+  let currentTopics = [];
+  let currentTestData = null;
+  let currentExamTopic = null; // null means final exam
+  let currentExamIsFinal = false;
+
+  function levelLabelText() {
+    return currentLevel === 'cbc'
+      ? `CBC — ${currentGradeForm}`
+      : `Secondary — ${currentGradeForm} (KCSE)`;
+  }
+
+  function progressKey() {
+    return `${currentSubject}|${currentLevel}|${currentGradeForm}`;
+  }
+
+  function getAllProgress() {
+    const raw = localStorage.getItem('clavi_topic_progress');
+    return raw ? JSON.parse(raw) : {};
+  }
+
+  function saveTopicResult(topicName, totalMarks, maxMarks) {
+    const all = getAllProgress();
+    const key = progressKey();
+    if (!all[key]) all[key] = {};
+    const passed = (totalMarks / maxMarks) >= 0.7;
+    all[key][topicName] = { done: passed, score: `${totalMarks}/${maxMarks}` };
+    localStorage.setItem('clavi_topic_progress', JSON.stringify(all));
+    return passed;
+  }
+
+  function getTopicsCache() {
+    const raw = localStorage.getItem('clavi_topics_cache');
+    return raw ? JSON.parse(raw) : {};
+  }
+
+  function saveTopicsCache(topics) {
+    const cache = getTopicsCache();
+    cache[progressKey()] = topics;
+    localStorage.setItem('clavi_topics_cache', JSON.stringify(cache));
+  }
+
+  topicsNavBtn.addEventListener('click', () => openTopicsScreen());
+  topicsBackBtn.addEventListener('click', () => showScreen('chatScreen'));
+  examBackBtn.addEventListener('click', () => showScreen('topicsScreen'));
+
+  async function openTopicsScreen() {
+    topicsSubjectLabel.textContent = currentSubject;
+    topicsLevelLabel.textContent = levelLabelText();
+    showScreen('topicsScreen');
+
+    const cache = getTopicsCache();
+    const cached = cache[progressKey()];
+    if (cached) {
+      currentTopics = cached;
+      renderTopicList();
+      return;
+    }
+
+    topicList.innerHTML = '';
+    topicsLoading.style.display = 'block';
+
+    try {
+      const res = await fetch('/api/topics', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subject: currentSubject, level: currentLevel, gradeForm: currentGradeForm })
+      });
+      if (!res.ok) throw new Error('Failed to load topics');
+      const data = await res.json();
+      currentTopics = data.topics || [];
+      saveTopicsCache(currentTopics);
+      renderTopicList();
+    } catch (err) {
+      topicList.innerHTML = '<div class="empty-dash">Could not load topics right now. Please try again.</div>';
+      console.error(err);
+    } finally {
+      topicsLoading.style.display = 'none';
+    }
+  }
+
+  function renderTopicList() {
+    const all = getAllProgress();
+    const progress = all[progressKey()] || {};
+
+    topicList.innerHTML = currentTopics.map(topic => {
+      const entry = progress[topic];
+      const done = entry && entry.done;
+      return `
+        <div class="topic-row">
+          <div class="topic-row-left">
+            <div class="topic-badge ${done ? 'done' : ''}">${done ? '✓' : ''}</div>
+            <div>
+              <div class="topic-name">${topic}</div>
+              ${entry ? `<div class="topic-score">Last score: ${entry.score}</div>` : ''}
+            </div>
+          </div>
+          <button class="topic-test-btn" data-topic="${topic}">${entry ? 'Retake test' : 'Take test'}</button>
+        </div>
+      `;
+    }).join('');
+
+    topicList.querySelectorAll('.topic-test-btn').forEach(btn => {
+      btn.addEventListener('click', () => openExamScreen(btn.dataset.topic));
+    });
+
+    const completedCount = currentTopics.filter(t => progress[t] && progress[t].done).length;
+    finalExamProgress.textContent = `${completedCount}/${currentTopics.length} topics completed`;
+    finalExamBtn.disabled = completedCount < currentTopics.length;
+  }
+
+  finalExamBtn.addEventListener('click', () => openExamScreen(null));
+
+  async function openExamScreen(topic) {
+    currentExamTopic = topic;
+    currentExamIsFinal = !topic;
+    showScreen('examScreen');
+    examLoading.style.display = 'block';
+    examTakingView.style.display = 'none';
+    examResultsView.style.display = 'none';
+    examTakingView.innerHTML = '';
+    examResultsView.innerHTML = '';
+
+    try {
+      const res = await fetch('/api/generate-test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subject: currentSubject,
+          level: currentLevel,
+          gradeForm: currentGradeForm,
+          topic: topic,
+          allTopics: currentTopics
+        })
+      });
+      if (!res.ok) throw new Error('Failed to generate test');
+      currentTestData = await res.json();
+      renderExamPaper();
+      examLoading.style.display = 'none';
+      examTakingView.style.display = 'block';
+    } catch (err) {
+      examLoading.innerHTML = 'Could not generate the test right now. Please go back and try again.';
+      console.error(err);
+    }
+  }
+
+  function renderExamPaper() {
+    const test = currentTestData;
+    const paperTitle = currentExamIsFinal ? 'Final Subject Exam — All Topics' : currentExamTopic;
+
+    const questionsHtml = test.questions.map(q => {
+      const marksLabel = `(${q.marks} mk${q.marks > 1 ? 's' : ''})`;
+      if (q.type === 'mcq') {
+        const optionsHtml = Object.entries(q.options).map(([letter, text]) => `
+          <label class="exam-option">
+            <input type="radio" name="q_${q.id}" value="${letter}" />
+            <span><strong>${letter}.</strong> ${text}</span>
+          </label>
+        `).join('');
+        return `
+          <div class="exam-question">
+            <div class="exam-question-text">${q.id}. ${q.question} <span class="exam-question-marks">${marksLabel}</span></div>
+            <div class="exam-options">${optionsHtml}</div>
+          </div>
+        `;
+      } else {
+        return `
+          <div class="exam-question exam-short-answer">
+            <div class="exam-question-text">${q.id}. ${q.question} <span class="exam-question-marks">${marksLabel}</span></div>
+            <textarea id="short_${q.id}" placeholder="Write your answer..."></textarea>
+          </div>
+        `;
+      }
+    }).join('');
+
+    examTakingView.innerHTML = `
+      <div class="exam-paper">
+        <div class="exam-paper-header">
+          <div class="exam-subject">${currentSubject}</div>
+          <div class="exam-meta">${paperTitle} — ${levelLabelText()} — Total: ${test.total_marks} marks</div>
+        </div>
+        <div class="exam-instructions">Answer ALL questions.</div>
+        ${questionsHtml}
+        <button class="exam-submit-btn" id="submitExamBtn">Submit Test</button>
+      </div>
+    `;
+
+    document.getElementById('submitExamBtn').addEventListener('click', handleSubmitExam);
+  }
+
+  function handleSubmitExam() {
+    const test = currentTestData;
+    let autoMarks = 0;
+
+    const itemsHtml = test.questions.map(q => {
+      if (q.type === 'mcq') {
+        const selected = document.querySelector(`input[name="q_${q.id}"]:checked`);
+        const selectedValue = selected ? selected.value : null;
+        const correct = selectedValue === q.correct_option;
+        if (correct) autoMarks += q.marks;
+
+        return `
+          <div class="marking-item" data-marks="${correct ? q.marks : 0}" data-max="${q.marks}">
+            <div class="marking-question">${q.id}. ${q.question}</div>
+            <div class="marking-row">Your answer: <strong>${selectedValue || '(not answered)'}</strong></div>
+            <div class="marking-row ${correct ? 'marking-correct' : 'marking-wrong'}">
+              Correct answer: <strong>${q.correct_option}</strong> ${correct ? '✓' : '✗'}
+            </div>
+            <div class="marking-row">${q.explanation}</div>
+            <div class="marking-row"><strong>${correct ? q.marks : 0} / ${q.marks} marks</strong></div>
+          </div>
+        `;
+      } else {
+        const studentAnswer = document.getElementById(`short_${q.id}`).value.trim() || '(not answered)';
+        const pointsHtml = q.marking_points.map(p => `<li>${p}</li>`).join('');
+        return `
+          <div class="marking-item" data-marks="0" data-max="${q.marks}" data-self-mark-max="${q.marks}">
+            <div class="marking-question">${q.id}. ${q.question}</div>
+            <div class="marking-row"><strong>Your answer:</strong> ${studentAnswer}</div>
+            <div class="marking-row"><strong>Model answer:</strong> ${q.model_answer}</div>
+            <div class="marking-row">Marking points:</div>
+            <ul class="marking-points-list">${pointsHtml}</ul>
+            <div class="self-mark-row">
+              <label for="selfmark_${q.id}">Marks you'd award yourself:</label>
+              <input type="number" id="selfmark_${q.id}" class="self-mark-input" min="0" max="${q.marks}" value="0" data-max="${q.marks}" />
+              <span>/ ${q.marks}</span>
+            </div>
+          </div>
+        `;
+      }
+    }).join('');
+
+    examResultsView.innerHTML = `
+      <div class="result-summary">
+        <div class="result-score" id="resultScoreDisplay">${autoMarks} / ${test.total_marks}</div>
+        <div class="result-percent" id="resultPercentDisplay">${Math.round((autoMarks / test.total_marks) * 100)}%</div>
+        <div class="result-verdict retry" id="resultVerdict">Enter your self-marks below, then finish</div>
+      </div>
+      ${itemsHtml}
+      <div class="exam-actions">
+        <button class="primary" id="finishExamBtn">Finish &amp; Save Result</button>
+      </div>
+    `;
+
+    examTakingView.style.display = 'none';
+    examResultsView.style.display = 'block';
+
+    const selfMarkInputs = examResultsView.querySelectorAll('.self-mark-input');
+    function recalcTotal() {
+      let total = autoMarks;
+      selfMarkInputs.forEach(inp => {
+        let val = parseInt(inp.value, 10) || 0;
+        const max = parseInt(inp.dataset.max, 10);
+        if (val > max) { val = max; inp.value = max; }
+        if (val < 0) { val = 0; inp.value = 0; }
+        total += val;
+      });
+      document.getElementById('resultScoreDisplay').textContent = `${total} / ${test.total_marks}`;
+      document.getElementById('resultPercentDisplay').textContent = `${Math.round((total / test.total_marks) * 100)}%`;
+      return total;
+    }
+
+    selfMarkInputs.forEach(inp => inp.addEventListener('input', recalcTotal));
+
+    document.getElementById('finishExamBtn').addEventListener('click', () => {
+      const finalTotal = recalcTotal();
+      const percent = Math.round((finalTotal / test.total_marks) * 100);
+      const verdictEl = document.getElementById('resultVerdict');
+      const passed = percent >= 70;
+      verdictEl.textContent = passed ? 'PASS ✓' : 'Below 70% — consider revising and retaking';
+      verdictEl.className = 'result-verdict ' + (passed ? 'pass' : 'retry');
+
+      if (!currentExamIsFinal) {
+        saveTopicResult(currentExamTopic, finalTotal, test.total_marks);
+      }
+
+      document.getElementById('finishExamBtn').textContent = 'Saved ✓ — Back to Topics';
+      document.getElementById('finishExamBtn').onclick = () => {
+        renderTopicList();
+        showScreen('topicsScreen');
+      };
+    });
+  }
+
+  /* ---------------- Upgrade pricing modal ---------------- */
+  const upgradeBtn = document.getElementById('upgradeBtn');
+  const pricingModalOverlay = document.getElementById('pricingModalOverlay');
+  const pricingModalClose = document.getElementById('pricingModalClose');
+
+  if (upgradeBtn && pricingModalOverlay) {
+    upgradeBtn.addEventListener('click', () => pricingModalOverlay.classList.add('open'));
+    pricingModalClose.addEventListener('click', () => pricingModalOverlay.classList.remove('open'));
+    pricingModalOverlay.addEventListener('click', (e) => {
+      if (e.target === pricingModalOverlay) pricingModalOverlay.classList.remove('open');
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') pricingModalOverlay.classList.remove('open');
+    });
+  }
+
+  /* ---------------- First-time welcome overlay ---------------- */
+  (function showWelcomeIfFirstVisit() {
+    const seen = localStorage.getItem('clavi_visited');
+    if (!seen) {
+      document.getElementById('welcomeOverlay').style.display = 'flex';
+    }
+  })();
+
+  document.getElementById('welcomeStartBtn').addEventListener('click', () => {
+    localStorage.setItem('clavi_visited', 'true');
+    document.getElementById('welcomeOverlay').style.display = 'none';
+  });
+</script>
+</body>
+</html>

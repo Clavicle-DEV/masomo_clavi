@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Clavis — Pay with M-Pesa</title>
+<link rel="icon" type="image/png+xml" href="/static/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F6F1E5;
+    --paper: #FFFDF8;
+    --chalk: #1F3B30;
+    --gold: #D9A62E;
+    --red: #B8433A;
+    --ink: #21281F;
+    --muted: #6E7A6C;
+    --line: #E4DCC8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .card {
+    width: 100%;
+    max-width: 460px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 32px 28px;
+    box-shadow: 0 12px 32px rgba(31, 59, 48, 0.08);
+  }
+  h1 {
+    font-family: 'Fraunces', serif;
+    font-size: 26px;
+    margin: 0 0 6px;
+    color: var(--chalk);
+  }
+  p.sub { color: var(--muted); margin: 0 0 24px; font-size: 14px; }
+  .steps { list-style: none; padding: 0; margin: 0 0 24px; }
+  .steps li {
+    display: flex;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 15px;
+  }
+  .steps li:last-child { border-bottom: none; }
+  .step-num {
+    flex-shrink: 0;
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: var(--chalk);
+    color: var(--paper);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 600;
+  }
+  .payee-box {
+    background: rgba(217, 166, 46, 0.12);
+    border: 1px solid rgba(217, 166, 46, 0.35);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin: 6px 0 4px;
+  }
+  .payee-box .label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .payee-box .value { font-family: 'Fraunces', serif; font-size: 19px; color: var(--chalk); font-weight: 600; }
+  select, input[type="text"] {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: #FCFAF3;
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    margin-bottom: 14px;
+  }
+  label { font-size: 13px; color: var(--muted); display: block; margin-bottom: 6px; }
+  button {
+    width: 100%;
+    padding: 13px;
+    border: none;
+    border-radius: 10px;
+    background: var(--chalk);
+    color: var(--paper);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button:hover { opacity: 0.92; }
+  .flash-stack { margin-bottom: 16px; }
+  .flash-msg { padding: 10px 14px; border-radius: 8px; font-size: 14px; margin-bottom: 8px; }
+  .flash-danger { background: rgba(184, 67, 58, 0.1); border: 1px solid rgba(184, 67, 58, 0.3); color: var(--red); }
+  .flash-success { background: rgba(47, 93, 69, 0.12); border: 1px solid rgba(47, 93, 69, 0.35); color: #2F5D45; }
+  .flash-warning { background: rgba(217, 166, 46, 0.15); border: 1px solid rgba(217, 166, 46, 0.4); color: #8a6a10; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>Pay with M-Pesa</h1>
+    <p class="sub">No card, no bank account needed — just Send Money and confirm below.</p>
+
+    {% with flashed = get_flashed_messages(with_categories=true) %}
+      {% if flashed %}
+        <div class="flash-stack">
+          {% for category, message in flashed %}
+            <div class="flash-msg flash-{{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <ul class="steps">
+      <li>
+        <span class="step-num">1</span>
+        <span>
+          Open M-Pesa on your phone → <strong>Send Money</strong> → send your chosen amount to:
+          <div class="payee-box">
+            <div class="label">Send to</div>
+            <div class="value">{{ payee_number }}</div>
+            <div class="label" style="margin-top:4px;">Name shown</div>
+            <div class="value" style="font-size:15px;">{{ payee_name }}</div>
+          </div>
+        </span>
+      </li>
+      <li>
+        <span class="step-num">2</span>
+        <span>Copy the confirmation code from the M-Pesa SMS you receive (e.g. <em>QGH7X9K2LP</em>).</span>
+      </li>
+      <li>
+        <span class="step-num">3</span>
+        <span>Paste it below — your access unlocks as soon as it's confirmed.</span>
+      </li>
+    </ul>
+
+    <form method="POST" action="{{ url_for('pay_mpesa') }}">
+      <label for="tier">Plan</label>
+      <select name="tier" id="tier">
+        <option value="day" {{ 'selected' if selected_tier == 'day' }}>Day Pass — KES {{ prices.day }} (24 hours)</option>
+        <option value="month" {{ 'selected' if selected_tier == 'month' }}>Monthly — KES {{ prices.month }} (30 days)</option>
+      </select>
+
+      <label for="mpesa_code">M-Pesa confirmation code</label>
+      <input type="text" name="mpesa_code" id="mpesa_code" placeholder="e.g. QGH7X9K2LP" required maxlength="20" autocomplete="off">
+
+      <button type="submit">Confirm payment</button>
+    </form>
+  </div>
+</body>
+</html>

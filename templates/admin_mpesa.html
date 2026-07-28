@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Clavis — M-Pesa Requests</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F6F1E5; --paper: #FFFDF8; --chalk: #1F3B30;
+    --gold: #D9A62E; --red: #B8433A; --ink: #21281F;
+    --muted: #6E7A6C; --line: #E4DCC8;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: 'Inter', sans-serif; padding: 32px 16px; }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  h1 { font-family: 'Fraunces', serif; color: var(--chalk); font-size: 26px; margin-bottom: 6px; }
+  p.sub { color: var(--muted); margin: 0 0 24px; font-size: 14px; }
+  .flash-msg { padding: 10px 14px; border-radius: 8px; font-size: 14px; margin-bottom: 10px; }
+  .flash-danger { background: rgba(184,67,58,0.1); border: 1px solid rgba(184,67,58,0.3); color: var(--red); }
+  .flash-success { background: rgba(47,93,69,0.12); border: 1px solid rgba(47,93,69,0.35); color: #2F5D45; }
+  .flash-warning { background: rgba(217,166,46,0.15); border: 1px solid rgba(217,166,46,0.4); color: #8a6a10; }
+  .req-card {
+    background: var(--paper); border: 1px solid var(--line); border-radius: 14px;
+    padding: 16px 18px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+  }
+  .req-info { font-size: 14px; line-height: 1.6; }
+  .req-info .email { font-weight: 600; color: var(--chalk); }
+  .req-info .code { font-family: monospace; background: rgba(217,166,46,0.15); padding: 2px 6px; border-radius: 4px; }
+  .actions { display: flex; gap: 8px; }
+  button { padding: 9px 16px; border-radius: 8px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .approve { background: var(--chalk); color: var(--paper); }
+  .reject { background: transparent; color: var(--red); border: 1px solid var(--red); }
+  .empty { color: var(--muted); font-size: 14px; padding: 24px 0; text-align: center; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Pending M-Pesa Requests</h1>
+    <p class="sub">Check your M-Pesa messages for each code before approving.</p>
+
+    {% with flashed = get_flashed_messages(with_categories=true) %}
+      {% for category, message in flashed %}
+        <div class="flash-msg flash-{{ category }}">{{ message }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    {% if requests %}
+      {% for r in requests %}
+        <div class="req-card">
+          <div class="req-info">
+            <div class="email">{{ r.email }}</div>
+            <div>Plan: {{ 'Day Pass' if r.mpesa_tier == 'day' else 'Monthly' if r.mpesa_tier == 'month' else r.mpesa_tier }} · Code: <span class="code">{{ r.mpesa_code }}</span></div>
+            <div>Submitted: {{ r.mpesa_submitted_at.strftime('%d %b %Y, %H:%M') if r.mpesa_submitted_at else '—' }}</div>
+          </div>
+          <div class="actions">
+            <form method="POST" action="{{ url_for('admin_approve_mpesa', user_id=r.id) }}">
+              <button type="submit" class="approve">Approve</button>
+            </form>
+            <form method="POST" action="{{ url_for('admin_reject_mpesa', user_id=r.id) }}">
+              <button type="submit" class="reject">Reject</button>
+            </form>
+          </div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty">No pending requests right now.</div>
+    {% endif %}
+  </div>
+</body>
+</html>

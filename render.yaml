@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: clavi
+    env: python
+    plan: free
+    region: oregon
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    autoDeploy: true
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: APP_DOMAIN
+        value: https://clavi.onrender.com
+      # Add other secrets and keys in Render dashboard, e.g.:
+      # - key: GROQ_API_KEY
+      # - key: FLASK_SECRET_KEY
+      # - key: MPESA_PRICE_DAY
+      # - key: MPESA_PRICE_MONTH
