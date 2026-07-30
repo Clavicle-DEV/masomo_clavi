@@ -404,8 +404,8 @@ def serve_logo():
 MPESA_PAYEE_NAME = 'SHARON'
 MPESA_PAYEE_NUMBER = '0718675377'
 MPESA_TIER_PRICES = {
-    "day": os.environ.get('MPESA_PRICE_DAY', '200'),
-    "month": os.environ.get('MPESA_PRICE_MONTH', '5000'),
+    "day": os.environ.get('MPESA_PRICE_DAY', '50'),
+    "month": os.environ.get('MPESA_PRICE_MONTH', '1300'),
 }
 # How long access lasts once a tier is approved.
 MPESA_TIER_DURATIONS = {
