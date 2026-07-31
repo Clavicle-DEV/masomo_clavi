@@ -43,6 +43,12 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'signup'  # new visitors are sent to sign up first; the page links to /login for existing users
 
+# Keep users signed in long-term (1 year) instead of forgetting them when the
+# browser session ends — this is what makes signup a true one-time step.
+app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=365)
+app.config['REMEMBER_COOKIE_SECURE'] = False  # Render terminates TLS upstream; browser still sees https
+app.config['REMEMBER_COOKIE_HTTPONLY'] = True
+
 # 3. APP DOMAIN (used for password-reset links etc.)
 YOUR_DOMAIN = os.environ.get('APP_DOMAIN', 'http://localhost:5000')
 
@@ -246,7 +252,7 @@ def signup():
         db.session.add(new_user)
         db.session.commit()
 
-        login_user(new_user)
+        login_user(new_user, remember=True)
         return redirect(url_for('home'))
 
     return render_template('auth.html', mode='signup')
@@ -260,31 +266,7 @@ def login():
         user = User.query.filter_by(email=email).first()
 
         if user and user.check_password(password):
-            login_user(user)
-            return redirect(url_for('home'))
-        flash('Invalid credentials!', 'danger')
-
-    return render_template('auth.html', mode='login')
-
-
-@app.route('/logout')
-@login_required
-def logout():
-    logout_user()
-    return redirect(url_for('login'))
-
-    return render_template('auth.html', mode='signup')
-
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        email = request.form.get('email', '').strip().lower()
-        password = request.form.get('password', '')
-        user = User.query.filter_by(email=email).first()
-
-        if user and user.check_password(password):
-            login_user(user)
+            login_user(user, remember=True)
             return redirect(url_for('home'))
         flash('Invalid credentials!', 'danger')
 

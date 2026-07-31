@@ -254,7 +254,7 @@
       border-top:1px solid var(--line);
       border-right:none;
 
-      background:var(--surface);
+      background:var(--paper);
 
       z-index:9999;
 
@@ -283,39 +283,6 @@
 }
 
 @media (max-width:768px){
-
-.menu-toggle{
-    display:block;
-    position:fixed;
-    top:15px;
-    left:15px;
-    z-index:10001;
-
-    width:46px;
-    height:46px;
-
-    border:none;
-    border-radius:12px;
-
-    background:#173b2b;
-    color:white;
-    font-size:24px;
-    cursor:pointer;
-}
-
-.main-nav{
-    position:fixed;
-    left:-260px;
-    top:0;
-    width:250px;
-    height:100vh;
-    transition:.3s;
-    z-index:10000;
-}
-
-.main-nav.show{
-    left:0;
-}
 
 .app{
     margin-left:0;
@@ -404,13 +371,19 @@
   }
 
   .level-toggle {
-    display: inline-flex;
+    display: flex;
     background: var(--paper);
     border: 1px solid var(--line);
     border-radius: 999px;
     padding: 4px;
     margin: 20px 0 8px;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
   }
+  .level-toggle::-webkit-scrollbar { display: none; }
+  .level-toggle button { flex-shrink: 0; white-space: nowrap; }
 
   .level-toggle button {
     border: none;
@@ -1451,9 +1424,6 @@ body{
 </div>
 
 <div class="layout">
-  <button id="menuToggle" class="menu-toggle">
-    ☰
-</button>
   <nav class="main-nav" id="mainNav">
     <div class="nav-brand">
       <svg class="brand-badge" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
@@ -3079,14 +3049,6 @@ body{
     localStorage.setItem('clavi_visited', 'true');
     document.getElementById('welcomeOverlay').style.display = 'none';
   });
-</script>
-<script>
-const menu=document.getElementById("menuToggle");
-const nav=document.getElementById("mainNav");
-
-menu.addEventListener("click",()=>{
-    nav.classList.toggle("show");
-});
 </script>
 </body>
 </html>
