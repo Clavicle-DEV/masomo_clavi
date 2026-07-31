@@ -23,33 +23,23 @@ def load_environment(project_root=None):
 PROJECT_ROOT = load_environment()
 
 app = Flask(__name__)
-# NEVER hardcode this in real code — set FLASK_SECRET_KEY in your environment.
 app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'dev-key-change-me')
 
-# 1. DATABASE SETUP
-# Locally this defaults to SQLite (zero setup). In production, set DATABASE_URL
-# to a Postgres connection string — most hosts (Render, Railway, etc.) have an
-# ephemeral filesystem, so a SQLite file gets wiped on every deploy/restart.
 _database_url = os.environ.get('DATABASE_URL', 'sqlite:///clavi.db')
 if _database_url.startswith('postgres://'):
-    # Some hosts still hand out the old 'postgres://' scheme; SQLAlchemy 1.4+/2.x needs 'postgresql://'.
     _database_url = _database_url.replace('postgres://', 'postgresql://', 1)
 app.config['SQLALCHEMY_DATABASE_URI'] = _database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
-# 2. LOGIN MANAGER SETUP
 login_manager = LoginManager()
 login_manager.init_app(app)
-login_manager.login_view = 'signup'  # new visitors are sent to sign up first; the page links to /login for existing users
+login_manager.login_view = 'signup'
 
-# Keep users signed in long-term (1 year) instead of forgetting them when the
-# browser session ends — this is what makes signup a true one-time step.
 app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=365)
-app.config['REMEMBER_COOKIE_SECURE'] = False  # Render terminates TLS upstream; browser still sees https
+app.config['REMEMBER_COOKIE_SECURE'] = False
 app.config['REMEMBER_COOKIE_HTTPONLY'] = True
 
-# 3. APP DOMAIN (used for password-reset links etc.)
 YOUR_DOMAIN = os.environ.get('APP_DOMAIN', 'http://localhost:5000')
 
 
@@ -67,27 +57,18 @@ def get_admin_emails():
 def has_unlimited_access(user):
     if user is None:
         return False
-
     if getattr(user, 'is_admin', False):
         return True
-
     email = getattr(user, 'email', '') or ''
     normalized_email = email.strip().lower()
     if normalized_email in get_admin_emails():
         return True
-
     user_id = getattr(user, 'id', None)
     return user_id == 1
 
-# -------------------------------------------------------------------------
-# PASSWORD RESET (stateless tokens — no extra DB column needed)
-# -------------------------------------------------------------------------
 reset_serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
-RESET_TOKEN_MAX_AGE = 3600  # 1 hour
+RESET_TOKEN_MAX_AGE = 3600
 
-# SMTP config — set these to actually send reset emails. If SMTP_HOST is
-# unset, the reset link is written to the server log instead (handy for
-# local dev), never shown in the browser.
 SMTP_HOST = os.environ.get('SMTP_HOST')
 SMTP_PORT = int(os.environ.get('SMTP_PORT', '587'))
 SMTP_USER = os.environ.get('SMTP_USER')
@@ -115,22 +96,16 @@ def send_reset_email(to_email, reset_url):
             server.login(SMTP_USER, SMTP_PASS)
         server.sendmail(MAIL_FROM, [to_email], msg.as_string())
 
-# -------------------------------------------------------------------------
-# GROQ CONFIGURATION (replaces Ollama)
-# -------------------------------------------------------------------------
-GROQ_API_KEY = os.environ.get('GROQ_API_KEY')  # set this in your environment
+GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL = os.environ.get('GROQ_MODEL', 'llama-3.3-70b-versatile')
 GROQ_VISION_MODEL = os.environ.get('GROQ_VISION_MODEL', 'meta-llama/llama-4-scout-17b-16e-instruct')
 MAX_MESSAGE_LENGTH = 800
-MAX_HISTORY_MESSAGES = 12  # trim long conversations before sending to the API
+MAX_HISTORY_MESSAGES = 12
 
 if not GROQ_API_KEY:
     app.logger.warning("GROQ_API_KEY is not present in the process environment at startup")
 
-# -------------------------------------------------------------------------
-# DATABASE MODELS
-# -------------------------------------------------------------------------
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(150), unique=True, nullable=False)
@@ -140,7 +115,7 @@ class User(UserMixin, db.Model):
     expiry_date = db.Column(db.DateTime, nullable=True)
     mpesa_code = db.Column(db.String(20), nullable=True)
     mpesa_tier = db.Column(db.String(20), nullable=True)
-    mpesa_status = db.Column(db.String(20), nullable=True)  # 'pending', 'approved', 'rejected'
+    mpesa_status = db.Column(db.String(20), nullable=True)
     mpesa_submitted_at = db.Column(db.DateTime, nullable=True)
 
     def set_password(self, raw_password):
@@ -162,9 +137,6 @@ class User(UserMixin, db.Model):
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# -------------------------------------------------------------------------
-# HELPERS
-# -------------------------------------------------------------------------
 def call_groq(messages, model=None):
     api_key = os.environ.get('GROQ_API_KEY') or GROQ_API_KEY
     if not api_key:
@@ -195,7 +167,6 @@ def call_groq(messages, model=None):
 
 
 def extract_json(text):
-    """Strip markdown code fences and parse the JSON the model returned."""
     cleaned = re.sub(r"^```(?:json)?|```$", "", text.strip(), flags=re.MULTILINE).strip()
     return json.loads(cleaned)
 
@@ -219,9 +190,6 @@ def build_system_prompt(subject, level, grade_form=None):
         f"Explain concepts clearly, simply, and step by step. Use examples relevant to Kenya."
     )
 
-# -------------------------------------------------------------------------
-# AUTHENTICATION ROUTES (Login / Signup)
-# -------------------------------------------------------------------------
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
@@ -294,8 +262,6 @@ def forgot_password():
             except Exception as e:
                 app.logger.error(f"Failed to send reset email to {email}: {e}")
 
-        # Same message whether or not the email exists — avoids leaking
-        # which addresses are registered.
         flash("If that email is registered, a reset link is on its way. Check your inbox.", "success")
         return redirect(url_for('login'))
 
@@ -337,9 +303,6 @@ def reset_password(token):
 
     return render_template('auth.html', mode='reset', token=token)
 
-# -------------------------------------------------------------------------
-# MAIN APP PAGE
-# -------------------------------------------------------------------------
 @app.route('/')
 def home():
     if current_user.is_authenticated:
@@ -391,28 +354,12 @@ def sitemap_xml():
 def serve_logo():
     return send_from_directory(PROJECT_ROOT, 'logo.png', mimetype='image/png+xml')
 
-# -------------------------------------------------------------------------
-# MANUAL M-PESA PAYMENT (no business Till/Paybill or bank account required)
-#
-# How it works:
-#   1. Buyer sends money via M-Pesa "Send Money" to MPESA_PAYEE_NUMBER below.
-#   2. Buyer copies the M-Pesa confirmation code (e.g. "QGH7X9K2LP") from
-#      their SMS and submits it on /pay-mpesa.
-#   3. You (the owner) check your M-Pesa messages for that code, then
-#      approve it from /admin/mpesa-requests — this flips is_premium=True.
-#
-# This is intentionally manual — it needs zero API keys, zero business
-# registration, and zero approval wait, which is what makes it usable the
-# same day. Set MPESA_PAYEE_NAME / MPESA_PAYEE_NUMBER in your environment
-# once you know which phone number/name you're collecting on.
-# -------------------------------------------------------------------------
 MPESA_PAYEE_NAME = 'SHARON'
 MPESA_PAYEE_NUMBER = '0718675377'
 MPESA_TIER_PRICES = {
     "day": os.environ.get('MPESA_PRICE_DAY', '50'),
     "month": os.environ.get('MPESA_PRICE_MONTH', '1300'),
 }
-# How long access lasts once a tier is approved.
 MPESA_TIER_DURATIONS = {
     "day": timedelta(days=1),
     "month": timedelta(days=30),
@@ -489,9 +436,6 @@ def admin_reject_mpesa(user_id):
     flash(f"Rejected the request from {user.email}.", "warning")
     return redirect(url_for('admin_mpesa_requests'))
 
-# -------------------------------------------------------------------------
-# TUTOR API ROUTES (now backed by Groq instead of Ollama)
-# -------------------------------------------------------------------------
 @app.route('/api/tutor', methods=['POST'])
 @login_required
 def api_tutor():
@@ -615,17 +559,11 @@ Include 5 to 8 questions total, mixing "mcq" and "short" types. Number "id" sequ
 
 @app.route('/healthz')
 def healthz():
-    """Simple health check most hosting platforms ping to confirm the app is alive."""
     return jsonify({"status": "ok"})
 
 
 @app.route('/debug/config')
 def debug_config():
-    """
-    TEMPORARY diagnostic route — shows which env vars actually loaded, without
-    leaking full secret values. Delete this route once things are working;
-    don't leave it in a production deploy.
-    """
     def mask(value):
         if not value:
             return None
@@ -660,8 +598,6 @@ def ensure_database_schema():
             app.logger.warning(f"Could not ensure admin column exists: {exc}")
 
 
-# Create tables on import, not just when run directly — gunicorn imports this
-# module as `app:app` and never executes the `if __name__ == '__main__'` block below.
 ensure_database_schema()
 
 if __name__ == '__main__':
