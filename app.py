@@ -231,7 +231,15 @@ def signup():
             return redirect(url_for('signup'))
 
         trial_end = datetime.now() + timedelta(days=1)
-        new_user = User(email=email, is_premium=False, expiry_date=trial_end)
+
+        ADMIN_EMAIL = "silasbarry805@gmail.com"
+
+        new_user = User(
+            email=email,
+            is_admin=(email == ADMIN_EMAIL),
+            is_premium=(email == ADMIN_EMAIL),
+            expiry_date=None if email == ADMIN_EMAIL else trial_end
+        )
         new_user.set_password(password)
         db.session.add(new_user)
         db.session.commit()
@@ -262,17 +270,6 @@ def login():
 def logout():
     logout_user()
     return redirect(url_for('login'))
-
-
-@app.route('/promote-admin')
-@login_required
-def promote_admin():
-    current_user.is_admin = True
-    current_user.is_premium = True
-    current_user.expiry_date = None
-    db.session.commit()
-    flash('You are now set as an admin with unlimited access.', 'success')
-    return redirect(url_for('home'))
 
 
 @app.route('/forgot-password', methods=['GET', 'POST'])
