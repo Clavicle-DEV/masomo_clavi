@@ -234,11 +234,13 @@ def signup():
 
         ADMIN_EMAIL = "silasbarry805@gmail.com"
 
+        is_owner = email == ADMIN_EMAIL.lower()
+
         new_user = User(
             email=email,
-            is_admin=(email == ADMIN_EMAIL),
-            is_premium=(email == ADMIN_EMAIL),
-            expiry_date=None if email == ADMIN_EMAIL else trial_end
+            is_admin=is_owner,
+            is_premium=is_owner,
+            expiry_date=None if is_owner else trial_end
         )
         new_user.set_password(password)
         db.session.add(new_user)
@@ -246,6 +248,30 @@ def signup():
 
         login_user(new_user)
         return redirect(url_for('home'))
+
+    return render_template('auth.html', mode='signup')
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip().lower()
+        password = request.form.get('password', '')
+        user = User.query.filter_by(email=email).first()
+
+        if user and user.check_password(password):
+            login_user(user)
+            return redirect(url_for('home'))
+        flash('Invalid credentials!', 'danger')
+
+    return render_template('auth.html', mode='login')
+
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('login'))
 
     return render_template('auth.html', mode='signup')
 
