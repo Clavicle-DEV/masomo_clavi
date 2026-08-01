@@ -1273,9 +1273,11 @@
       radial-gradient(circle at 8% 88%, rgba(232, 184, 71, 0.13), transparent 24rem),
       var(--bg);
   }
-  .app { max-width: 960px; padding: 38px 32px 112px 112px; }
-  nav.main-nav { width: 78px; padding: 30px 13px; box-shadow: 12px 0 34px rgba(31, 59, 48, 0.035); }
-  nav.main-nav.expanded { width: 210px; }
+  @media (min-width: 721px) {
+    .app { max-width: 960px; padding: 38px 32px 112px 112px; }
+    nav.main-nav { width: 78px; padding: 30px 13px; box-shadow: 12px 0 34px rgba(31, 59, 48, 0.035); }
+    nav.main-nav.expanded { width: 210px; }
+  }
   nav.main-nav button { border-radius: 12px; margin-bottom: 3px; }
   nav.main-nav button.active { background: linear-gradient(135deg, #163c2d, #285d42); box-shadow: 0 8px 18px rgba(23, 59, 43, 0.22); }
   .user-badge-bar { box-shadow: 0 9px 28px rgba(31, 59, 48, 0.06); border-radius: 14px !important; }
