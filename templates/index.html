@@ -1420,9 +1420,12 @@ body{
       </svg><span class="brand-wordmark">Clavis</span></div>
     <h2>Karibu, welcome! 👋</h2>
     <p>Clavis is your tutor study buddy — pick a level, choose a subject, and ask anything. Your questions, progress, and settings stay right here in your browser. New accounts get a free trial period before a plan is required.</p>
+    <input type="text" id="welcomeNameInput" placeholder="What should we call you?" style="width:100%;box-sizing:border-box;padding:12px 14px;border-radius:12px;border:1px solid var(--line);font-family:'Inter',sans-serif;font-size:15px;margin-bottom:14px;" />
     <button id="welcomeStartBtn">Get started</button>
   </div>
 </div>
+
+<div id="welcomeBackToast" style="display:none;position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:10050;background:var(--ink,#173B2B);color:#fff;padding:12px 22px;border-radius:999px;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,0.2);max-width:90vw;text-align:center;"></div>
 
 <div class="layout">
   <nav class="main-nav" id="mainNav">
@@ -2268,6 +2271,9 @@ body{
     notebook.innerHTML = '';
     notebook.appendChild(emptyHint);
     emptyHint.style.display = 'block';
+    if (currentSubject) {
+      try { localStorage.removeItem(chatStorageKey(currentLevel, currentGradeForm, currentSubject)); } catch (_) {}
+    }
   });
 
   document.getElementById('resetStatsBtn').addEventListener('click', () => {
@@ -2367,10 +2373,18 @@ body{
 
   function openSubjectChat(subject) {
     currentSubject = subject;
-    conversationHistory = [];
     notebook.innerHTML = '';
     notebook.appendChild(emptyHint);
-    emptyHint.style.display = 'block';
+
+    const saved = loadChatProgress(currentLevel, currentGradeForm, subject);
+    if (saved && saved.length) {
+      conversationHistory = saved;
+      emptyHint.style.display = 'none';
+      saved.forEach(m => addMessage(m.role === 'assistant' ? 'tutor' : 'user', m.content));
+    } else {
+      conversationHistory = [];
+      emptyHint.style.display = 'block';
+    }
 
     chatSubjectLabel.textContent = currentSubject;
     chatLevelLabel.textContent = currentLevel === 'cbc'
@@ -2502,6 +2516,7 @@ body{
     try {
       const answer = await askTutor(displayText, attachment);
       addMessage('tutor', answer);
+      saveChatProgress();
       recordQuestion(currentSubject);
       typingLabel.textContent = 'Got it!';
       playAvatarState('yes', false);
@@ -3038,18 +3053,72 @@ body{
     });
   }
 
-  /* ---------------- First-time welcome overlay ---------------- */
+  /* ---------------- Greeting + returning-user welcome ---------------- */
+  function getGreeting() {
+    const h = new Date().getHours();
+    if (h >= 5 && h < 12) return 'Good morning';
+    if (h >= 12 && h < 17) return 'Good afternoon';
+    if (h >= 17 && h < 21) return 'Good evening';
+    if (h >= 21 || h < 1) return 'Burning the midnight oil';
+    return 'Night owl';
+  }
+
+  function showWelcomeBackToast(name) {
+    const toast = document.getElementById('welcomeBackToast');
+    if (!toast) return;
+    const greeting = getGreeting();
+    toast.textContent = name ? `${greeting}, ${name}! 👋` : `${greeting}! 👋`;
+    toast.style.display = 'block';
+    toast.style.opacity = '1';
+    setTimeout(() => {
+      toast.style.transition = 'opacity 0.6s ease';
+      toast.style.opacity = '0';
+      setTimeout(() => { toast.style.display = 'none'; }, 700);
+    }, 3200);
+  }
+
+  /* ---------------- First-time welcome overlay / returning greeting ---------------- */
   (function showWelcomeIfFirstVisit() {
     const seen = localStorage.getItem('clavi_visited');
+    const savedName = localStorage.getItem('clavi_user_name');
     if (!seen) {
       document.getElementById('welcomeOverlay').style.display = 'flex';
+    } else {
+      showWelcomeBackToast(savedName);
     }
   })();
 
   document.getElementById('welcomeStartBtn').addEventListener('click', () => {
+    const nameInput = document.getElementById('welcomeNameInput');
+    const name = nameInput ? nameInput.value.trim() : '';
+    if (name) localStorage.setItem('clavi_user_name', name);
     localStorage.setItem('clavi_visited', 'true');
     document.getElementById('welcomeOverlay').style.display = 'none';
   });
+
+  /* ---------------- Resume progress per subject ---------------- */
+  function chatStorageKey(level, gradeForm, subject) {
+    return `clavi_chat_${level}_${gradeForm}_${subject}`;
+  }
+
+  function saveChatProgress() {
+    if (!currentSubject) return;
+    try {
+      localStorage.setItem(
+        chatStorageKey(currentLevel, currentGradeForm, currentSubject),
+        JSON.stringify(conversationHistory)
+      );
+    } catch (_) { /* storage full or unavailable — skip silently */ }
+  }
+
+  function loadChatProgress(level, gradeForm, subject) {
+    try {
+      const raw = localStorage.getItem(chatStorageKey(level, gradeForm, subject));
+      return raw ? JSON.parse(raw) : null;
+    } catch (_) {
+      return null;
+    }
+  }
 </script>
 </body>
 </html>
