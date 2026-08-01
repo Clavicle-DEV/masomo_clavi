@@ -311,6 +311,7 @@ def home():
             user=current_user,
             subscription_expired=current_user.subscription_expired,
             is_admin_user=has_unlimited_access(current_user),
+            mpesa_prices=MPESA_TIER_PRICES,
         )
 
     return render_template(

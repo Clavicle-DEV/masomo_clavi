@@ -1528,7 +1528,7 @@ body{
             <div style="color: var(--muted); font-size: 13px;">Full access for 24 hours.</div>
           </div>
         </div>
-        <div style="font-size: 22px; font-weight: 700; color: var(--chalk); font-family: 'Fraunces', serif;">KES 200</div>
+        <div style="font-size: 22px; font-weight: 700; color: var(--chalk); font-family: 'Fraunces', serif;">KES {{ mpesa_prices.day if mpesa_prices else 50 }}</div>
       </label>
 
       <label style="border: 2px solid var(--line); border-radius: 8px; padding: 16px; margin-bottom: 16px; text-align: left; display: flex; align-items: center; justify-content: space-between; background: var(--paper); cursor: pointer;" for="month">
@@ -1539,7 +1539,7 @@ body{
             <div style="color: var(--muted); font-size: 13px;">Full access for 30 days.</div>
           </div>
         </div>
-        <div style="font-size: 22px; font-weight: 700; color: var(--chalk); font-family: 'Fraunces', serif;">KES 5,000</div>
+        <div style="font-size: 22px; font-weight: 700; color: var(--chalk); font-family: 'Fraunces', serif;">KES {{ mpesa_prices.month if mpesa_prices else 1300 }}</div>
       </label>
 
       <button type="button" id="mpesaPayBtnPaywall" style="width: 100%; background: #1F9254; color: #fff; border: none; border-radius: 8px; padding: 16px; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 10px;">Pay with M-Pesa</button>
@@ -2052,7 +2052,7 @@ body{
             <div style="color: var(--muted); font-size: 13px;">Full access for 24 hours.</div>
           </div>
         </div>
-        <div style="font-size: 22px; font-weight: 700; color: var(--chalk); font-family: 'Fraunces', serif;">KES 200</div>
+        <div style="font-size: 22px; font-weight: 700; color: var(--chalk); font-family: 'Fraunces', serif;">KES {{ mpesa_prices.day if mpesa_prices else 50 }}</div>
       </label>
 
       <label style="border: 2px solid var(--line); border-radius: 8px; padding: 16px; margin-bottom: 16px; text-align: left; display: flex; align-items: center; justify-content: space-between; background: var(--paper); cursor: pointer;" for="modal_month">
@@ -2063,7 +2063,7 @@ body{
             <div style="color: var(--muted); font-size: 13px;">Full access for 30 days.</div>
           </div>
         </div>
-        <div style="font-size: 22px; font-weight: 700; color: var(--chalk); font-family: 'Fraunces', serif;">KES 5,000</div>
+        <div style="font-size: 22px; font-weight: 700; color: var(--chalk); font-family: 'Fraunces', serif;">KES {{ mpesa_prices.month if mpesa_prices else 1300 }}</div>
       </label>
 
       <button type="button" id="mpesaPayBtn" style="width: 100%; background: #1F9254; color: #fff; border: none; border-radius: 8px; padding: 16px; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 10px;">Pay with M-Pesa</button>
