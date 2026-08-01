@@ -98,8 +98,8 @@ def send_reset_email(to_email, reset_url):
 
 GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_MODEL = os.environ.get('GROQ_MODEL', 'llama-3.3-70b-versatile')
-GROQ_VISION_MODEL = os.environ.get('GROQ_VISION_MODEL', 'meta-llama/llama-4-scout-17b-16e-instruct')
+GROQ_MODEL = os.environ.get('GROQ_MODEL', 'openai/gpt-oss-120b')
+GROQ_VISION_MODEL = os.environ.get('GROQ_VISION_MODEL', 'qwen/qwen3.6-27b')
 MAX_MESSAGE_LENGTH = 800
 MAX_HISTORY_MESSAGES = 12
 
