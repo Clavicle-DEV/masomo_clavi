@@ -613,17 +613,18 @@
 
   .empty-hint { color: var(--muted); font-size: 14px; line-height: 32px; }
 
-  .composer { display: flex; gap: 10px; margin-top: 16px; }
+  .composer { display: flex; gap: 10px; margin-top: 16px; align-items: stretch; }
 
   .composer input {
     flex: 1;
     border: 1px solid var(--line);
     background: var(--paper);
     border-radius: 8px;
-    padding: 13px 16px;
+    padding: 15px 18px;
     font-family: 'Inter', sans-serif;
-    font-size: 15px;
+    font-size: 16px;
     color: var(--ink);
+    min-height: 50px;
   }
 
   .composer input:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
@@ -632,10 +633,13 @@
     background: var(--chalk);
     color: var(--paper);
     border: none;
-    border-radius: 8px;
-    padding: 0 22px;
-    font-weight: 600;
-    font-size: 14px;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
   }
 
@@ -1299,6 +1303,10 @@
   body.focus-mode .app { max-width: 860px; padding-left: 32px; }
   body.focus-mode .notebook { max-height: 65vh; }
   @media (max-width: 720px) { .app { padding: 24px 16px 100px; } .hero { padding: 25px 20px; } .hero::after { font-size: 58px; } }
+  @media (max-width: 720px) {
+    .composer input { font-size: 17px; padding: 16px 18px; min-height: 54px; }
+    .composer button { width: 54px; height: 54px; }
+  }
   /* ===========================
    MOBILE RESPONSIVE
 =========================== */
@@ -1871,7 +1879,11 @@ body{
         </div>
       </div>
       <input type="text" id="questionInput" placeholder="Ask your question..." />
-      <button id="sendBtn">Ask</button>
+      <button id="sendBtn" aria-label="Send question">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M4 12h15M13 6l6 6-6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
     </div>
     <div class="attachment-preview" id="attachmentPreview"><img id="attachmentThumb" alt="Attached image"><span id="attachmentName"></span><button type="button" id="removeAttachmentBtn" aria-label="Remove attachment">×</button></div>
     <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp,.txt,.md,.csv" hidden>
