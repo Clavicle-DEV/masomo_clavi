@@ -3057,8 +3057,8 @@ body{
   function getGreeting() {
     const h = new Date().getHours();
     if (h >= 5 && h < 12) return 'Good morning';
-    if (h >= 12 && h < 17) return 'Good afternoon';
-    if (h >= 17 && h < 21) return 'Good evening';
+    if (h >= 12 && h < 16) return 'Good afternoon';
+    if (h >= 16 && h < 21) return 'Good evening';
     if (h >= 21 || h < 1) return 'Burning the midnight oil';
     return 'Night owl';
   }
@@ -3081,9 +3081,18 @@ body{
   (function showWelcomeIfFirstVisit() {
     const seen = localStorage.getItem('clavi_visited');
     const savedName = localStorage.getItem('clavi_user_name');
-    if (!seen) {
+    if (!savedName) {
+      if (seen) {
+        // Returning user from before the name feature existed — ask, but don't
+        // repeat the full "Karibu, welcome!" first-timer copy.
+        const heading = document.querySelector('#welcomeOverlay h2');
+        const para = document.querySelector('#welcomeOverlay p');
+        if (heading) heading.textContent = 'One quick thing 👋';
+        if (para) para.textContent = "What should we call you? We'll remember it and greet you by name next time.";
+      }
       document.getElementById('welcomeOverlay').style.display = 'flex';
     } else {
+      localStorage.setItem('clavi_visited', 'true');
       showWelcomeBackToast(savedName);
     }
   })();
