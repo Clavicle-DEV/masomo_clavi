@@ -805,6 +805,7 @@
     display: flex;
     gap: 10px;
     margin-bottom: 28px;
+    align-items: stretch;
   }
 
   .book-search input {
@@ -812,20 +813,24 @@
     border: 1px solid var(--line);
     background: var(--paper);
     border-radius: 8px;
-    padding: 13px 16px;
+    padding: 15px 18px;
     font-family: 'Inter', sans-serif;
-    font-size: 15px;
+    font-size: 16px;
     color: var(--ink);
+    min-height: 50px;
   }
 
   .book-search button {
     background: var(--chalk);
     color: var(--paper);
     border: none;
-    border-radius: 8px;
-    padding: 0 22px;
-    font-weight: 600;
-    font-size: 14px;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
   }
 
@@ -1306,6 +1311,8 @@
   @media (max-width: 720px) {
     .composer input { font-size: 17px; padding: 16px 18px; min-height: 54px; }
     .composer button { width: 54px; height: 54px; }
+    .book-search input { font-size: 17px; padding: 16px 18px; min-height: 54px; }
+    .book-search button { width: 54px; height: 54px; }
   }
   /* ===========================
    MOBILE RESPONSIVE
@@ -2047,7 +2054,11 @@ body{
     <h2 class="dash-title">Book Finder</h2>
     <div class="book-search">
       <input type="text" id="bookQuery" placeholder="Search by title, author, or topic..." />
-      <button id="bookSearchBtn">Search</button>
+      <button id="bookSearchBtn" aria-label="Search">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M4 12h15M13 6l6 6-6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
     </div>
     <div class="book-status" id="bookStatus">Search for a book above — e.g. "KCSE Chemistry" or an author's name.</div>
     <div class="book-grid" id="bookGrid"></div>
