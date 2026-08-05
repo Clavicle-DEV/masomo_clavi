@@ -2432,13 +2432,22 @@ body{
 
   backBtn.addEventListener('click', () => showScreen('homeScreen'));
 
+  function cleanTutorText(text) {
+    if (!text) return text;
+    return text
+      .replace(/^[ \t]*\*[ \t]+/gm, '• ')   // "* item" bullet lines -> "• item" (before bold/italic stripping)
+      .replace(/\*\*(.*?)\*\*/g, '$1')      // **bold** -> bold
+      .replace(/\*(.*?)\*/g, '$1')          // *italic* -> italic
+      .replace(/\*/g, '');                  // any stray leftover asterisks
+  }
+
   function addMessage(role, text, attachment) {
     if (emptyHint.style.display !== 'none') emptyHint.style.display = 'none';
     const div = document.createElement('div');
     div.className = 'msg ' + (role === 'user' ? 'user' : 'tutor');
     if (role === 'tutor') {
       div.innerHTML = '<span class="label">Tutor</span><span class="msg-content"></span>';
-      div.querySelector('.msg-content').textContent = text;
+      div.querySelector('.msg-content').textContent = cleanTutorText(text);
     } else {
       if (attachment && attachment.data) {
         const img = document.createElement('img');
