@@ -549,6 +549,49 @@ def admin_analytics():
         top_referrers=top_referrer_rows,
     )
 
+
+@app.route('/admin/users')
+@login_required
+def admin_users():
+    if not has_unlimited_access(current_user):
+        flash("Admin access required.", "danger")
+        return redirect(url_for('home'))
+
+    now = datetime.now()
+    week_ago = now - timedelta(days=7)
+
+    all_users = User.query.order_by(User.created_at.desc().nullslast()).all()
+
+    rows = []
+    paid_count = 0
+    new_count = 0
+    for u in all_users:
+        if has_unlimited_access(u):
+            status = 'Owner / Unlimited'
+        elif u.is_premium and u.expiry_date and u.expiry_date > now:
+            status = 'Paid — active'
+            paid_count += 1
+        elif u.expiry_date and u.expiry_date > now:
+            status = 'Free trial — active'
+        else:
+            status = 'Expired'
+        if u.created_at and u.created_at >= week_ago:
+            new_count += 1
+        rows.append({
+            'email': u.email,
+            'created_at': u.created_at,
+            'status': status,
+            'expiry_date': u.expiry_date,
+        })
+
+    return render_template(
+        'admin_users.html',
+        rows=rows,
+        total_users=len(all_users),
+        paid_count=paid_count,
+        new_count=new_count,
+    )
+
 @app.route('/api/tutor', methods=['POST'])
 @login_required
 def api_tutor():

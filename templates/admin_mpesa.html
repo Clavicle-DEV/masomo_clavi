@@ -38,7 +38,7 @@
 <body>
   <div class="wrap">
     <h1>Pending M-Pesa Requests</h1>
-    <p class="sub">Check your M-Pesa messages for each code before approving. — <a href="{{ url_for('admin_analytics') }}">View analytics →</a></p>
+    <p class="sub">Check your M-Pesa messages for each code before approving. — <a href="{{ url_for('admin_analytics') }}">View analytics →</a> · <a href="{{ url_for('admin_users') }}">View all users →</a></p>
 
     {% with flashed = get_flashed_messages(with_categories=true) %}
       {% for category, message in flashed %}

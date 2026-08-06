@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Clavis — Users</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F6F1E5; --paper: #FFFDF8; --chalk: #1F3B30;
+    --gold: #D9A62E; --red: #B8433A; --ink: #21281F;
+    --muted: #6E7A6C; --line: #E4DCC8;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: 'Inter', sans-serif; padding: 32px 16px; }
+  .wrap { max-width: 900px; margin: 0 auto; }
+  h1 { font-family: 'Fraunces', serif; color: var(--chalk); font-size: 26px; margin-bottom: 6px; }
+  p.sub { color: var(--muted); margin: 0 0 20px; font-size: 14px; }
+  .sub a { color: var(--muted); }
+  .sub a:hover { color: var(--chalk); }
+
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 26px; }
+  .stat-card { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+  .stat-card .num { font-family: 'Fraunces', serif; font-size: 30px; color: var(--chalk); font-weight: 700; }
+  .stat-card .label { color: var(--muted); font-size: 13px; margin-top: 4px; }
+
+  table { width: 100%; border-collapse: collapse; background: var(--paper); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+  th, td { text-align: left; padding: 10px 14px; font-size: 14px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .03em; }
+  tr:last-child td { border-bottom: none; }
+  .status-pill { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .status-paid { background: rgba(47,93,69,0.14); color: #2F5D45; }
+  .status-trial { background: rgba(217,166,46,0.16); color: #8a6a10; }
+  .status-expired { background: rgba(184,67,58,0.1); color: var(--red); }
+  .status-owner { background: rgba(31,59,48,0.1); color: var(--chalk); }
+  .empty-note { color: var(--muted); font-size: 14px; padding: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="sub"><a href="{{ url_for('admin_analytics') }}">← Analytics</a> · <a href="{{ url_for('admin_mpesa_requests') }}">M-Pesa requests</a></p>
+  <h1>Users</h1>
+  <p class="sub">Every account that has signed up, newest first.</p>
+
+  <div class="stat-grid">
+    <div class="stat-card"><div class="num">{{ total_users }}</div><div class="label">Total users</div></div>
+    <div class="stat-card"><div class="num">{{ paid_count }}</div><div class="label">Paid &amp; active</div></div>
+    <div class="stat-card"><div class="num">{{ new_count }}</div><div class="label">New this week</div></div>
+  </div>
+
+  {% if rows %}
+  <table>
+    <tr><th>Email</th><th>Signed up</th><th>Status</th><th>Access until</th></tr>
+    {% for r in rows %}
+    <tr>
+      <td>{{ r.email }}</td>
+      <td>{{ r.created_at.strftime('%d %b %Y') if r.created_at else '—' }}</td>
+      <td>
+        {% if 'Paid' in r.status %}<span class="status-pill status-paid">{{ r.status }}</span>
+        {% elif 'trial' in r.status %}<span class="status-pill status-trial">{{ r.status }}</span>
+        {% elif 'Owner' in r.status %}<span class="status-pill status-owner">{{ r.status }}</span>
+        {% else %}<span class="status-pill status-expired">{{ r.status }}</span>
+        {% endif %}
+      </td>
+      <td>{{ r.expiry_date.strftime('%d %b %Y') if r.expiry_date else '—' }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <div class="empty-note">No users yet.</div>
+  {% endif %}
+</div>
+</body>
+</html>
