@@ -6,6 +6,8 @@
   <title>{{ title or 'Clavis — Your personal learning studio' }}</title>
   <meta name="description" content="Clavis is a beautifully simple AI learning studio for Kenyan students.">
   <link rel="icon" type="image/png" href="{{ url_for('serve_logo') }}">
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+  <meta name="theme-color" content="#173B2B">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono&family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">

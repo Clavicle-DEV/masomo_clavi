@@ -23,27 +23,23 @@ def load_environment(project_root=None):
 PROJECT_ROOT = load_environment()
 
 app = Flask(__name__)
-# NEVER hardcode this in real code — set FLASK_SECRET_KEY in your environment.
 app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'dev-key-change-me')
 
-# 1. DATABASE SETUP
-# Locally this defaults to SQLite (zero setup). In production, set DATABASE_URL
-# to a Postgres connection string — most hosts (Render, Railway, etc.) have an
-# ephemeral filesystem, so a SQLite file gets wiped on every deploy/restart.
 _database_url = os.environ.get('DATABASE_URL', 'sqlite:///clavi.db')
 if _database_url.startswith('postgres://'):
-    # Some hosts still hand out the old 'postgres://' scheme; SQLAlchemy 1.4+/2.x needs 'postgresql://'.
     _database_url = _database_url.replace('postgres://', 'postgresql://', 1)
 app.config['SQLALCHEMY_DATABASE_URI'] = _database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
-# 2. LOGIN MANAGER SETUP
 login_manager = LoginManager()
 login_manager.init_app(app)
-login_manager.login_view = 'signup'  # new visitors are sent to sign up first; the page links to /login for existing users
+login_manager.login_view = 'signup'
 
-# 3. APP DOMAIN (used for password-reset links etc.)
+app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=365)
+app.config['REMEMBER_COOKIE_SECURE'] = False
+app.config['REMEMBER_COOKIE_HTTPONLY'] = True
+
 YOUR_DOMAIN = os.environ.get('APP_DOMAIN', 'http://localhost:5000')
 
 
@@ -61,27 +57,17 @@ def get_admin_emails():
 def has_unlimited_access(user):
     if user is None:
         return False
-
     if getattr(user, 'is_admin', False):
         return True
-
     email = getattr(user, 'email', '') or ''
     normalized_email = email.strip().lower()
     if normalized_email in get_admin_emails():
         return True
+    return False
 
-    user_id = getattr(user, 'id', None)
-    return user_id == 1
-
-# -------------------------------------------------------------------------
-# PASSWORD RESET (stateless tokens — no extra DB column needed)
-# -------------------------------------------------------------------------
 reset_serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
-RESET_TOKEN_MAX_AGE = 3600  # 1 hour
+RESET_TOKEN_MAX_AGE = 3600
 
-# SMTP config — set these to actually send reset emails. If SMTP_HOST is
-# unset, the reset link is written to the server log instead (handy for
-# local dev), never shown in the browser.
 SMTP_HOST = os.environ.get('SMTP_HOST')
 SMTP_PORT = int(os.environ.get('SMTP_PORT', '587'))
 SMTP_USER = os.environ.get('SMTP_USER')
@@ -109,22 +95,16 @@ def send_reset_email(to_email, reset_url):
             server.login(SMTP_USER, SMTP_PASS)
         server.sendmail(MAIL_FROM, [to_email], msg.as_string())
 
-# -------------------------------------------------------------------------
-# GROQ CONFIGURATION (replaces Ollama)
-# -------------------------------------------------------------------------
-GROQ_API_KEY = os.environ.get('GROQ_API_KEY')  # set this in your environment
+GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_MODEL = os.environ.get('GROQ_MODEL', 'llama-3.3-70b-versatile')
-GROQ_VISION_MODEL = os.environ.get('GROQ_VISION_MODEL', 'meta-llama/llama-4-scout-17b-16e-instruct')
+GROQ_MODEL = os.environ.get('GROQ_MODEL', 'openai/gpt-oss-120b')
+GROQ_VISION_MODEL = os.environ.get('GROQ_VISION_MODEL', 'qwen/qwen3.6-27b')
 MAX_MESSAGE_LENGTH = 800
-MAX_HISTORY_MESSAGES = 12  # trim long conversations before sending to the API
+MAX_HISTORY_MESSAGES = 12
 
 if not GROQ_API_KEY:
     app.logger.warning("GROQ_API_KEY is not present in the process environment at startup")
 
-# -------------------------------------------------------------------------
-# DATABASE MODELS
-# -------------------------------------------------------------------------
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(150), unique=True, nullable=False)
@@ -134,8 +114,11 @@ class User(UserMixin, db.Model):
     expiry_date = db.Column(db.DateTime, nullable=True)
     mpesa_code = db.Column(db.String(20), nullable=True)
     mpesa_tier = db.Column(db.String(20), nullable=True)
-    mpesa_status = db.Column(db.String(20), nullable=True)  # 'pending', 'approved', 'rejected'
+    mpesa_status = db.Column(db.String(20), nullable=True)
     mpesa_submitted_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=True)
+    referral_code = db.Column(db.String(12), unique=True, nullable=True)
+    referred_by_id = db.Column(db.Integer, nullable=True)
 
     def set_password(self, raw_password):
         self.password_hash = generate_password_hash(raw_password)
@@ -156,9 +139,28 @@ class User(UserMixin, db.Model):
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# -------------------------------------------------------------------------
-# HELPERS
-# -------------------------------------------------------------------------
+
+class PaymentLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    tier = db.Column(db.String(20), nullable=True)
+    amount = db.Column(db.Integer, nullable=True)
+    approved_at = db.Column(db.DateTime, nullable=True)
+
+
+REFERRAL_BONUS_DAYS = 3
+
+
+def generate_referral_code():
+    import random
+    import string
+    for _ in range(20):  # extremely unlikely to loop more than once
+        code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+        if not User.query.filter_by(referral_code=code).first():
+            return code
+    # Fallback — astronomically unlikely, but never leave a user without a code.
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
+
 def call_groq(messages, model=None):
     api_key = os.environ.get('GROQ_API_KEY') or GROQ_API_KEY
     if not api_key:
@@ -189,7 +191,6 @@ def call_groq(messages, model=None):
 
 
 def extract_json(text):
-    """Strip markdown code fences and parse the JSON the model returned."""
     cleaned = re.sub(r"^```(?:json)?|```$", "", text.strip(), flags=re.MULTILINE).strip()
     return json.loads(cleaned)
 
@@ -210,17 +211,22 @@ def build_system_prompt(subject, level, grade_form=None):
     level_desc = describe_level(level, grade_form)
     return (
         f"You are a warm, patient, encouraging tutor helping a {level_desc} student with {subject}. "
-        f"Explain concepts clearly, simply, and step by step. Use examples relevant to Kenya."
+        f"Explain things the way you'd explain them to a curious young child: use very simple, everyday "
+        f"words, short sentences, and relatable examples before introducing any technical term. Build up "
+        f"gently step by step rather than jumping straight to the formal definition. Still be accurate and "
+        f"complete enough for their level — simple language, not simplified content. Use examples relevant "
+        f"to Kenya. "
+        f"Do not use markdown formatting like asterisks for bold or bullet points (no **word** and no lines "
+        f"starting with *). Write in plain sentences, and if you need a list, use a dash (-) or simply number "
+        f"the points (1., 2., 3.)."
     )
 
-# -------------------------------------------------------------------------
-# AUTHENTICATION ROUTES (Login / Signup)
-# -------------------------------------------------------------------------
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
         email = request.form.get('email', '').strip().lower()
         password = request.form.get('password', '')
+        ref_code = (request.form.get('ref') or '').strip().upper()
 
         if not email or not password:
             flash('Email and password are required.', 'danger')
@@ -236,20 +242,36 @@ def signup():
 
         is_owner = email == ADMIN_EMAIL.lower()
 
+        referrer = User.query.filter_by(referral_code=ref_code).first() if ref_code else None
+        if referrer and not is_owner:
+            # Give the new student a bonus on top of the standard trial, for
+            # signing up via a friend's invite.
+            trial_end = trial_end + timedelta(days=REFERRAL_BONUS_DAYS)
+
         new_user = User(
             email=email,
             is_admin=is_owner,
             is_premium=is_owner,
-            expiry_date=None if is_owner else trial_end
+            expiry_date=None if is_owner else trial_end,
+            created_at=datetime.now(),
+            referral_code=generate_referral_code(),
+            referred_by_id=referrer.id if referrer else None,
         )
         new_user.set_password(password)
         db.session.add(new_user)
+
+        if referrer and not has_unlimited_access(referrer):
+            # Reward the referrer too — extend from whichever is later: their
+            # current expiry, or now (covers an already-expired trial).
+            base = referrer.expiry_date if (referrer.expiry_date and referrer.expiry_date > datetime.now()) else datetime.now()
+            referrer.expiry_date = base + timedelta(days=REFERRAL_BONUS_DAYS)
+
         db.session.commit()
 
-        login_user(new_user)
+        login_user(new_user, remember=True)
         return redirect(url_for('home'))
 
-    return render_template('auth.html', mode='signup')
+    return render_template('auth.html', mode='signup', ref_code=request.args.get('ref', ''))
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -260,31 +282,7 @@ def login():
         user = User.query.filter_by(email=email).first()
 
         if user and user.check_password(password):
-            login_user(user)
-            return redirect(url_for('home'))
-        flash('Invalid credentials!', 'danger')
-
-    return render_template('auth.html', mode='login')
-
-
-@app.route('/logout')
-@login_required
-def logout():
-    logout_user()
-    return redirect(url_for('login'))
-
-    return render_template('auth.html', mode='signup')
-
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        email = request.form.get('email', '').strip().lower()
-        password = request.form.get('password', '')
-        user = User.query.filter_by(email=email).first()
-
-        if user and user.check_password(password):
-            login_user(user)
+            login_user(user, remember=True)
             return redirect(url_for('home'))
         flash('Invalid credentials!', 'danger')
 
@@ -312,8 +310,6 @@ def forgot_password():
             except Exception as e:
                 app.logger.error(f"Failed to send reset email to {email}: {e}")
 
-        # Same message whether or not the email exists — avoids leaking
-        # which addresses are registered.
         flash("If that email is registered, a reset link is on its way. Check your inbox.", "success")
         return redirect(url_for('login'))
 
@@ -355,17 +351,21 @@ def reset_password(token):
 
     return render_template('auth.html', mode='reset', token=token)
 
-# -------------------------------------------------------------------------
-# MAIN APP PAGE
-# -------------------------------------------------------------------------
 @app.route('/')
 def home():
     if current_user.is_authenticated:
+        if not current_user.referral_code:
+            current_user.referral_code = generate_referral_code()
+            db.session.commit()
+        referral_link = f"{request.host_url}signup?ref={current_user.referral_code}"
         return render_template(
             'index.html',
             user=current_user,
             subscription_expired=current_user.subscription_expired,
             is_admin_user=has_unlimited_access(current_user),
+            mpesa_prices=MPESA_TIER_PRICES,
+            referral_link=referral_link,
+            referral_bonus_days=REFERRAL_BONUS_DAYS,
         )
 
     return render_template(
@@ -409,28 +409,23 @@ def sitemap_xml():
 def serve_logo():
     return send_from_directory(PROJECT_ROOT, 'logo.png', mimetype='image/png+xml')
 
-# -------------------------------------------------------------------------
-# MANUAL M-PESA PAYMENT (no business Till/Paybill or bank account required)
-#
-# How it works:
-#   1. Buyer sends money via M-Pesa "Send Money" to MPESA_PAYEE_NUMBER below.
-#   2. Buyer copies the M-Pesa confirmation code (e.g. "QGH7X9K2LP") from
-#      their SMS and submits it on /pay-mpesa.
-#   3. You (the owner) check your M-Pesa messages for that code, then
-#      approve it from /admin/mpesa-requests — this flips is_premium=True.
-#
-# This is intentionally manual — it needs zero API keys, zero business
-# registration, and zero approval wait, which is what makes it usable the
-# same day. Set MPESA_PAYEE_NAME / MPESA_PAYEE_NUMBER in your environment
-# once you know which phone number/name you're collecting on.
-# -------------------------------------------------------------------------
+
+@app.route('/sw.js')
+def serve_service_worker():
+    # Must be served from the root path (not /static/sw.js) so its scope
+    # covers the whole site — that's what makes the app installable.
+    response = send_from_directory(
+        os.path.join(PROJECT_ROOT, 'static'), 'sw.js', mimetype='application/javascript'
+    )
+    response.headers['Service-Worker-Allowed'] = '/'
+    return response
+
 MPESA_PAYEE_NAME = 'SHARON'
 MPESA_PAYEE_NUMBER = '0718675377'
 MPESA_TIER_PRICES = {
     "day": os.environ.get('MPESA_PRICE_DAY', '50'),
     "month": os.environ.get('MPESA_PRICE_MONTH', '1300'),
 }
-# How long access lasts once a tier is approved.
 MPESA_TIER_DURATIONS = {
     "day": timedelta(days=1),
     "month": timedelta(days=30),
@@ -490,6 +485,11 @@ def admin_approve_mpesa(user_id):
     user.is_premium = True
     user.mpesa_status = 'approved'
     user.expiry_date = datetime.now() + duration
+    try:
+        amount = int(MPESA_TIER_PRICES.get(user.mpesa_tier, 0))
+    except (TypeError, ValueError):
+        amount = 0
+    db.session.add(PaymentLog(user_id=user.id, tier=user.mpesa_tier, amount=amount, approved_at=datetime.now()))
     db.session.commit()
     flash(f"Approved {user.email} — access unlocked until {user.expiry_date.strftime('%d %b %Y')}.", "success")
     return redirect(url_for('admin_mpesa_requests'))
@@ -507,9 +507,90 @@ def admin_reject_mpesa(user_id):
     flash(f"Rejected the request from {user.email}.", "warning")
     return redirect(url_for('admin_mpesa_requests'))
 
-# -------------------------------------------------------------------------
-# TUTOR API ROUTES (now backed by Groq instead of Ollama)
-# -------------------------------------------------------------------------
+
+@app.route('/admin/analytics')
+@login_required
+def admin_analytics():
+    if not has_unlimited_access(current_user):
+        flash("Admin access required.", "danger")
+        return redirect(url_for('home'))
+
+    now = datetime.now()
+    week_ago = now - timedelta(days=7)
+    month_ago = now - timedelta(days=30)
+
+    total_users = User.query.count()
+    new_this_week = User.query.filter(User.created_at != None, User.created_at >= week_ago).count()
+    active_premium = User.query.filter(User.is_premium == True, User.expiry_date != None, User.expiry_date > now).count()
+
+    all_payments = PaymentLog.query.order_by(PaymentLog.approved_at.desc()).all()
+    total_revenue = sum(p.amount or 0 for p in all_payments)
+    revenue_this_month = sum(p.amount or 0 for p in all_payments if p.approved_at and p.approved_at >= month_ago)
+    recent_payments = all_payments[:15]
+
+    referral_counts = {}
+    for u in User.query.filter(User.referred_by_id != None).all():
+        referral_counts[u.referred_by_id] = referral_counts.get(u.referred_by_id, 0) + 1
+    top_referrer_rows = []
+    for referrer_id, count in sorted(referral_counts.items(), key=lambda kv: kv[1], reverse=True)[:5]:
+        referrer = User.query.get(referrer_id)
+        if referrer:
+            top_referrer_rows.append((referrer.email, count))
+
+    return render_template(
+        'admin_analytics.html',
+        total_users=total_users,
+        new_this_week=new_this_week,
+        active_premium=active_premium,
+        total_revenue=total_revenue,
+        revenue_this_month=revenue_this_month,
+        recent_payments=recent_payments,
+        top_referrers=top_referrer_rows,
+    )
+
+
+@app.route('/admin/users')
+@login_required
+def admin_users():
+    if not has_unlimited_access(current_user):
+        flash("Admin access required.", "danger")
+        return redirect(url_for('home'))
+
+    now = datetime.now()
+    week_ago = now - timedelta(days=7)
+
+    all_users = User.query.order_by(User.created_at.desc().nullslast()).all()
+
+    rows = []
+    paid_count = 0
+    new_count = 0
+    for u in all_users:
+        if has_unlimited_access(u):
+            status = 'Owner / Unlimited'
+        elif u.is_premium and u.expiry_date and u.expiry_date > now:
+            status = 'Paid — active'
+            paid_count += 1
+        elif u.expiry_date and u.expiry_date > now:
+            status = 'Free trial — active'
+        else:
+            status = 'Expired'
+        if u.created_at and u.created_at >= week_ago:
+            new_count += 1
+        rows.append({
+            'email': u.email,
+            'created_at': u.created_at,
+            'status': status,
+            'expiry_date': u.expiry_date,
+        })
+
+    return render_template(
+        'admin_users.html',
+        rows=rows,
+        total_users=len(all_users),
+        paid_count=paid_count,
+        new_count=new_count,
+    )
+
 @app.route('/api/tutor', methods=['POST'])
 @login_required
 def api_tutor():
@@ -521,6 +602,7 @@ def api_tutor():
     level = data.get('level')
     grade_form = data.get('gradeForm')
     response_style = data.get('responseStyle', 'detailed')
+    language = data.get('language', 'en')
     attachment = data.get('attachment')
     messages = data.get('messages', [])
 
@@ -532,6 +614,12 @@ def api_tutor():
         system_prompt += " Keep answers brief and focused: use only the key steps, then offer to explain more."
     else:
         system_prompt += " Give a clear, supportive explanation with enough working for the learner to understand why."
+    if language == 'sw':
+        system_prompt += (
+            " Respond entirely in Kiswahili (Swahili), including your explanation and any examples. "
+            "Keep technical/subject terms understandable — you may keep a widely-used English technical "
+            "term in brackets after its Kiswahili explanation if there is no common Kiswahili equivalent."
+        )
     groq_messages = [{"role": "system", "content": system_prompt}]
     for m in messages[-MAX_HISTORY_MESSAGES:]:
         role = 'assistant' if m.get('role') == 'assistant' else 'user'
@@ -602,14 +690,35 @@ def api_generate_test():
     grade_form = data.get('gradeForm')
     topic = data.get('topic')
     all_topics = data.get('allTopics', [])
+    paper = data.get('paper')          # e.g. 1, 2, 3 — present only for formal exam papers
+    paper_count = data.get('paperCount')
 
     if not subject:
         return jsonify({"error": "subject is required"}), 400
 
     level_desc = describe_level(level, grade_form)
-    scope = f"the topic '{topic}'" if topic else f"all of these topics: {', '.join(all_topics)}"
 
-    prompt = f"""Create a short test for a {level_desc} student on {subject}, covering {scope}.
+    if paper:
+        paper_style = {
+            1: "an objective/theory-focused paper — mostly shorter questions testing recall and understanding across the whole syllabus",
+            2: "a structured-question paper — longer, multi-part questions that build on each other and test application, similar to a Paper 2 style",
+            3: "a practical/applied paper — questions framed around practical scenarios, data, or experiments, similar to a Paper 3 style",
+        }.get(paper, "a mixed theory and application paper")
+        scope_note = f"Paper {paper}" + (f" of {paper_count}" if paper_count else "")
+        prompt = f"""Create a full mock exam paper for a {level_desc} student on {subject} — {scope_note}, styled in the spirit of {paper_style}.
+Cover a broad spread of the whole {subject} syllabus for this level (not just one topic), the way a real end-of-course paper would.
+Return ONLY valid JSON in exactly this shape, no commentary, no markdown fences:
+{{
+  "total_marks": <int>,
+  "questions": [
+    {{"id": 1, "type": "mcq", "question": "...", "options": {{"A": "...", "B": "...", "C": "...", "D": "..."}}, "correct_option": "A", "marks": 1, "explanation": "..."}},
+    {{"id": 2, "type": "short", "question": "...", "marks": 3, "model_answer": "...", "marking_points": ["...", "...", "..."]}}
+  ]
+}}
+Include 10 to 14 questions total, mixing "mcq" and "short" types appropriately for this paper's style. Number "id" sequentially starting at 1."""
+    else:
+        scope = f"the topic '{topic}'" if topic else f"all of these topics: {', '.join(all_topics)}"
+        prompt = f"""Create a short test for a {level_desc} student on {subject}, covering {scope}.
 Return ONLY valid JSON in exactly this shape, no commentary, no markdown fences:
 {{
   "total_marks": <int>,
@@ -633,17 +742,11 @@ Include 5 to 8 questions total, mixing "mcq" and "short" types. Number "id" sequ
 
 @app.route('/healthz')
 def healthz():
-    """Simple health check most hosting platforms ping to confirm the app is alive."""
     return jsonify({"status": "ok"})
 
 
 @app.route('/debug/config')
 def debug_config():
-    """
-    TEMPORARY diagnostic route — shows which env vars actually loaded, without
-    leaking full secret values. Delete this route once things are working;
-    don't leave it in a production deploy.
-    """
     def mask(value):
         if not value:
             return None
@@ -674,12 +777,17 @@ def ensure_database_schema():
                     db.session.execute(text('ALTER TABLE "user" ADD COLUMN "mpesa_status" VARCHAR(20)'))
                     db.session.execute(text('ALTER TABLE "user" ADD COLUMN "mpesa_submitted_at" DATETIME'))
                     db.session.commit()
+                if 'created_at' not in columns:
+                    db.session.execute(text('ALTER TABLE "user" ADD COLUMN "created_at" TIMESTAMP'))
+                    db.session.commit()
+                if 'referral_code' not in columns:
+                    db.session.execute(text('ALTER TABLE "user" ADD COLUMN "referral_code" VARCHAR(12)'))
+                    db.session.execute(text('ALTER TABLE "user" ADD COLUMN "referred_by_id" INTEGER'))
+                    db.session.commit()
         except Exception as exc:
             app.logger.warning(f"Could not ensure admin column exists: {exc}")
 
 
-# Create tables on import, not just when run directly — gunicorn imports this
-# module as `app:app` and never executes the `if __name__ == '__main__'` block below.
 ensure_database_schema()
 
 if __name__ == '__main__':
