@@ -8,6 +8,10 @@
           type="image/x-icon"
           href="{{ url_for('static', filename='favicon.ico') }}">
 
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <meta name="theme-color" content="#173B2B">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/icon-192.png') }}">
+
     <link rel="stylesheet"
           href="{{ url_for('static', filename='css/style.css') }}">
 </head>
@@ -239,6 +243,7 @@
   nav.main-nav.expanded{
 
       position:fixed;
+      top:auto;
       bottom:0;
       left:0;
       right:0;
@@ -254,7 +259,7 @@
       border-top:1px solid var(--line);
       border-right:none;
 
-      background:var(--surface);
+      background:var(--paper);
 
       z-index:9999;
 
@@ -283,39 +288,6 @@
 }
 
 @media (max-width:768px){
-
-.menu-toggle{
-    display:block;
-    position:fixed;
-    top:15px;
-    left:15px;
-    z-index:10001;
-
-    width:46px;
-    height:46px;
-
-    border:none;
-    border-radius:12px;
-
-    background:#173b2b;
-    color:white;
-    font-size:24px;
-    cursor:pointer;
-}
-
-.main-nav{
-    position:fixed;
-    left:-260px;
-    top:0;
-    width:250px;
-    height:100vh;
-    transition:.3s;
-    z-index:10000;
-}
-
-.main-nav.show{
-    left:0;
-}
 
 .app{
     margin-left:0;
@@ -404,13 +376,19 @@
   }
 
   .level-toggle {
-    display: inline-flex;
+    display: flex;
     background: var(--paper);
     border: 1px solid var(--line);
     border-radius: 999px;
     padding: 4px;
     margin: 20px 0 8px;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
   }
+  .level-toggle::-webkit-scrollbar { display: none; }
+  .level-toggle button { flex-shrink: 0; white-space: nowrap; }
 
   .level-toggle button {
     border: none;
@@ -637,19 +615,35 @@
 
   .msg-content { white-space: pre-wrap; }
 
+  .explain-differently-wrap { text-align: center; margin: 4px 0 14px; }
+  #explainDifferentlyBtn {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    color: var(--muted);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 16px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: .15s ease;
+  }
+  #explainDifferentlyBtn:hover { background: var(--chalk); color: var(--paper); border-color: var(--chalk); }
+
   .empty-hint { color: var(--muted); font-size: 14px; line-height: 32px; }
 
-  .composer { display: flex; gap: 10px; margin-top: 16px; }
+  .composer { display: flex; gap: 10px; margin-top: 16px; align-items: stretch; }
 
   .composer input {
     flex: 1;
     border: 1px solid var(--line);
     background: var(--paper);
     border-radius: 8px;
-    padding: 13px 16px;
+    padding: 15px 18px;
     font-family: 'Inter', sans-serif;
-    font-size: 15px;
+    font-size: 16px;
     color: var(--ink);
+    min-height: 50px;
   }
 
   .composer input:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
@@ -658,14 +652,42 @@
     background: var(--chalk);
     color: var(--paper);
     border: none;
-    border-radius: 8px;
-    padding: 0 22px;
-    font-weight: 600;
-    font-size: 14px;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
   }
 
   .composer button:disabled { opacity: 0.5; cursor: default; }
+
+  #micBtn {
+    background: var(--paper);
+    color: var(--chalk);
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  #micBtn.listening {
+    background: #d64545;
+    border-color: #d64545;
+    color: #fff;
+    animation: micPulse 1.2s ease-in-out infinite;
+  }
+  @keyframes micPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(214, 69, 69, 0.4); }
+    50% { box-shadow: 0 0 0 8px rgba(214, 69, 69, 0); }
+  }
+
   .composer-tools { position: relative; }
   .tool-trigger { width: 46px; height: 46px; border: 1px solid var(--line); border-radius: 13px; background: var(--paper); color: var(--chalk); font-size: 27px; line-height: 1; cursor: pointer; transition: .18s ease; }
   .tool-trigger:hover, .tool-trigger[aria-expanded="true"] { background: var(--chalk); color: var(--paper); transform: rotate(90deg); }
@@ -827,6 +849,7 @@
     display: flex;
     gap: 10px;
     margin-bottom: 28px;
+    align-items: stretch;
   }
 
   .book-search input {
@@ -834,20 +857,24 @@
     border: 1px solid var(--line);
     background: var(--paper);
     border-radius: 8px;
-    padding: 13px 16px;
+    padding: 15px 18px;
     font-family: 'Inter', sans-serif;
-    font-size: 15px;
+    font-size: 16px;
     color: var(--ink);
+    min-height: 50px;
   }
 
   .book-search button {
     background: var(--chalk);
     color: var(--paper);
     border: none;
-    border-radius: 8px;
-    padding: 0 22px;
-    font-weight: 600;
-    font-size: 14px;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
   }
 
@@ -1299,9 +1326,11 @@
       radial-gradient(circle at 8% 88%, rgba(232, 184, 71, 0.13), transparent 24rem),
       var(--bg);
   }
-  .app { max-width: 960px; padding: 38px 32px 112px 112px; }
-  nav.main-nav { width: 78px; padding: 30px 13px; box-shadow: 12px 0 34px rgba(31, 59, 48, 0.035); }
-  nav.main-nav.expanded { width: 210px; }
+  @media (min-width: 721px) {
+    .app { max-width: 960px; padding: 38px 32px 112px 112px; }
+    nav.main-nav { width: 78px; padding: 30px 13px; box-shadow: 12px 0 34px rgba(31, 59, 48, 0.035); }
+    nav.main-nav.expanded { width: 210px; }
+  }
   nav.main-nav button { border-radius: 12px; margin-bottom: 3px; }
   nav.main-nav button.active { background: linear-gradient(135deg, #163c2d, #285d42); box-shadow: 0 8px 18px rgba(23, 59, 43, 0.22); }
   .user-badge-bar { box-shadow: 0 9px 28px rgba(31, 59, 48, 0.06); border-radius: 14px !important; }
@@ -1323,6 +1352,13 @@
   body.focus-mode .app { max-width: 860px; padding-left: 32px; }
   body.focus-mode .notebook { max-height: 65vh; }
   @media (max-width: 720px) { .app { padding: 24px 16px 100px; } .hero { padding: 25px 20px; } .hero::after { font-size: 58px; } }
+  @media (max-width: 720px) {
+    .composer input { font-size: 17px; padding: 16px 18px; min-height: 54px; }
+    .composer button { width: 54px; height: 54px; }
+    #micBtn { width: 54px; height: 54px; }
+    .book-search input { font-size: 17px; padding: 16px 18px; min-height: 54px; }
+    .book-search button { width: 54px; height: 54px; }
+  }
   /* ===========================
    MOBILE RESPONSIVE
 =========================== */
@@ -1446,14 +1482,14 @@ body{
       </svg><span class="brand-wordmark">Clavis</span></div>
     <h2>Karibu, welcome! 👋</h2>
     <p>Clavis is your tutor study buddy — pick a level, choose a subject, and ask anything. Your questions, progress, and settings stay right here in your browser. New accounts get a free trial period before a plan is required.</p>
+    <input type="text" id="welcomeNameInput" placeholder="What should we call you?" style="width:100%;box-sizing:border-box;padding:12px 14px;border-radius:12px;border:1px solid var(--line);font-family:'Inter',sans-serif;font-size:15px;margin-bottom:14px;" />
     <button id="welcomeStartBtn">Get started</button>
   </div>
 </div>
 
+<div id="welcomeBackToast" style="display:none;position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:10050;background:var(--ink,#173B2B);color:#fff;padding:12px 22px;border-radius:999px;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,0.2);max-width:90vw;text-align:center;"></div>
+
 <div class="layout">
-  <button id="menuToggle" class="menu-toggle">
-    ☰
-</button>
   <nav class="main-nav" id="mainNav">
     <div class="nav-brand">
       <svg class="brand-badge" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
@@ -1554,7 +1590,7 @@ body{
             <div style="color: var(--muted); font-size: 13px;">Full access for 24 hours.</div>
           </div>
         </div>
-        <div style="font-size: 22px; font-weight: 700; color: var(--chalk); font-family: 'Fraunces', serif;">KES 200</div>
+        <div style="font-size: 22px; font-weight: 700; color: var(--chalk); font-family: 'Fraunces', serif;">KES {{ mpesa_prices.day if mpesa_prices else 50 }}</div>
       </label>
 
       <label style="border: 2px solid var(--line); border-radius: 8px; padding: 16px; margin-bottom: 16px; text-align: left; display: flex; align-items: center; justify-content: space-between; background: var(--paper); cursor: pointer;" for="month">
@@ -1565,7 +1601,7 @@ body{
             <div style="color: var(--muted); font-size: 13px;">Full access for 30 days.</div>
           </div>
         </div>
-        <div style="font-size: 22px; font-weight: 700; color: var(--chalk); font-family: 'Fraunces', serif;">KES 5,000</div>
+        <div style="font-size: 22px; font-weight: 700; color: var(--chalk); font-family: 'Fraunces', serif;">KES {{ mpesa_prices.month if mpesa_prices else 1300 }}</div>
       </label>
 
       <button type="button" id="mpesaPayBtnPaywall" style="width: 100%; background: #1F9254; color: #fff; border: none; border-radius: 8px; padding: 16px; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 10px;">Pay with M-Pesa</button>
@@ -1895,7 +1931,17 @@ body{
         </div>
       </div>
       <input type="text" id="questionInput" placeholder="Ask your question..." />
-      <button id="sendBtn">Ask</button>
+      <button type="button" id="micBtn" aria-label="Ask by voice" hidden>
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M19 11a7 7 0 0 1-14 0M12 18v3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <button id="sendBtn" aria-label="Send question">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M4 12h15M13 6l6 6-6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
     </div>
     <div class="attachment-preview" id="attachmentPreview"><img id="attachmentThumb" alt="Attached image"><span id="attachmentName"></span><button type="button" id="removeAttachmentBtn" aria-label="Remove attachment">×</button></div>
     <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp,.txt,.md,.csv" hidden>
@@ -1981,6 +2027,20 @@ body{
     <h2 class="dash-title">Settings</h2>
 
     <div class="settings-group">
+      <div class="settings-row" style="flex-direction: column; align-items: stretch; gap: 10px;">
+        <div>
+          <div class="settings-row-label">Invite friends</div>
+          <div class="settings-row-sub">Share your link — you and your friend each get {{ referral_bonus_days if referral_bonus_days else 3 }} bonus days when they join.</div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <input type="text" id="referralLinkInput" readonly value="{{ referral_link if referral_link else '' }}"
+                 style="flex:1; border:1px solid var(--line); background:var(--paper); border-radius:8px; padding:10px 12px; font-size:13px; color:var(--muted);" />
+          <button type="button" id="copyReferralBtn" style="background:var(--chalk); color:var(--paper); border:none; border-radius:8px; padding:0 16px; font-weight:600; font-size:13px; cursor:pointer; white-space:nowrap;">Copy link</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-group">
       <div class="settings-row">
         <div>
           <div class="settings-row-label">Dark mode</div>
@@ -2014,6 +2074,17 @@ body{
     </div>
 
     <div class="settings-group">
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">Answer language</div>
+          <div class="settings-row-sub">Get explanations in English or Kiswahili</div>
+        </div>
+        <div class="level-toggle" id="languageToggle">
+          <button data-lang="en" class="active">English</button>
+          <button data-lang="sw">Kiswahili</button>
+        </div>
+      </div>
+
       <div class="settings-row">
         <div>
           <div class="settings-row-label">Tutor response style</div>
@@ -2059,7 +2130,11 @@ body{
     <h2 class="dash-title">Book Finder</h2>
     <div class="book-search">
       <input type="text" id="bookQuery" placeholder="Search by title, author, or topic..." />
-      <button id="bookSearchBtn">Search</button>
+      <button id="bookSearchBtn" aria-label="Search">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M4 12h15M13 6l6 6-6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
     </div>
     <div class="book-status" id="bookStatus">Search for a book above — e.g. "KCSE Chemistry" or an author's name.</div>
     <div class="book-grid" id="bookGrid"></div>
@@ -2078,7 +2153,7 @@ body{
             <div style="color: var(--muted); font-size: 13px;">Full access for 24 hours.</div>
           </div>
         </div>
-        <div style="font-size: 22px; font-weight: 700; color: var(--chalk); font-family: 'Fraunces', serif;">KES 200</div>
+        <div style="font-size: 22px; font-weight: 700; color: var(--chalk); font-family: 'Fraunces', serif;">KES {{ mpesa_prices.day if mpesa_prices else 50 }}</div>
       </label>
 
       <label style="border: 2px solid var(--line); border-radius: 8px; padding: 16px; margin-bottom: 16px; text-align: left; display: flex; align-items: center; justify-content: space-between; background: var(--paper); cursor: pointer;" for="modal_month">
@@ -2089,7 +2164,7 @@ body{
             <div style="color: var(--muted); font-size: 13px;">Full access for 30 days.</div>
           </div>
         </div>
-        <div style="font-size: 22px; font-weight: 700; color: var(--chalk); font-family: 'Fraunces', serif;">KES 5,000</div>
+        <div style="font-size: 22px; font-weight: 700; color: var(--chalk); font-family: 'Fraunces', serif;">KES {{ mpesa_prices.month if mpesa_prices else 1300 }}</div>
       </label>
 
       <button type="button" id="mpesaPayBtn" style="width: 100%; background: #1F9254; color: #fff; border: none; border-radius: 8px; padding: 16px; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 10px;">Pay with M-Pesa</button>
@@ -2202,8 +2277,10 @@ body{
   const themeToggle = document.getElementById('themeToggle');
   const defaultLevelToggle = document.getElementById('defaultLevelToggle');
   const responseStyleToggle = document.getElementById('responseStyleToggle');
+  const languageToggle = document.getElementById('languageToggle');
   const focusModeToggle = document.getElementById('focusModeToggle');
   let tutorResponseStyle = 'detailed';
+  let tutorLanguage = 'en';
 
   function applyTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
@@ -2226,6 +2303,17 @@ body{
   responseStyleToggle.addEventListener('click', (e) => {
     const btn = e.target.closest('button');
     if (btn) applyResponseStyle(btn.dataset.style);
+  });
+
+  function applyLanguage(lang) {
+    tutorLanguage = lang;
+    [...languageToggle.children].forEach(b => b.classList.toggle('active', b.dataset.lang === lang));
+    localStorage.setItem('clavi_language', lang);
+  }
+
+  languageToggle.addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (btn) applyLanguage(btn.dataset.lang);
   });
 
   function applyFocusMode(enabled) {
@@ -2292,11 +2380,36 @@ body{
     document.getElementById('gradeFormSelect').value = e.target.value;
   });
 
+  const copyReferralBtn = document.getElementById('copyReferralBtn');
+  if (copyReferralBtn) {
+    copyReferralBtn.addEventListener('click', async () => {
+      const input = document.getElementById('referralLinkInput');
+      const text = input.value;
+      const originalLabel = copyReferralBtn.textContent;
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(text);
+        } else {
+          input.select();
+          document.execCommand('copy');
+        }
+        copyReferralBtn.textContent = 'Copied!';
+      } catch (_) {
+        input.select();
+        copyReferralBtn.textContent = 'Select & copy';
+      }
+      setTimeout(() => { copyReferralBtn.textContent = originalLabel; }, 1800);
+    });
+  }
+
   document.getElementById('clearChatBtn').addEventListener('click', () => {
     conversationHistory = [];
     notebook.innerHTML = '';
     notebook.appendChild(emptyHint);
     emptyHint.style.display = 'block';
+    if (currentSubject) {
+      try { localStorage.removeItem(chatStorageKey(currentLevel, currentGradeForm, currentSubject)); } catch (_) {}
+    }
   });
 
   document.getElementById('resetStatsBtn').addEventListener('click', () => {
@@ -2313,6 +2426,7 @@ body{
     const savedGradeForm = localStorage.getItem('clavi_default_grade_form') || null;
     applyDefaultLevel(savedLevel, savedGradeForm);
     applyResponseStyle(localStorage.getItem('clavi_response_style') || 'detailed');
+    applyLanguage(localStorage.getItem('clavi_language') || 'en');
     applyFocusMode(localStorage.getItem('clavi_focus_mode') === 'on');
   })();
 
@@ -2396,10 +2510,19 @@ body{
 
   function openSubjectChat(subject) {
     currentSubject = subject;
-    conversationHistory = [];
     notebook.innerHTML = '';
     notebook.appendChild(emptyHint);
-    emptyHint.style.display = 'block';
+
+    const saved = loadChatProgress(currentLevel, currentGradeForm, subject);
+    if (saved && saved.length) {
+      conversationHistory = saved;
+      emptyHint.style.display = 'none';
+      saved.forEach(m => addMessage(m.role === 'assistant' ? 'tutor' : 'user', m.content));
+      if (saved[saved.length - 1].role === 'assistant') showExplainDifferentlyButton();
+    } else {
+      conversationHistory = [];
+      emptyHint.style.display = 'block';
+    }
 
     chatSubjectLabel.textContent = currentSubject;
     chatLevelLabel.textContent = currentLevel === 'cbc'
@@ -2422,13 +2545,30 @@ body{
 
   backBtn.addEventListener('click', () => showScreen('homeScreen'));
 
+  function escapeHtml(str) {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  function cleanTutorText(text) {
+    if (!text) return text;
+    return escapeHtml(text)
+      .replace(/^[ \t]*\*[ \t]+/gm, '• ')                       // "* item" bullet lines -> "• item"
+      .replace(/^[ \t]*#{1,6}[ \t]*(.+)$/gm, '<strong>$1</strong>') // markdown headers (e.g. "# Conclusion") -> bold
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')         // **bold** -> real bold
+      .replace(/\*(.*?)\*/g, '$1')                              // *italic* -> plain text
+      .replace(/\*/g, '');                                      // any stray leftover asterisks
+  }
+
   function addMessage(role, text, attachment) {
     if (emptyHint.style.display !== 'none') emptyHint.style.display = 'none';
     const div = document.createElement('div');
     div.className = 'msg ' + (role === 'user' ? 'user' : 'tutor');
     if (role === 'tutor') {
       div.innerHTML = '<span class="label">Tutor</span><span class="msg-content"></span>';
-      div.querySelector('.msg-content').textContent = text;
+      div.querySelector('.msg-content').innerHTML = cleanTutorText(text);
     } else {
       if (attachment && attachment.data) {
         const img = document.createElement('img');
@@ -2489,6 +2629,7 @@ body{
       level: currentLevel,
       gradeForm: currentGradeForm,
       responseStyle: tutorResponseStyle,
+      language: tutorLanguage,
       messages: conversationHistory
     };
     if (attachment) body.attachment = attachment;
@@ -2531,7 +2672,9 @@ body{
     try {
       const answer = await askTutor(displayText, attachment);
       addMessage('tutor', answer);
+      saveChatProgress();
       recordQuestion(currentSubject);
+      showExplainDifferentlyButton();
       typingLabel.textContent = 'Got it!';
       playAvatarState('yes', false);
       setTimeout(() => { typingIndicator.style.visibility = 'hidden'; }, 900);
@@ -2547,8 +2690,104 @@ body{
     }
   }
 
+  /* ---------------- Explain it differently ---------------- */
+  function removeExplainDifferentlyButton() {
+    const existing = document.getElementById('explainDifferentlyWrap');
+    if (existing) existing.remove();
+  }
+
+  function showExplainDifferentlyButton() {
+    removeExplainDifferentlyButton();
+    const wrap = document.createElement('div');
+    wrap.id = 'explainDifferentlyWrap';
+    wrap.className = 'explain-differently-wrap';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.id = 'explainDifferentlyBtn';
+    btn.textContent = '🔄 Explain it differently';
+    wrap.appendChild(btn);
+    notebook.appendChild(wrap);
+    notebook.scrollTop = notebook.scrollHeight;
+    btn.addEventListener('click', handleExplainDifferently);
+  }
+
+  async function handleExplainDifferently() {
+    removeExplainDifferentlyButton();
+    addMessage('user', '🔄 Explain it differently');
+    sendBtn.disabled = true;
+    typingIndicator.style.visibility = 'visible';
+    typingLabel.textContent = 'Finding another way to explain it...';
+    playAvatarState('thinking', true);
+    try {
+      const answer = await askTutor(
+        'Please explain your previous answer again, but differently this time — use a different approach, a simpler everyday analogy, or a different example than you used last time.',
+        null
+      );
+      addMessage('tutor', answer);
+      saveChatProgress();
+      showExplainDifferentlyButton();
+      typingLabel.textContent = 'Got it!';
+      playAvatarState('yes', false);
+      setTimeout(() => { typingIndicator.style.visibility = 'hidden'; }, 900);
+    } catch (err) {
+      addMessage('tutor', err.message || "Something went wrong reaching the tutor. Please try again.");
+      typingLabel.textContent = 'Something went wrong';
+      playAvatarState('alert', false);
+      setTimeout(() => { typingIndicator.style.visibility = 'hidden'; }, 900);
+    } finally {
+      sendBtn.disabled = false;
+    }
+  }
+
   sendBtn.addEventListener('click', handleSend);
   questionInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleSend(); });
+
+  /* ---------------- Voice input ---------------- */
+  (function setupVoiceInput() {
+    const micBtn = document.getElementById('micBtn');
+    const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognitionAPI || !micBtn) return; // not supported on this browser — leave button hidden
+
+    micBtn.hidden = false;
+    const recognition = new SpeechRecognitionAPI();
+    recognition.lang = 'en-KE';
+    recognition.interimResults = true;
+    recognition.continuous = false;
+    let listening = false;
+
+    recognition.addEventListener('result', (event) => {
+      let transcript = '';
+      for (let i = 0; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
+      }
+      questionInput.value = transcript;
+    });
+
+    recognition.addEventListener('end', () => {
+      listening = false;
+      micBtn.classList.remove('listening');
+    });
+
+    recognition.addEventListener('error', () => {
+      listening = false;
+      micBtn.classList.remove('listening');
+    });
+
+    micBtn.addEventListener('click', () => {
+      if (listening) {
+        recognition.stop();
+        return;
+      }
+      questionInput.value = '';
+      questionInput.focus();
+      try {
+        recognition.start();
+        listening = true;
+        micBtn.classList.add('listening');
+      } catch (_) { /* already started — ignore */ }
+    });
+  })();
+
 
   /* ---------------- Composer "+" menu: attach file, camera, study goal ---------------- */
   const toolsBtn = document.getElementById('toolsBtn');
@@ -3067,26 +3306,85 @@ body{
     });
   }
 
-  /* ---------------- First-time welcome overlay ---------------- */
+  /* ---------------- Greeting + returning-user welcome ---------------- */
+  function getGreeting() {
+    const h = new Date().getHours();
+    if (h >= 5 && h < 12) return 'Good morning';
+    if (h >= 12 && h < 16) return 'Good afternoon';
+    if (h >= 16 && h < 21) return 'Good evening';
+    if (h >= 21 || h < 1) return 'Burning the midnight oil';
+    return 'Night owl';
+  }
+
+  function showWelcomeBackToast(name) {
+    const toast = document.getElementById('welcomeBackToast');
+    if (!toast) return;
+    const greeting = getGreeting();
+    toast.textContent = name ? `${greeting}, ${name}! 👋` : `${greeting}! 👋`;
+    toast.style.display = 'block';
+    toast.style.opacity = '1';
+    setTimeout(() => {
+      toast.style.transition = 'opacity 0.6s ease';
+      toast.style.opacity = '0';
+      setTimeout(() => { toast.style.display = 'none'; }, 700);
+    }, 3200);
+  }
+
+  /* ---------------- First-time welcome overlay / returning greeting ---------------- */
   (function showWelcomeIfFirstVisit() {
     const seen = localStorage.getItem('clavi_visited');
-    if (!seen) {
+    const savedName = localStorage.getItem('clavi_user_name');
+    if (!savedName) {
+      if (seen) {
+        // Returning user from before the name feature existed — ask, but don't
+        // repeat the full "Karibu, welcome!" first-timer copy.
+        const heading = document.querySelector('#welcomeOverlay h2');
+        const para = document.querySelector('#welcomeOverlay p');
+        if (heading) heading.textContent = 'One quick thing 👋';
+        if (para) para.textContent = "What should we call you? We'll remember it and greet you by name next time.";
+      }
       document.getElementById('welcomeOverlay').style.display = 'flex';
+    } else {
+      localStorage.setItem('clavi_visited', 'true');
+      showWelcomeBackToast(savedName);
     }
   })();
 
   document.getElementById('welcomeStartBtn').addEventListener('click', () => {
+    const nameInput = document.getElementById('welcomeNameInput');
+    const name = nameInput ? nameInput.value.trim() : '';
+    if (name) localStorage.setItem('clavi_user_name', name);
     localStorage.setItem('clavi_visited', 'true');
     document.getElementById('welcomeOverlay').style.display = 'none';
   });
-</script>
-<script>
-const menu=document.getElementById("menuToggle");
-const nav=document.getElementById("mainNav");
 
-menu.addEventListener("click",()=>{
-    nav.classList.toggle("show");
-});
+  /* ---------------- Resume progress per subject ---------------- */
+  function chatStorageKey(level, gradeForm, subject) {
+    return `clavi_chat_${level}_${gradeForm}_${subject}`;
+  }
+
+  function saveChatProgress() {
+    if (!currentSubject) return;
+    try {
+      localStorage.setItem(
+        chatStorageKey(currentLevel, currentGradeForm, currentSubject),
+        JSON.stringify(conversationHistory)
+      );
+    } catch (_) { /* storage full or unavailable — skip silently */ }
+  }
+
+  function loadChatProgress(level, gradeForm, subject) {
+    try {
+      const raw = localStorage.getItem(chatStorageKey(level, gradeForm, subject));
+      return raw ? JSON.parse(raw) : null;
+    } catch (_) {
+      return null;
+    }
+  }  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').catch(() => { /* installability is a bonus, not critical */ });
+    });
+  }
 </script>
 </body>
 </html>

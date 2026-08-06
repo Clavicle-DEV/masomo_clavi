@@ -335,6 +335,7 @@
       <h2>Start Learning</h2>
       <p class="sub">Create an account to start your free 24-hour study trial.</p>
       <form method="POST" action="/signup">
+        <input type="hidden" name="ref" value="{{ ref_code or '' }}">
         <input type="email" name="email" placeholder="Enter your email" required>
         <input type="password" name="password" placeholder="Create a password" required>
         <button type="submit" class="submit-btn">Create Account</button>
