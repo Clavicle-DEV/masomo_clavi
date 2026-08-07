@@ -1688,6 +1688,13 @@ body{
   <div class="screen active" id="homeScreen">
     <div id="streakReminderBanner" style="display:none; background: linear-gradient(120deg, rgba(217,166,46,.18), rgba(217,166,46,.08)); border:1px solid rgba(217,166,46,.35); border-radius:14px; padding:14px 18px; margin-bottom:18px; font-size:14px; color:var(--chalk); font-weight:600;"></div>
     <div id="onboardingChecklist" style="display:none; background:var(--paper); border:1px solid var(--line); border-radius:14px; padding:18px; margin-bottom:18px;"></div>
+    <div id="installAppBanner" style="display:none; align-items:center; justify-content:space-between; gap:12px; background: var(--chalk); color: #fff; border-radius:14px; padding:14px 18px; margin-bottom:18px; font-size:14px;">
+      <span>📲 Install Clavis on your phone for quick access — no browser needed.</span>
+      <div style="display:flex; gap:8px; flex-shrink:0;">
+        <button type="button" id="installAppBtn" style="background:#fff; color:var(--chalk); border:none; border-radius:8px; padding:8px 14px; font-weight:700; font-size:13px; cursor:pointer; white-space:nowrap;">Install</button>
+        <button type="button" id="dismissInstallBtn" style="background:none; border:none; color:rgba(255,255,255,.75); font-size:18px; cursor:pointer; line-height:1;">&times;</button>
+      </div>
+    </div>
     <div class="hero">
       <h1>Ask a question.<br>Get a clear explanation.</h1>
       <p>A study buddy for students who can't always get extra tuition. Pick a level, choose a subject, and ask anything.</p>
@@ -2066,6 +2073,16 @@ body{
                  style="flex:1; border:1px solid var(--line); background:var(--paper); border-radius:8px; padding:10px 12px; font-size:13px; color:var(--muted);" />
           <button type="button" id="copyReferralBtn" style="background:var(--chalk); color:var(--paper); border:none; border-radius:8px; padding:0 16px; font-weight:600; font-size:13px; cursor:pointer; white-space:nowrap;">Copy link</button>
         </div>
+      </div>
+    </div>
+
+    <div class="settings-group" id="settingsInstallGroup" style="display:none;">
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">Install app</div>
+          <div class="settings-row-sub">Add Clavis to your home screen for quick, browser-free access</div>
+        </div>
+        <button type="button" id="settingsInstallBtn" style="background:var(--chalk); color:var(--paper); border:none; border-radius:8px; padding:10px 16px; font-weight:600; font-size:13px; cursor:pointer; white-space:nowrap;">Install</button>
       </div>
     </div>
 
@@ -3937,7 +3954,65 @@ body{
     } catch (_) {
       return null;
     }
-  }  if ('serviceWorker' in navigator) {
+  }
+
+  /* ---------------- Install App banner ---------------- */
+  let deferredInstallPrompt = null;
+  const installAppBanner = document.getElementById('installAppBanner');
+
+  function isAlreadyInstalled() {
+    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  }
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    if (!isAlreadyInstalled() && localStorage.getItem('clavi_install_dismissed') !== 'true' && installAppBanner) {
+      installAppBanner.style.display = 'flex';
+    }
+    const settingsGroup = document.getElementById('settingsInstallGroup');
+    if (settingsGroup && !isAlreadyInstalled()) settingsGroup.style.display = 'block';
+  });
+
+  const settingsInstallBtn = document.getElementById('settingsInstallBtn');
+  if (settingsInstallBtn) {
+    settingsInstallBtn.addEventListener('click', async () => {
+      if (!deferredInstallPrompt) return;
+      deferredInstallPrompt.prompt();
+      await deferredInstallPrompt.userChoice;
+      deferredInstallPrompt = null;
+      const settingsGroup = document.getElementById('settingsInstallGroup');
+      if (settingsGroup) settingsGroup.style.display = 'none';
+    });
+  }
+
+  const installAppBtn = document.getElementById('installAppBtn');
+  if (installAppBtn) {
+    installAppBtn.addEventListener('click', async () => {
+      if (!deferredInstallPrompt) return;
+      deferredInstallPrompt.prompt();
+      await deferredInstallPrompt.userChoice;
+      deferredInstallPrompt = null;
+      if (installAppBanner) installAppBanner.style.display = 'none';
+    });
+  }
+
+  const dismissInstallBtn = document.getElementById('dismissInstallBtn');
+  if (dismissInstallBtn) {
+    dismissInstallBtn.addEventListener('click', () => {
+      localStorage.setItem('clavi_install_dismissed', 'true');
+      if (installAppBanner) installAppBanner.style.display = 'none';
+    });
+  }
+
+  window.addEventListener('appinstalled', () => {
+    if (installAppBanner) installAppBanner.style.display = 'none';
+    const settingsGroup = document.getElementById('settingsInstallGroup');
+    if (settingsGroup) settingsGroup.style.display = 'none';
+    deferredInstallPrompt = null;
+  });
+
+  if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('/sw.js').catch(() => { /* installability is a bonus, not critical */ });
     });
