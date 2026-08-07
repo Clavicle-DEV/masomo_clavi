@@ -1457,6 +1457,14 @@ body{
     flex:0 0 auto;
 }
 }
+  @media print {
+    body * { visibility: hidden; }
+    #paperTakingView, #paperTakingView * { visibility: visible; }
+    #paperTakingView { position: absolute; top: 0; left: 0; width: 100%; margin: 0; padding: 0; }
+    #paperTakingView .exam-submit-btn,
+    #paperTakingView #downloadPaperBtn { display: none !important; }
+    .exam-paper { box-shadow: none; border: none; }
+  }
 </style>
 </head>
 <body>
@@ -1678,6 +1686,8 @@ body{
   </header>
   <!-- ============ HOME SCREEN ============ -->
   <div class="screen active" id="homeScreen">
+    <div id="streakReminderBanner" style="display:none; background: linear-gradient(120deg, rgba(217,166,46,.18), rgba(217,166,46,.08)); border:1px solid rgba(217,166,46,.35); border-radius:14px; padding:14px 18px; margin-bottom:18px; font-size:14px; color:var(--chalk); font-weight:600;"></div>
+    <div id="onboardingChecklist" style="display:none; background:var(--paper); border:1px solid var(--line); border-radius:14px; padding:18px; margin-bottom:18px;"></div>
     <div class="hero">
       <h1>Ask a question.<br>Get a clear explanation.</h1>
       <p>A study buddy for students who can't always get extra tuition. Pick a level, choose a subject, and ask anything.</p>
@@ -2470,6 +2480,7 @@ body{
           document.execCommand('copy');
         }
         copyReferralBtn.textContent = 'Copied!';
+        localStorage.setItem('clavi_referral_copied', 'true');
       } catch (_) {
         input.select();
         copyReferralBtn.textContent = 'Select & copy';
@@ -2530,6 +2541,120 @@ body{
       stats.lastActiveDate = today;
     }
     saveStats(stats);
+    syncStatsToServer();
+    const banner = document.getElementById('streakReminderBanner');
+    if (banner) banner.style.display = 'none';
+    if (typeof renderOnboardingChecklist === 'function') renderOnboardingChecklist();
+  }
+
+  let statsSyncInFlight = false;
+  let statsSyncQueued = false;
+
+  function syncStatsToServer() {
+    if (statsSyncInFlight) { statsSyncQueued = true; return; }
+    statsSyncInFlight = true;
+    const stats = getStats(); // always read the freshest saved state at send time
+    fetch('/api/sync-stats', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(stats)
+    }).catch(() => { /* offline or server hiccup — local copy still safe, will retry next question */ })
+      .finally(() => {
+        statsSyncInFlight = false;
+        if (statsSyncQueued) {
+          statsSyncQueued = false;
+          syncStatsToServer();
+        }
+      });
+  }
+
+  // On load, pull the account's saved stats from the server so progress
+  // carries across devices/browsers instead of being stuck in one browser.
+  (function syncStatsFromServer() {
+    if (typeof showStreakReminderIfNeeded === 'function') showStreakReminderIfNeeded();
+    if (typeof renderOnboardingChecklist === 'function') renderOnboardingChecklist();
+    fetch('/api/sync-stats')
+      .then(res => res.ok ? res.json() : null)
+      .then(serverStats => {
+        if (!serverStats) return;
+        if (serverStats.total > 0) {
+          // Server has real history — it's the source of truth.
+          saveStats(serverStats);
+        } else {
+          // Server has nothing yet (new account, or first sync after this
+          // update shipped) — push up whatever this browser already has.
+          const local = getStats();
+          if (local.total > 0) syncStatsToServer();
+        }
+        if (typeof renderDashboard === 'function') renderDashboard();
+        if (typeof showStreakReminderIfNeeded === 'function') showStreakReminderIfNeeded();
+      })
+      .catch(() => { /* stay on local cache if offline */ });
+  })();
+
+  function renderOnboardingChecklist() {
+    const el = document.getElementById('onboardingChecklist');
+    if (!el) return;
+    if (localStorage.getItem('clavi_onboarding_dismissed') === 'true') {
+      el.style.display = 'none';
+      return;
+    }
+    const stats = getStats();
+    let paperCount = 0;
+    try { paperCount = JSON.parse(localStorage.getItem('clavi_paper_results') || '[]').length; } catch (_) {}
+    const invitedFriend = localStorage.getItem('clavi_referral_copied') === 'true';
+
+    const steps = [
+      { label: 'Ask your first question', done: stats.total > 0 },
+      { label: 'Try a practice exam paper', done: paperCount > 0 },
+      { label: 'Invite a friend for bonus days', done: invitedFriend },
+    ];
+
+    if (steps.every(s => s.done)) {
+      el.style.display = 'none';
+      return;
+    }
+
+    el.style.display = 'block';
+    el.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <div style="font-weight:700; font-size:14px; color:var(--chalk);">Getting started</div>
+        <button type="button" id="dismissOnboardingBtn" style="background:none; border:none; color:var(--muted); font-size:18px; cursor:pointer; line-height:1;">&times;</button>
+      </div>
+      ${steps.map(s => `
+        <div style="display:flex; align-items:center; gap:8px; padding:5px 0; font-size:14px; color:${s.done ? 'var(--muted)' : 'var(--ink)'}; ${s.done ? 'text-decoration:line-through;' : ''}">
+          <span style="display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:50%; border:1.5px solid ${s.done ? 'var(--chalk)' : 'var(--line)'}; background:${s.done ? 'var(--chalk)' : 'transparent'}; color:#fff; font-size:11px; flex-shrink:0;">${s.done ? '✓' : ''}</span>
+          ${s.label}
+        </div>
+      `).join('')}
+    `;
+    document.getElementById('dismissOnboardingBtn').addEventListener('click', () => {
+      localStorage.setItem('clavi_onboarding_dismissed', 'true');
+      el.style.display = 'none';
+    });
+  }
+
+  function showStreakReminderIfNeeded() {
+    const banner = document.getElementById('streakReminderBanner');
+    if (!banner) return;
+    const stats = getStats();
+    const today = new Date().toISOString().slice(0, 10);
+
+    if (stats.total === 0 || stats.lastActiveDate === today) {
+      banner.style.display = 'none';
+      return;
+    }
+
+    const y = new Date();
+    y.setDate(y.getDate() - 1);
+    const yesterday = y.toISOString().slice(0, 10);
+
+    if (stats.lastActiveDate === yesterday && stats.streak > 0) {
+      banner.textContent = `🔥 Keep your ${stats.streak}-day streak alive — ask a question today!`;
+    } else {
+      banner.textContent = `👋 Welcome back! Ask a question today to start a new streak.`;
+    }
+    banner.style.display = 'block';
   }
 
   function renderDashboard() {
@@ -3542,16 +3667,16 @@ body{
         </div>
         <div class="exam-instructions">Answer ALL questions.</div>
         ${questionsHtml}
+        <button type="button" id="downloadPaperBtn" style="width:100%; background:var(--paper); border:1px solid var(--line); color:var(--chalk); font-weight:600; padding:12px 20px; border-radius:8px; cursor:pointer; margin-bottom:10px;">🖨️ Download / Print PDF</button>
         <button class="exam-submit-btn" id="submitPaperBtn">Submit Paper</button>
       </div>
     `;
     document.getElementById('submitPaperBtn').addEventListener('click', handleSubmitFormalPaper);
+    document.getElementById('downloadPaperBtn').addEventListener('click', () => window.print());
   }
 
   function saveFormalPaperResult(finalTotal, totalMarks) {
-    let log = [];
-    try { log = JSON.parse(localStorage.getItem('clavi_paper_results') || '[]'); } catch (_) { log = []; }
-    log.unshift({
+    const entry = {
       subject: papersSubject,
       level: papersLevel,
       gradeForm: papersGradeForm,
@@ -3562,9 +3687,20 @@ body{
       percent: Math.round((finalTotal / totalMarks) * 100),
       studentName: papersStudentName,
       date: new Date().toISOString()
-    });
-    log = log.slice(0, 50); // keep a reasonable history
+    };
+    let log = [];
+    try { log = JSON.parse(localStorage.getItem('clavi_paper_results') || '[]'); } catch (_) { log = []; }
+    log.unshift(entry);
+    log = log.slice(0, 50); // keep a reasonable local history
     localStorage.setItem('clavi_paper_results', JSON.stringify(log));
+
+    fetch('/api/exam-results', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(entry)
+    }).catch(() => { /* saved locally either way — not lost, just not synced yet */ });
+
+    if (typeof renderOnboardingChecklist === 'function') renderOnboardingChecklist();
   }
 
   function handleSubmitFormalPaper() {
@@ -3650,28 +3786,61 @@ body{
 
       document.getElementById('finishPaperBtn').textContent = 'Saved ✓ — Back to Papers';
       document.getElementById('finishPaperBtn').onclick = () => papersShowOnly(papersSetupView);
+
+      const shareBtn = document.createElement('button');
+      shareBtn.textContent = '📤 Share my score';
+      shareBtn.type = 'button';
+      shareBtn.style.cssText = 'margin-top:10px; background:var(--paper); border:1px solid var(--line); color:var(--chalk); font-weight:600; padding:12px 20px; border-radius:8px; cursor:pointer; width:100%;';
+      shareBtn.addEventListener('click', () => shareExamResult(papersSubject, papersPaperNum, percent, passed));
+      document.querySelector('#paperResultsView .exam-actions').appendChild(shareBtn);
     };
   }
 
-  document.getElementById('viewMyResultsBtn').addEventListener('click', () => {
-    let log = [];
-    try { log = JSON.parse(localStorage.getItem('clavi_paper_results') || '[]'); } catch (_) { log = []; }
-    const list = document.getElementById('myResultsList');
-    if (!log.length) {
-      list.innerHTML = '<div class="empty-dash">No exam papers completed yet — take one above and your results will show up here.</div>';
+  function shareExamResult(subject, paperNum, percent, passed) {
+    const text = passed
+      ? `I scored ${percent}% on ${subject} Paper ${paperNum} using Clavis — an AI study tutor for Kenyan students! 🎉`
+      : `Just took a ${subject} Paper ${paperNum} practice exam on Clavis and scored ${percent}%. Studying to improve! 📚`;
+    const url = window.location.origin;
+    if (navigator.share) {
+      navigator.share({ text: text + ' ' + url }).catch(() => { /* user cancelled — no action needed */ });
     } else {
-      list.innerHTML = log.map(r => `
-        <div class="paper-list-card" style="display:flex; justify-content:space-between; align-items:center;">
-          <div>
-            <div class="paper-list-title">${r.subject} — Paper ${r.paper}</div>
-            <div class="paper-list-sub">${r.gradeForm} — ${new Date(r.date).toLocaleDateString()}</div>
-          </div>
-          <div style="font-family:'Fraunces',serif; font-weight:700; font-size:18px; color:${r.percent >= 70 ? 'var(--chalk)' : '#B8433A'};">${r.percent}%</div>
-        </div>
-      `).join('');
+      const waUrl = `https://wa.me/?text=${encodeURIComponent(text + ' ' + url)}`;
+      window.open(waUrl, '_blank');
     }
+  }
+
+  document.getElementById('viewMyResultsBtn').addEventListener('click', () => {
+    const list = document.getElementById('myResultsList');
+    list.innerHTML = '<div class="empty-dash">Loading your results...</div>';
     papersShowOnly(myResultsView);
+
+    fetch('/api/exam-results')
+      .then(res => res.ok ? res.json() : Promise.reject())
+      .then(renderMyResultsList)
+      .catch(() => {
+        // Offline or server hiccup — fall back to whatever is saved locally.
+        let log = [];
+        try { log = JSON.parse(localStorage.getItem('clavi_paper_results') || '[]'); } catch (_) { log = []; }
+        renderMyResultsList(log);
+      });
   });
+
+  function renderMyResultsList(log) {
+    const list = document.getElementById('myResultsList');
+    if (!log || !log.length) {
+      list.innerHTML = '<div class="empty-dash">No exam papers completed yet — take one above and your results will show up here.</div>';
+      return;
+    }
+    list.innerHTML = log.map(r => `
+      <div class="paper-list-card" style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <div class="paper-list-title">${r.subject} — Paper ${r.paper}</div>
+          <div class="paper-list-sub">${r.gradeForm} — ${new Date(r.date).toLocaleDateString()}</div>
+        </div>
+        <div style="font-family:'Fraunces',serif; font-weight:700; font-size:18px; color:${r.percent >= 70 ? 'var(--chalk)' : '#B8433A'};">${r.percent}%</div>
+      </div>
+    `).join('');
+  }
 
   // Initialize the papers screen's grade dropdown + subject grid once the page loads.
   populateGradeFormSelect(papersGradeFormSelect, papersLevel, null);

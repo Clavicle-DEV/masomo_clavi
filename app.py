@@ -148,6 +148,30 @@ class PaymentLog(db.Model):
     approved_at = db.Column(db.DateTime, nullable=True)
 
 
+class UserStats(db.Model):
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
+    total = db.Column(db.Integer, default=0)
+    by_subject_json = db.Column(db.Text, nullable=True)  # JSON-encoded {subject: count}
+    last_active_date = db.Column(db.String(10), nullable=True)  # 'YYYY-MM-DD'
+    streak = db.Column(db.Integer, default=0)
+    updated_at = db.Column(db.DateTime, nullable=True)
+
+
+class ExamResult(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    subject = db.Column(db.String(100))
+    level = db.Column(db.String(50))
+    grade_form = db.Column(db.String(50))
+    paper = db.Column(db.Integer)
+    paper_count = db.Column(db.Integer)
+    score = db.Column(db.Integer)
+    total_marks = db.Column(db.Integer)
+    percent = db.Column(db.Integer)
+    student_name = db.Column(db.String(150))
+    created_at = db.Column(db.DateTime)
+
+
 REFERRAL_BONUS_DAYS = 3
 
 
@@ -740,6 +764,75 @@ Include 5 to 8 questions total, mixing "mcq" and "short" types. Number "id" sequ
         return jsonify({"error": f"Could not generate test: {str(e)}"}), 502
 
     return jsonify(test_data)
+
+
+@app.route('/api/sync-stats', methods=['GET', 'POST'])
+@login_required
+def api_sync_stats():
+    row = UserStats.query.get(current_user.id)
+
+    if request.method == 'POST':
+        data = request.get_json(silent=True) or {}
+        if row is None:
+            row = UserStats(user_id=current_user.id)
+            db.session.add(row)
+        row.total = int(data.get('total', 0) or 0)
+        row.by_subject_json = json.dumps(data.get('bySubject', {}) or {})
+        row.last_active_date = data.get('lastActiveDate')
+        row.streak = int(data.get('streak', 0) or 0)
+        row.updated_at = datetime.now()
+        db.session.commit()
+        return jsonify({"status": "ok"})
+
+    if row is None:
+        return jsonify({"total": 0, "bySubject": {}, "lastActiveDate": None, "streak": 0})
+    try:
+        by_subject = json.loads(row.by_subject_json) if row.by_subject_json else {}
+    except (TypeError, ValueError):
+        by_subject = {}
+    return jsonify({
+        "total": row.total or 0,
+        "bySubject": by_subject,
+        "lastActiveDate": row.last_active_date,
+        "streak": row.streak or 0,
+    })
+
+
+@app.route('/api/exam-results', methods=['GET', 'POST'])
+@login_required
+def api_exam_results():
+    if request.method == 'POST':
+        data = request.get_json(silent=True) or {}
+        result = ExamResult(
+            user_id=current_user.id,
+            subject=data.get('subject'),
+            level=data.get('level'),
+            grade_form=data.get('gradeForm'),
+            paper=data.get('paper'),
+            paper_count=data.get('paperCount'),
+            score=data.get('score'),
+            total_marks=data.get('total'),
+            percent=data.get('percent'),
+            student_name=data.get('studentName'),
+            created_at=datetime.now(),
+        )
+        db.session.add(result)
+        db.session.commit()
+        return jsonify({"status": "ok"})
+
+    rows = ExamResult.query.filter_by(user_id=current_user.id).order_by(ExamResult.created_at.desc()).limit(50).all()
+    return jsonify([{
+        "subject": r.subject,
+        "level": r.level,
+        "gradeForm": r.grade_form,
+        "paper": r.paper,
+        "paperCount": r.paper_count,
+        "score": r.score,
+        "total": r.total_marks,
+        "percent": r.percent,
+        "studentName": r.student_name,
+        "date": r.created_at.isoformat() if r.created_at else None,
+    } for r in rows])
 
 
 @app.route('/healthz')
