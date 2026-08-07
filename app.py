@@ -161,7 +161,7 @@ def generate_referral_code():
     # Fallback — astronomically unlikely, but never leave a user without a code.
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
 
-def call_groq(messages, model=None):
+def call_groq(messages, model=None, max_tokens=None):
     api_key = os.environ.get('GROQ_API_KEY') or GROQ_API_KEY
     if not api_key:
         app.logger.error("Groq request failed because GROQ_API_KEY is missing from the runtime environment")
@@ -169,18 +169,20 @@ def call_groq(messages, model=None):
             "GROQ_API_KEY is not set. Add it to your server environment or to the project .env file."
         )
     try:
+        payload = {
+            "model": model or GROQ_MODEL,
+            "messages": messages,
+            "temperature": 0.3,
+            "max_tokens": max_tokens or 2000,
+        }
         response = requests.post(
             GROQ_URL,
             headers={
                 "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json",
             },
-            json={
-                "model": model or GROQ_MODEL,
-                "messages": messages,
-                "temperature": 0.3,
-            },
-            timeout=45,
+            json=payload,
+            timeout=60,
         )
         response.raise_for_status()
         return response.json()["choices"][0]["message"]["content"]
@@ -642,7 +644,7 @@ def api_tutor():
         vision_model = GROQ_VISION_MODEL
 
     try:
-        answer = call_groq(groq_messages, vision_model)
+        answer = call_groq(groq_messages, vision_model, max_tokens=2500)
     except RuntimeError as e:
         return jsonify({"error": str(e)}), 502
 
@@ -730,7 +732,7 @@ Return ONLY valid JSON in exactly this shape, no commentary, no markdown fences:
 Include 5 to 8 questions total, mixing "mcq" and "short" types. Number "id" sequentially starting at 1."""
 
     try:
-        raw = call_groq([{"role": "user", "content": prompt}])
+        raw = call_groq([{"role": "user", "content": prompt}], max_tokens=6000 if paper else 3000)
         test_data = extract_json(raw)
         if "questions" not in test_data or "total_marks" not in test_data:
             raise ValueError("Response missing required fields")

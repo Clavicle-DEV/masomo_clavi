@@ -1585,6 +1585,9 @@ body{
       {% endif %}
     </div>
     <div style="display: flex; align-items: center; gap: 14px;">
+      {% if is_admin_user %}
+      <a href="{{ url_for('admin_analytics') }}" style="color: var(--chalk); font-weight: 700; text-decoration: none; font-size: 13px;">📊 Admin</a>
+      {% endif %}
       {% if not is_admin_user and not subscription_expired %}
       <button type="button" class="upgrade-nav-btn" id="upgradeBtn">Upgrade</button>
       {% endif %}
