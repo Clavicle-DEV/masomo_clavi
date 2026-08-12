@@ -149,6 +149,12 @@ GROQ_VISION_MODEL = os.environ.get('GROQ_VISION_MODEL', 'qwen/qwen3.6-27b')
 MAX_MESSAGE_LENGTH = 800
 MAX_HISTORY_MESSAGES = 12
 
+# Daily cap on AI calls (tutor messages + topic lists + generated tests
+# combined) per user, to protect the Groq free-tier quota from bursts or
+# throwaway accounts. Admins/co-admins are exempt. Override via env if needed.
+FREE_DAILY_AI_LIMIT = int(os.environ.get('FREE_DAILY_AI_LIMIT', '40'))
+PREMIUM_DAILY_AI_LIMIT = int(os.environ.get('PREMIUM_DAILY_AI_LIMIT', '200'))
+
 if not GROQ_API_KEY:
     app.logger.warning("GROQ_API_KEY is not present in the process environment at startup")
 
@@ -167,6 +173,8 @@ class User(UserMixin, db.Model):
     referral_code = db.Column(db.String(12), unique=True, nullable=True)
     referred_by_id = db.Column(db.Integer, nullable=True)
     email_verified = db.Column(db.Boolean, default=True)
+    daily_ai_calls = db.Column(db.Integer, default=0)
+    daily_ai_calls_date = db.Column(db.String(10), nullable=True)
 
     def set_password(self, raw_password):
         self.password_hash = generate_password_hash(raw_password)
@@ -186,6 +194,34 @@ class User(UserMixin, db.Model):
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
+
+
+def check_and_consume_ai_call(user):
+    """Enforce the daily AI-call cap. Returns (allowed, remaining_or_None).
+
+    Resets the counter automatically at the start of a new day. Users with
+    unlimited access (full admins, co-admins) are exempt. Active premium
+    users get a higher cap than free-trial users.
+    """
+    if has_unlimited_access(user):
+        return True, None
+
+    if user.is_premium and user.expiry_date and user.expiry_date > datetime.now():
+        limit = PREMIUM_DAILY_AI_LIMIT
+    else:
+        limit = FREE_DAILY_AI_LIMIT
+
+    today = datetime.now().strftime('%Y-%m-%d')
+    if user.daily_ai_calls_date != today:
+        user.daily_ai_calls_date = today
+        user.daily_ai_calls = 0
+
+    if (user.daily_ai_calls or 0) >= limit:
+        return False, 0
+
+    user.daily_ai_calls = (user.daily_ai_calls or 0) + 1
+    db.session.commit()
+    return True, limit - user.daily_ai_calls
 
 
 class PaymentLog(db.Model):
@@ -726,6 +762,10 @@ def api_tutor():
     if current_user.subscription_expired and not has_unlimited_access(current_user):
         return jsonify({"error": "Your trial has ended — please choose a plan."}), 402
 
+    allowed, remaining = check_and_consume_ai_call(current_user)
+    if not allowed:
+        return jsonify({"error": "You've hit today's message limit — it resets tomorrow. Upgrade for a higher daily limit."}), 429
+
     data = request.get_json(silent=True) or {}
     subject = data.get('subject')
     level = data.get('level')
@@ -783,6 +823,9 @@ def api_tutor():
 def api_topics():
     if not current_user.email_verified:
         return jsonify({"error": "Please verify your email to continue — check your inbox, or resend the link from the banner above."}), 403
+    allowed, remaining = check_and_consume_ai_call(current_user)
+    if not allowed:
+        return jsonify({"error": "You've hit today's message limit — it resets tomorrow. Upgrade for a higher daily limit."}), 429
     data = request.get_json(silent=True) or {}
     subject = data.get('subject')
     level = data.get('level')
@@ -816,6 +859,10 @@ def api_generate_test():
         return jsonify({"error": "Please verify your email to continue — check your inbox, or resend the link from the banner above."}), 403
     if current_user.subscription_expired and not has_unlimited_access(current_user):
         return jsonify({"error": "Your trial has ended — please choose a plan."}), 402
+
+    allowed, remaining = check_and_consume_ai_call(current_user)
+    if not allowed:
+        return jsonify({"error": "You've hit today's message limit — it resets tomorrow. Upgrade for a higher daily limit."}), 429
 
     data = request.get_json(silent=True) or {}
     subject = data.get('subject')
@@ -1050,6 +1097,10 @@ def ensure_database_schema():
                     # DEFAULT TRUE grandfathers in everyone who signed up before
                     # this feature existed — only new signups start unverified.
                     db.session.execute(text('ALTER TABLE "user" ADD COLUMN "email_verified" BOOLEAN DEFAULT TRUE'))
+                    db.session.commit()
+                if 'daily_ai_calls' not in columns:
+                    db.session.execute(text('ALTER TABLE "user" ADD COLUMN "daily_ai_calls" INTEGER DEFAULT 0'))
+                    db.session.execute(text('ALTER TABLE "user" ADD COLUMN "daily_ai_calls_date" VARCHAR(10)'))
                     db.session.commit()
         except Exception as exc:
             app.logger.warning(f"Could not ensure admin column exists: {exc}")

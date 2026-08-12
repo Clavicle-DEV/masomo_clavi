@@ -3430,13 +3430,17 @@ body{
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ subject: currentSubject, level: currentLevel, gradeForm: currentGradeForm })
       });
-      if (!res.ok) throw new Error('Failed to load topics');
+      if (!res.ok) {
+        let errMsg = 'Failed to load topics';
+        try { const errData = await res.json(); if (errData.error) errMsg = errData.error; } catch (_) {}
+        throw new Error(errMsg);
+      }
       const data = await res.json();
       currentTopics = data.topics || [];
       saveTopicsCache(currentTopics);
       renderTopicList();
     } catch (err) {
-      topicList.innerHTML = '<div class="empty-dash">Could not load topics right now. Please try again.</div>';
+      topicList.innerHTML = `<div class="empty-dash">${err.message || 'Could not load topics right now. Please try again.'}</div>`;
       console.error(err);
     } finally {
       topicsLoading.style.display = 'none';
@@ -3497,13 +3501,17 @@ body{
           allTopics: currentTopics
         })
       });
-      if (!res.ok) throw new Error('Failed to generate test');
+      if (!res.ok) {
+        let errMsg = 'Failed to generate test';
+        try { const errData = await res.json(); if (errData.error) errMsg = errData.error; } catch (_) {}
+        throw new Error(errMsg);
+      }
       currentTestData = await res.json();
       renderExamPaper();
       examLoading.style.display = 'none';
       examTakingView.style.display = 'block';
     } catch (err) {
-      examLoading.innerHTML = 'Could not generate the test right now. Please go back and try again.';
+      examLoading.innerHTML = err.message || 'Could not generate the test right now. Please go back and try again.';
       console.error(err);
     }
   }
