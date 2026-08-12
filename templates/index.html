@@ -1584,8 +1584,10 @@ body{
   <div class="user-badge-bar" style="display: flex; justify-content: space-between; align-items: center; background: var(--paper); border: 1px solid var(--line); padding: 10px 16px; border-radius: 8px; margin-bottom: 24px; font-size: 13px;">
     <div class="user-info" style="display: flex; align-items: center; gap: 8px; font-weight: 500;">
       <span>👤 {{ user.email }}</span>
-      {% if is_admin_user %}
+      {% if is_full_admin_user %}
         <span class="status-tag" style="background: var(--chalk); color: var(--paper); padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase;">Admin / Owner</span>
+      {% elif is_admin_user %}
+        <span class="status-tag" style="background: var(--chalk); color: var(--paper); padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase;">Co-Admin</span>
       {% elif user.is_premium %}
         <span class="status-tag" style="background: var(--chalk); color: var(--paper); padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase;">Premium</span>
       {% else %}
@@ -1593,8 +1595,10 @@ body{
       {% endif %}
     </div>
     <div style="display: flex; align-items: center; gap: 14px;">
-      {% if is_admin_user %}
+      {% if is_full_admin_user %}
       <a href="{{ url_for('admin_analytics') }}" style="color: var(--chalk); font-weight: 700; text-decoration: none; font-size: 13px;">📊 Admin</a>
+      {% elif is_admin_user %}
+      <a href="{{ url_for('admin_mpesa_requests') }}" style="color: var(--chalk); font-weight: 700; text-decoration: none; font-size: 13px;">✅ M-Pesa requests</a>
       {% endif %}
       {% if not is_admin_user and not subscription_expired %}
       <button type="button" class="upgrade-nav-btn" id="upgradeBtn">Upgrade</button>

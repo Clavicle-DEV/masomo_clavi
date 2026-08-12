@@ -54,14 +54,39 @@ def get_admin_emails():
     }
 
 
-def has_unlimited_access(user):
+# Co-admins get free unlimited access and can approve/reject M-Pesa requests,
+# but they don't get to see total-user counts or revenue figures — those stay
+# on the analytics/users pages, which are gated to full admins only.
+CO_ADMIN_EMAILS = {
+    'silasclavicle@gmail.com',
+    'kaybrighton7@gmail.com',
+}
+
+
+def is_co_admin(user):
+    if user is None:
+        return False
+    email = (getattr(user, 'email', '') or '').strip().lower()
+    return email in CO_ADMIN_EMAILS
+
+
+def is_full_admin(user):
     if user is None:
         return False
     if getattr(user, 'is_admin', False):
         return True
-    email = getattr(user, 'email', '') or ''
-    normalized_email = email.strip().lower()
-    if normalized_email in get_admin_emails():
+    email = (getattr(user, 'email', '') or '').strip().lower()
+    if email in get_admin_emails() and email not in CO_ADMIN_EMAILS:
+        return True
+    return False
+
+
+def has_unlimited_access(user):
+    if user is None:
+        return False
+    if is_full_admin(user):
+        return True
+    if is_co_admin(user):
         return True
     return False
 
@@ -267,9 +292,11 @@ def signup():
         ADMIN_EMAIL = "silasbarry805@gmail.com"
 
         is_owner = email == ADMIN_EMAIL.lower()
+        is_new_co_admin = email in CO_ADMIN_EMAILS
+        gets_free_unlimited = is_owner or is_new_co_admin
 
         referrer = User.query.filter_by(referral_code=ref_code).first() if ref_code else None
-        if referrer and not is_owner:
+        if referrer and not gets_free_unlimited:
             # Give the new student a bonus on top of the standard trial, for
             # signing up via a friend's invite.
             trial_end = trial_end + timedelta(days=REFERRAL_BONUS_DAYS)
@@ -277,8 +304,8 @@ def signup():
         new_user = User(
             email=email,
             is_admin=is_owner,
-            is_premium=is_owner,
-            expiry_date=None if is_owner else trial_end,
+            is_premium=gets_free_unlimited,
+            expiry_date=None if gets_free_unlimited else trial_end,
             created_at=datetime.now(),
             referral_code=generate_referral_code(),
             referred_by_id=referrer.id if referrer else None,
@@ -389,6 +416,7 @@ def home():
             user=current_user,
             subscription_expired=current_user.subscription_expired,
             is_admin_user=has_unlimited_access(current_user),
+            is_full_admin_user=is_full_admin(current_user),
             mpesa_prices=MPESA_TIER_PRICES,
             referral_link=referral_link,
             referral_bonus_days=REFERRAL_BONUS_DAYS,
@@ -497,7 +525,7 @@ def admin_mpesa_requests():
         flash("Admin access required.", "danger")
         return redirect(url_for('home'))
     pending = User.query.filter_by(mpesa_status='pending').order_by(User.mpesa_submitted_at.desc()).all()
-    return render_template('admin_mpesa.html', requests=pending)
+    return render_template('admin_mpesa.html', requests=pending, is_full_admin_user=is_full_admin(current_user))
 
 
 @app.route('/admin/mpesa-requests/<int:user_id>/approve', methods=['POST'])
@@ -537,9 +565,9 @@ def admin_reject_mpesa(user_id):
 @app.route('/admin/analytics')
 @login_required
 def admin_analytics():
-    if not has_unlimited_access(current_user):
+    if not is_full_admin(current_user):
         flash("Admin access required.", "danger")
-        return redirect(url_for('home'))
+        return redirect(url_for('admin_mpesa_requests') if is_co_admin(current_user) else url_for('home'))
 
     now = datetime.now()
     week_ago = now - timedelta(days=7)
@@ -578,9 +606,9 @@ def admin_analytics():
 @app.route('/admin/users')
 @login_required
 def admin_users():
-    if not has_unlimited_access(current_user):
+    if not is_full_admin(current_user):
         flash("Admin access required.", "danger")
-        return redirect(url_for('home'))
+        return redirect(url_for('admin_mpesa_requests') if is_co_admin(current_user) else url_for('home'))
 
     now = datetime.now()
     week_ago = now - timedelta(days=7)
