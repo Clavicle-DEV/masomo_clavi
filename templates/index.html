@@ -769,6 +769,46 @@
   .subject-bar-row .bar-fill { height: 100%; background: var(--gold); border-radius: 999px; }
   .subject-bar-row .bar-count { width: 26px; text-align: right; color: var(--muted); font-size: 13px; }
 
+  .score-bar-row { display: flex; align-items: center; gap: 12px; font-size: 14px; }
+  .score-bar-row .bar-name { width: 130px; flex-shrink: 0; color: var(--ink); }
+  .score-bar-row .bar-track {
+    flex: 1;
+    height: 10px;
+    background: var(--line);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .score-bar-row .bar-fill { height: 100%; border-radius: 999px; }
+  .score-bar-row .bar-fill.tier-strong { background: #2F5D45; }
+  .score-bar-row .bar-fill.tier-mid { background: var(--gold); }
+  .score-bar-row .bar-fill.tier-weak { background: var(--red); }
+  .score-bar-row .bar-pct { width: 42px; text-align: right; color: var(--muted); font-size: 13px; }
+
+  .progress-callout {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    margin-bottom: 20px;
+  }
+  .progress-callout .callout-label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.03em; color: var(--muted); font-weight: 700; }
+  .progress-callout .callout-body { font-size: 14px; color: var(--ink); }
+
+  .trend-strip { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 32px; }
+  .trend-dot {
+    width: 34px; height: 34px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700;
+    color: #fff;
+  }
+  .trend-dot.tier-strong { background: #2F5D45; }
+  .trend-dot.tier-mid { background: var(--gold); }
+  .trend-dot.tier-weak { background: var(--red); }
+
   .quick-links {
     display: flex;
     flex-wrap: wrap;
@@ -2076,6 +2116,32 @@ body{
       <div class="subject-bars" id="subjectBars"></div>
     </div>
 
+    <div id="examProgressWrap" style="display:none;">
+      <h3 class="section-heading">Exam performance</h3>
+
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-num" id="progAverage">—</div>
+          <div class="stat-label">Average score</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" id="progTotal">0</div>
+          <div class="stat-label">Papers completed</div>
+        </div>
+      </div>
+
+      <div id="progWeakestCallout" class="progress-callout" style="display:none;">
+        <span class="callout-label">Focus here</span>
+        <span class="callout-body" id="progWeakestText"></span>
+      </div>
+
+      <h3 class="section-heading">Average score by subject</h3>
+      <div class="subject-bars" id="scoreBars"></div>
+
+      <h3 class="section-heading">Recent papers</h3>
+      <div class="trend-strip" id="trendStrip"></div>
+    </div>
+
     <h3 class="section-heading">Quick links</h3>
     <div class="quick-links" id="dashQuickLinks"></div>
   </div>
@@ -2729,6 +2795,56 @@ body{
     quickLinksEl.querySelectorAll('.quick-link-btn').forEach(btn => {
       btn.addEventListener('click', () => openSubjectChat(btn.dataset.subject));
     });
+
+    renderExamProgress();
+  }
+
+  function scoreTier(pct) {
+    if (pct >= 70) return 'tier-strong';
+    if (pct >= 50) return 'tier-mid';
+    return 'tier-weak';
+  }
+
+  function renderExamProgress() {
+    fetch('/api/exam-progress')
+      .then(res => res.ok ? res.json() : Promise.reject())
+      .then(data => {
+        const wrap = document.getElementById('examProgressWrap');
+        if (!data || !data.totalPapers) {
+          wrap.style.display = 'none';
+          return;
+        }
+        wrap.style.display = 'block';
+
+        document.getElementById('progAverage').textContent = data.averagePercent + '%';
+        document.getElementById('progTotal').textContent = data.totalPapers;
+
+        const weakestEl = document.getElementById('progWeakestCallout');
+        if (data.weakestSubject) {
+          weakestEl.style.display = 'flex';
+          document.getElementById('progWeakestText').textContent =
+            `${data.weakestSubject.subject} — averaging ${data.weakestSubject.average}% over ${data.weakestSubject.attempts} papers. A bit more practice here should help.`;
+        } else {
+          weakestEl.style.display = 'none';
+        }
+
+        const scoreBarsEl = document.getElementById('scoreBars');
+        scoreBarsEl.innerHTML = data.bySubject.map(s => `
+          <div class="score-bar-row">
+            <div class="bar-name">${s.subject}</div>
+            <div class="bar-track"><div class="bar-fill ${scoreTier(s.average)}" style="width:${s.average}%"></div></div>
+            <div class="bar-pct">${s.average}%</div>
+          </div>
+        `).join('');
+
+        const trendEl = document.getElementById('trendStrip');
+        trendEl.innerHTML = data.recentTrend.map(r => `
+          <div class="trend-dot ${scoreTier(r.percent)}" title="${r.subject} — ${r.percent}% on ${r.date ? new Date(r.date).toLocaleDateString() : ''}">${r.percent}</div>
+        `).join('');
+      })
+      .catch(() => {
+        document.getElementById('examProgressWrap').style.display = 'none';
+      });
   }
 
   /* ---------------- Home / Chat logic ---------------- */

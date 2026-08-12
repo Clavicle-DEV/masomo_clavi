@@ -942,6 +942,66 @@ def api_exam_results():
     } for r in rows])
 
 
+@app.route('/api/exam-progress')
+@login_required
+def api_exam_progress():
+    rows = (
+        ExamResult.query
+        .filter_by(user_id=current_user.id)
+        .filter(ExamResult.percent != None)
+        .order_by(ExamResult.created_at.asc())
+        .all()
+    )
+
+    if not rows:
+        return jsonify({
+            "totalPapers": 0,
+            "averagePercent": None,
+            "bySubject": [],
+            "weakestSubject": None,
+            "strongestSubject": None,
+            "recentTrend": [],
+        })
+
+    by_subject = {}
+    for r in rows:
+        subject = r.subject or 'Unknown'
+        by_subject.setdefault(subject, []).append(r.percent)
+
+    subject_summaries = []
+    for subject, percents in by_subject.items():
+        avg = sum(percents) / len(percents)
+        subject_summaries.append({
+            "subject": subject,
+            "average": round(avg, 1),
+            "attempts": len(percents),
+            "latest": percents[-1],
+        })
+    subject_summaries.sort(key=lambda s: s['average'])
+
+    # Only call out a "weakest" subject once there's enough signal — a single
+    # bad paper shouldn't be branded a weak spot.
+    eligible = [s for s in subject_summaries if s['attempts'] >= 2]
+    weakest = eligible[0] if eligible else None
+    strongest = max(eligible, key=lambda s: s['average']) if eligible else None
+
+    all_percents = [r.percent for r in rows]
+    recent = rows[-10:]
+
+    return jsonify({
+        "totalPapers": len(rows),
+        "averagePercent": round(sum(all_percents) / len(all_percents), 1),
+        "bySubject": sorted(subject_summaries, key=lambda s: -s['average']),
+        "weakestSubject": weakest,
+        "strongestSubject": strongest,
+        "recentTrend": [{
+            "subject": r.subject,
+            "percent": r.percent,
+            "date": r.created_at.isoformat() if r.created_at else None,
+        } for r in recent],
+    })
+
+
 @app.route('/healthz')
 def healthz():
     return jsonify({"status": "ok"})
