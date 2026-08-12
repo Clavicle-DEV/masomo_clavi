@@ -142,6 +142,41 @@ def send_verification_email(to_email, verify_url):
             server.login(SMTP_USER, SMTP_PASS)
         server.sendmail(MAIL_FROM, [to_email], msg.as_string())
 
+
+def send_expiry_reminder_email(to_email, is_premium, expiry_date):
+    if not SMTP_HOST:
+        app.logger.info(f"[expiry reminder] SMTP not configured — would remind {to_email}, expiry {expiry_date}")
+        return
+
+    when = expiry_date.strftime('%d %b %Y at %I:%M %p') if expiry_date else 'soon'
+    pay_url = f"{YOUR_DOMAIN}/pay-mpesa"
+
+    if is_premium:
+        body = (
+            f"Your Clavis premium access expires on {when}.\n\n"
+            f"Renew here to keep unlimited tutor access, without losing your streak:\n{pay_url}\n\n"
+            f"If you've already renewed, you can ignore this message."
+        )
+        subject = 'Your Clavis premium access expires soon'
+    else:
+        body = (
+            f"Your Clavis free trial expires on {when}.\n\n"
+            f"Choose a plan to keep studying with your AI tutor after that:\n{pay_url}\n\n"
+            f"If you've already upgraded, you can ignore this message."
+        )
+        subject = 'Your Clavis free trial is ending soon'
+
+    msg = MIMEText(body)
+    msg['Subject'] = subject
+    msg['From'] = MAIL_FROM
+    msg['To'] = to_email
+
+    with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+        server.starttls()
+        if SMTP_USER and SMTP_PASS:
+            server.login(SMTP_USER, SMTP_PASS)
+        server.sendmail(MAIL_FROM, [to_email], msg.as_string())
+
 GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL = os.environ.get('GROQ_MODEL', 'openai/gpt-oss-120b')
@@ -175,6 +210,7 @@ class User(UserMixin, db.Model):
     email_verified = db.Column(db.Boolean, default=True)
     daily_ai_calls = db.Column(db.Integer, default=0)
     daily_ai_calls_date = db.Column(db.String(10), nullable=True)
+    expiry_reminder_for = db.Column(db.DateTime, nullable=True)
 
     def set_password(self, raw_password):
         self.password_hash = generate_password_hash(raw_password)
@@ -1054,6 +1090,53 @@ def healthz():
     return jsonify({"status": "ok"})
 
 
+def run_expiry_reminders(hours_ahead=36):
+    """Email users whose access expires within `hours_ahead` hours and who
+    haven't already been reminded for this specific expiry date. Intended to
+    be triggered once a day by an external scheduler (cron, GitHub Actions,
+    Render Cron Job, or a pinged HTTP endpoint) — see /internal/send-expiry-reminders.
+    Returns the number of reminder emails sent.
+    """
+    now = datetime.now()
+    window_end = now + timedelta(hours=hours_ahead)
+
+    candidates = User.query.filter(
+        User.expiry_date != None,
+        User.expiry_date > now,
+        User.expiry_date <= window_end,
+    ).all()
+
+    sent = 0
+    for user in candidates:
+        if has_unlimited_access(user):
+            continue
+        # Already reminded for this exact expiry cycle (renewing resets expiry_date,
+        # which naturally clears this guard for the next cycle).
+        if user.expiry_reminder_for and user.expiry_reminder_for == user.expiry_date:
+            continue
+        try:
+            send_expiry_reminder_email(user.email, bool(user.is_premium), user.expiry_date)
+            user.expiry_reminder_for = user.expiry_date
+            db.session.commit()
+            sent += 1
+        except Exception as e:
+            app.logger.error(f"Failed to send expiry reminder to {user.email}: {e}")
+            db.session.rollback()
+
+    return sent
+
+
+@app.route('/internal/send-expiry-reminders', methods=['GET', 'POST'])
+def internal_send_expiry_reminders():
+    secret = os.environ.get('CRON_SECRET')
+    provided = request.args.get('key') or request.headers.get('X-Cron-Secret')
+    if not secret or provided != secret:
+        return jsonify({"error": "Not found"}), 404
+
+    sent = run_expiry_reminders()
+    return jsonify({"status": "ok", "reminders_sent": sent})
+
+
 @app.route('/debug/config')
 def debug_config():
     def mask(value):
@@ -1101,6 +1184,9 @@ def ensure_database_schema():
                 if 'daily_ai_calls' not in columns:
                     db.session.execute(text('ALTER TABLE "user" ADD COLUMN "daily_ai_calls" INTEGER DEFAULT 0'))
                     db.session.execute(text('ALTER TABLE "user" ADD COLUMN "daily_ai_calls_date" VARCHAR(10)'))
+                    db.session.commit()
+                if 'expiry_reminder_for' not in columns:
+                    db.session.execute(text('ALTER TABLE "user" ADD COLUMN "expiry_reminder_for" DATETIME'))
                     db.session.commit()
         except Exception as exc:
             app.logger.warning(f"Could not ensure admin column exists: {exc}")

@@ -62,3 +62,25 @@ tool; if usage grows, a paid tier ($7/mo) keeps it always-on.
 - If usage grows beyond what you can personally fund, consider: a simple
   daily question limit per visitor, or looking into Anthropic's programs for
   nonprofits/education (worth checking their site directly for current offers).
+
+## 5. Renewal reminder emails
+Users whose trial or premium access is about to expire can be emailed a
+reminder automatically, but this needs to be triggered once a day by
+something outside the web app itself (Flask doesn't run background jobs).
+Two options — pick whichever fits your host:
+
+**Option A — a real scheduled job** (Render Cron Job, GitHub Actions on a
+schedule, or a cron entry on your own server) that runs:
+```
+python send_renewal_reminders.py
+```
+with the same environment variables as the web app (`DATABASE_URL`,
+`SMTP_*`, `APP_DOMAIN`).
+
+**Option B — a free URL-pinging service** (cron-job.org, UptimeRobot, etc.)
+if your host doesn't support running a separate scheduled process. Set a
+`CRON_SECRET` environment variable on the web app, then have the pinger hit:
+```
+POST https://your-app-domain.com/internal/send-expiry-reminders?key=YOUR_CRON_SECRET
+```
+once a day. The endpoint is disabled (returns 404) until `CRON_SECRET` is set.
