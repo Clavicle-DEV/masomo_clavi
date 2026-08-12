@@ -211,6 +211,8 @@ class User(UserMixin, db.Model):
     daily_ai_calls = db.Column(db.Integer, default=0)
     daily_ai_calls_date = db.Column(db.String(10), nullable=True)
     expiry_reminder_for = db.Column(db.DateTime, nullable=True)
+    display_name = db.Column(db.String(40), nullable=True)
+    leaderboard_opt_in = db.Column(db.Boolean, default=True)
 
     def set_password(self, raw_password):
         self.password_hash = generate_password_hash(raw_password)
@@ -304,6 +306,15 @@ def generate_referral_code():
             return code
     # Fallback — astronomically unlikely, but never leave a user without a code.
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
+
+
+def default_display_name(email):
+    """A safe, non-identifying default name for the leaderboard — the local
+    part of the email, title-cased, never the full email address."""
+    local_part = (email or '').split('@')[0]
+    cleaned = ''.join(ch if ch.isalnum() else ' ' for ch in local_part).strip()
+    name = cleaned.split(' ')[0] if cleaned else 'Student'
+    return (name[:1].upper() + name[1:])[:40] if name else 'Student'
 
 def call_groq(messages, model=None, max_tokens=None):
     api_key = os.environ.get('GROQ_API_KEY') or GROQ_API_KEY
@@ -405,6 +416,7 @@ def signup():
             referral_code=generate_referral_code(),
             referred_by_id=referrer.id if referrer else None,
             email_verified=gets_free_unlimited,
+            display_name=default_display_name(email),
         )
         new_user.set_password(password)
         db.session.add(new_user)
@@ -1085,6 +1097,72 @@ def api_exam_progress():
     })
 
 
+@app.route('/api/profile', methods=['GET', 'POST'])
+@login_required
+def api_profile():
+    if request.method == 'POST':
+        data = request.get_json(silent=True) or {}
+        if 'displayName' in data:
+            name = (data.get('displayName') or '').strip()
+            # Keep it short and plain — this is shown to other students on
+            # the leaderboard, so no emails, no wild-length input.
+            name = ''.join(ch for ch in name if ch.isalnum() or ch in ' -_')[:40].strip()
+            current_user.display_name = name or default_display_name(current_user.email)
+        if 'leaderboardOptIn' in data:
+            current_user.leaderboard_opt_in = bool(data.get('leaderboardOptIn'))
+        db.session.commit()
+        return jsonify({"status": "ok"})
+
+    return jsonify({
+        "displayName": current_user.display_name or default_display_name(current_user.email),
+        "leaderboardOptIn": current_user.leaderboard_opt_in if current_user.leaderboard_opt_in is not None else True,
+    })
+
+
+@app.route('/api/leaderboard')
+@login_required
+def api_leaderboard():
+    rows = (
+        db.session.query(User, UserStats)
+        .join(UserStats, UserStats.user_id == User.id)
+        .filter(UserStats.total > 0)
+        .all()
+    )
+
+    entries = []
+    for user, stats in rows:
+        # Admins/co-admins aren't students competing for a place on the board.
+        if is_full_admin(user) or is_co_admin(user):
+            continue
+        opted_in = user.leaderboard_opt_in if user.leaderboard_opt_in is not None else True
+        entries.append({
+            "user_id": user.id,
+            "name": user.display_name or default_display_name(user.email),
+            "total": stats.total or 0,
+            "streak": stats.streak or 0,
+            "opted_in": bool(opted_in),
+        })
+
+    visible = [e for e in entries if e['opted_in']]
+    visible.sort(key=lambda e: (-e['total'], -e['streak']))
+    for i, e in enumerate(visible):
+        e['rank'] = i + 1
+
+    me = next((e for e in entries if e['user_id'] == current_user.id), None)
+    my_rank = me['rank'] if (me and me['opted_in']) else None
+
+    return jsonify({
+        "top": [
+            {"rank": e['rank'], "name": e['name'], "total": e['total'], "streak": e['streak'], "isMe": e['user_id'] == current_user.id}
+            for e in visible[:20]
+        ],
+        "myRank": my_rank,
+        "myTotal": me['total'] if me else 0,
+        "totalRanked": len(visible),
+        "optedIn": bool(current_user.leaderboard_opt_in) if current_user.leaderboard_opt_in is not None else True,
+    })
+
+
 @app.route('/healthz')
 def healthz():
     return jsonify({"status": "ok"})
@@ -1187,6 +1265,10 @@ def ensure_database_schema():
                     db.session.commit()
                 if 'expiry_reminder_for' not in columns:
                     db.session.execute(text('ALTER TABLE "user" ADD COLUMN "expiry_reminder_for" TIMESTAMP'))
+                    db.session.commit()
+                if 'display_name' not in columns:
+                    db.session.execute(text('ALTER TABLE "user" ADD COLUMN "display_name" VARCHAR(40)'))
+                    db.session.execute(text('ALTER TABLE "user" ADD COLUMN "leaderboard_opt_in" BOOLEAN DEFAULT TRUE'))
                     db.session.commit()
         except Exception as exc:
             app.logger.warning(f"Could not ensure admin column exists: {exc}")

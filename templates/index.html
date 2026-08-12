@@ -809,6 +809,31 @@
   .trend-dot.tier-mid { background: var(--gold); }
   .trend-dot.tier-weak { background: var(--red); }
 
+  .badge-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px; }
+  .badge-chip {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(217, 166, 46, 0.12);
+    border: 1px solid rgba(217, 166, 46, 0.35);
+    color: var(--chalk);
+    font-size: 12.5px;
+    font-weight: 700;
+  }
+
+  .leaderboard-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    margin-bottom: 8px;
+    font-size: 14px;
+  }
+  .leaderboard-row.is-me { background: rgba(217, 166, 46, 0.1); border-color: rgba(217, 166, 46, 0.4); }
+  .leaderboard-row .lb-rank { width: 28px; flex-shrink: 0; font-weight: 800; color: var(--muted); text-align: center; }
+  .leaderboard-row .lb-name { flex: 1; color: var(--ink); font-weight: 600; }
+  .leaderboard-row .lb-total { color: var(--muted); font-size: 13px; }
+
   .quick-links {
     display: flex;
     flex-wrap: wrap;
@@ -1598,6 +1623,10 @@ body{
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
       <span class="nav-label">Dashboard</span>
     </button>
+    <button data-screen="leaderboardScreen">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 01-10 0V4z" stroke-linecap="round" stroke-linejoin="round"/><path d="M17 5h2a2 2 0 012 2 4 4 0 01-4 4M7 5H5a2 2 0 00-2 2 4 4 0 004 4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span class="nav-label">Leaderboard</span>
+    </button>
     <button data-screen="bookScreen">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5c3-1.5 6-1.5 8 0v14c-2-1.5-5-1.5-8 0V5z" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 5c-3-1.5-6-1.5-8 0v14c2-1.5 5-1.5 8 0V5z" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <span class="nav-label">Book Finder</span>
@@ -2111,6 +2140,8 @@ body{
       </div>
     </div>
 
+    <div id="badgeRow" class="badge-row"></div>
+
     <div id="subjectBarsWrap">
       <h3 class="section-heading">Questions by subject</h3>
       <div class="subject-bars" id="subjectBars"></div>
@@ -2146,9 +2177,62 @@ body{
     <div class="quick-links" id="dashQuickLinks"></div>
   </div>
 
+  <!-- ============ LEADERBOARD SCREEN ============ -->
+  <div class="screen" id="leaderboardScreen">
+    <h2 class="dash-title">Leaderboard</h2>
+    <p class="sub" style="color:var(--muted);font-size:13.5px;margin:-8px 0 20px;">Ranked by questions asked. Only students who've chosen to appear are shown.</p>
+
+    <div id="lbOptedOutNotice" class="progress-callout" style="display:none;">
+      <span class="callout-label">You're hidden</span>
+      <span class="callout-body">You've turned off the leaderboard in Settings, so you won't appear to others — but you can still see where you'd rank.</span>
+    </div>
+
+    <div id="lbMyRankCard" class="stat-grid" style="display:none;">
+      <div class="stat-card">
+        <div class="stat-num" id="lbMyRank">—</div>
+        <div class="stat-label">Your rank</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="lbMyTotal">0</div>
+        <div class="stat-label">Your questions</div>
+      </div>
+    </div>
+
+    <div id="lbEmptyState" class="empty-dash" style="display:none;">
+      No one's on the board yet — ask a few questions and be the first!
+    </div>
+
+    <div id="lbList"></div>
+  </div>
+
   <!-- ============ SETTINGS SCREEN ============ -->
   <div class="screen" id="settingsScreen">
     <h2 class="dash-title">Settings</h2>
+
+    <div class="settings-group">
+      <div class="settings-row" style="flex-direction: column; align-items: stretch; gap: 10px;">
+        <div>
+          <div class="settings-row-label">Leaderboard name</div>
+          <div class="settings-row-sub">How you appear to other students on the leaderboard — never your email.</div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <input type="text" id="displayNameInput" maxlength="40" placeholder="Your name"
+                 style="flex:1; border:1px solid var(--line); background:var(--paper); border-radius:8px; padding:10px 12px; font-size:13px; color:var(--ink);" />
+          <button type="button" id="saveDisplayNameBtn" style="background:var(--chalk); color:var(--paper); border:none; border-radius:8px; padding:0 16px; font-weight:600; font-size:13px; cursor:pointer; white-space:nowrap;">Save</button>
+        </div>
+      </div>
+
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">Show me on the leaderboard</div>
+          <div class="settings-row-sub">Turn off to keep your progress private from other students</div>
+        </div>
+        <div class="level-toggle" id="leaderboardOptToggle">
+          <button data-opt="on" class="active">On</button>
+          <button data-opt="off">Off</button>
+        </div>
+      </div>
+    </div>
 
     <div class="settings-group">
       <div class="settings-row" style="flex-direction: column; align-items: stretch; gap: 10px;">
@@ -2435,6 +2519,7 @@ body{
     screens.forEach(s => s.classList.toggle('active', s.id === id));
     [...mainNav.children].forEach(b => b.classList.toggle('active', b.dataset.screen === id));
     if (id === 'dashboardScreen') renderDashboard();
+    if (id === 'leaderboardScreen') renderLeaderboard();
   }
 
   mainNav.addEventListener('click', (e) => {
@@ -2593,6 +2678,48 @@ body{
       setTimeout(() => { copyReferralBtn.textContent = originalLabel; }, 1800);
     });
   }
+
+  /* ---------------- Leaderboard profile settings ---------------- */
+  const displayNameInput = document.getElementById('displayNameInput');
+  const saveDisplayNameBtn = document.getElementById('saveDisplayNameBtn');
+  const leaderboardOptToggle = document.getElementById('leaderboardOptToggle');
+
+  fetch('/api/profile')
+    .then(res => res.ok ? res.json() : Promise.reject())
+    .then(profile => {
+      displayNameInput.value = profile.displayName || '';
+      const opt = profile.leaderboardOptIn ? 'on' : 'off';
+      [...leaderboardOptToggle.children].forEach(b => b.classList.toggle('active', b.dataset.opt === opt));
+    })
+    .catch(() => {});
+
+  saveDisplayNameBtn.addEventListener('click', () => {
+    const name = displayNameInput.value.trim();
+    if (!name) return;
+    const originalLabel = saveDisplayNameBtn.textContent;
+    saveDisplayNameBtn.textContent = 'Saving…';
+    fetch('/api/profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ displayName: name })
+    })
+      .then(res => res.ok ? res.json() : Promise.reject())
+      .then(() => { saveDisplayNameBtn.textContent = 'Saved!'; })
+      .catch(() => { saveDisplayNameBtn.textContent = 'Failed'; })
+      .finally(() => { setTimeout(() => { saveDisplayNameBtn.textContent = originalLabel; }, 1500); });
+  });
+
+  leaderboardOptToggle.addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const optedIn = btn.dataset.opt === 'on';
+    [...leaderboardOptToggle.children].forEach(b => b.classList.toggle('active', b === btn));
+    fetch('/api/profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ leaderboardOptIn: optedIn })
+    }).catch(() => {});
+  });
 
   document.getElementById('clearChatBtn').addEventListener('click', () => {
     conversationHistory = [];
@@ -2796,7 +2923,23 @@ body{
       btn.addEventListener('click', () => openSubjectChat(btn.dataset.subject));
     });
 
+    renderBadges(stats, null);
     renderExamProgress();
+  }
+
+  function renderBadges(stats, averagePercent) {
+    const badges = [];
+    if (stats.streak >= 3) badges.push('🔥 3-day streak');
+    if (stats.streak >= 7) badges.push('🔥 Week warrior');
+    if (stats.streak >= 30) badges.push('🔥 30-day streak');
+    if (stats.total >= 10) badges.push('📚 10 questions asked');
+    if (stats.total >= 50) badges.push('📚 50 questions club');
+    if (stats.total >= 200) badges.push('📚 200 questions club');
+    if (averagePercent !== null && averagePercent >= 70) badges.push('⭐ Averaging 70%+');
+    if (averagePercent !== null && averagePercent >= 90) badges.push('🏆 Top scorer');
+
+    const el = document.getElementById('badgeRow');
+    el.innerHTML = badges.map(b => `<div class="badge-chip">${b}</div>`).join('');
   }
 
   function scoreTier(pct) {
@@ -2841,9 +2984,51 @@ body{
         trendEl.innerHTML = data.recentTrend.map(r => `
           <div class="trend-dot ${scoreTier(r.percent)}" title="${r.subject} — ${r.percent}% on ${r.date ? new Date(r.date).toLocaleDateString() : ''}">${r.percent}</div>
         `).join('');
+
+        renderBadges(getStats(), data.averagePercent);
       })
       .catch(() => {
         document.getElementById('examProgressWrap').style.display = 'none';
+      });
+  }
+
+  function renderLeaderboard() {
+    const listEl = document.getElementById('lbList');
+    const emptyEl = document.getElementById('lbEmptyState');
+    const myRankCard = document.getElementById('lbMyRankCard');
+    const optedOutNotice = document.getElementById('lbOptedOutNotice');
+
+    fetch('/api/leaderboard')
+      .then(res => res.ok ? res.json() : Promise.reject())
+      .then(data => {
+        optedOutNotice.style.display = data.optedIn ? 'none' : 'block';
+
+        if (data.myRank) {
+          myRankCard.style.display = 'grid';
+          document.getElementById('lbMyRank').textContent = '#' + data.myRank;
+          document.getElementById('lbMyTotal').textContent = data.myTotal;
+        } else {
+          myRankCard.style.display = 'none';
+        }
+
+        if (!data.top || !data.top.length) {
+          emptyEl.style.display = 'block';
+          listEl.innerHTML = '';
+          return;
+        }
+        emptyEl.style.display = 'none';
+
+        listEl.innerHTML = data.top.map(e => `
+          <div class="leaderboard-row ${e.isMe ? 'is-me' : ''}">
+            <div class="lb-rank">${e.rank <= 3 ? ['🥇','🥈','🥉'][e.rank - 1] : '#' + e.rank}</div>
+            <div class="lb-name">${e.name}${e.isMe ? ' (you)' : ''}</div>
+            <div class="lb-total">${e.total} questions · 🔥 ${e.streak}</div>
+          </div>
+        `).join('');
+      })
+      .catch(() => {
+        listEl.innerHTML = '';
+        emptyEl.style.display = 'block';
       });
   }
 
