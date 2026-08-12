@@ -1318,6 +1318,13 @@
   }
   [data-theme="dark"] .flash-success { color: #7FBF9E; }
 
+  .flash-warning {
+    background: rgba(184, 141, 58, 0.12);
+    border-color: rgba(184, 141, 58, 0.35);
+    color: #8A6318;
+  }
+  [data-theme="dark"] .flash-warning { color: #E0B860; }
+
   .flash-dismiss {
     background: none;
     border: none;
@@ -1580,6 +1587,17 @@ body{
       </div>
     {% endif %}
   {% endwith %}
+
+  {% if not email_verified %}
+    <div class="flash-stack">
+      <div class="flash-msg flash-warning" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <span>📧 Verify your email to unlock the tutor — check your inbox for the link.</span>
+        <form action="{{ url_for('resend_verification') }}" method="POST" style="margin: 0;">
+          <button type="submit" style="background: none; border: 1px solid currentColor; color: inherit; border-radius: 6px; padding: 4px 10px; font-size: 12px; font-weight: 700; cursor: pointer;">Resend link</button>
+        </form>
+      </div>
+    </div>
+  {% endif %}
 
   <div class="user-badge-bar" style="display: flex; justify-content: space-between; align-items: center; background: var(--paper); border: 1px solid var(--line); padding: 10px 16px; border-radius: 8px; margin-bottom: 24px; font-size: 13px;">
     <div class="user-info" style="display: flex; align-items: center; gap: 8px; font-weight: 500;">

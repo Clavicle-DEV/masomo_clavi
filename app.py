@@ -92,6 +92,7 @@ def has_unlimited_access(user):
 
 reset_serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
 RESET_TOKEN_MAX_AGE = 3600
+EMAIL_VERIFY_TOKEN_MAX_AGE = 86400
 
 SMTP_HOST = os.environ.get('SMTP_HOST')
 SMTP_PORT = int(os.environ.get('SMTP_PORT', '587'))
@@ -111,6 +112,27 @@ def send_reset_email(to_email, reset_url):
         f"If you didn't request this, you can safely ignore this email."
     )
     msg['Subject'] = 'Reset your Clavis password'
+    msg['From'] = MAIL_FROM
+    msg['To'] = to_email
+
+    with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+        server.starttls()
+        if SMTP_USER and SMTP_PASS:
+            server.login(SMTP_USER, SMTP_PASS)
+        server.sendmail(MAIL_FROM, [to_email], msg.as_string())
+
+
+def send_verification_email(to_email, verify_url):
+    if not SMTP_HOST:
+        app.logger.info(f"[email verify] SMTP not configured — verify link for {to_email}: {verify_url}")
+        return
+
+    msg = MIMEText(
+        f"Welcome to Clavis!\n\n"
+        f"Please verify your email to unlock full tutor access (link expires in 24 hours):\n{verify_url}\n\n"
+        f"If you didn't create this account, you can safely ignore this email."
+    )
+    msg['Subject'] = 'Verify your Clavis account'
     msg['From'] = MAIL_FROM
     msg['To'] = to_email
 
@@ -144,6 +166,7 @@ class User(UserMixin, db.Model):
     created_at = db.Column(db.DateTime, nullable=True)
     referral_code = db.Column(db.String(12), unique=True, nullable=True)
     referred_by_id = db.Column(db.Integer, nullable=True)
+    email_verified = db.Column(db.Boolean, default=True)
 
     def set_password(self, raw_password):
         self.password_hash = generate_password_hash(raw_password)
@@ -309,6 +332,7 @@ def signup():
             created_at=datetime.now(),
             referral_code=generate_referral_code(),
             referred_by_id=referrer.id if referrer else None,
+            email_verified=gets_free_unlimited,
         )
         new_user.set_password(password)
         db.session.add(new_user)
@@ -320,6 +344,14 @@ def signup():
             referrer.expiry_date = base + timedelta(days=REFERRAL_BONUS_DAYS)
 
         db.session.commit()
+
+        if not new_user.email_verified:
+            token = reset_serializer.dumps(email, salt='email-verify')
+            verify_url = f"{YOUR_DOMAIN}/verify-email/{token}"
+            try:
+                send_verification_email(email, verify_url)
+            except Exception as e:
+                app.logger.error(f"Failed to send verification email to {email}: {e}")
 
         login_user(new_user, remember=True)
         return redirect(url_for('home'))
@@ -404,6 +436,46 @@ def reset_password(token):
 
     return render_template('auth.html', mode='reset', token=token)
 
+@app.route('/verify-email/<token>')
+def verify_email(token):
+    try:
+        email = reset_serializer.loads(token, salt='email-verify', max_age=EMAIL_VERIFY_TOKEN_MAX_AGE)
+    except SignatureExpired:
+        flash("That verification link has expired — request a new one from the banner on your account.", "danger")
+        return redirect(url_for('home') if current_user.is_authenticated else url_for('login'))
+    except BadSignature:
+        flash("That verification link isn't valid.", "danger")
+        return redirect(url_for('home') if current_user.is_authenticated else url_for('login'))
+
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        flash("That verification link isn't valid.", "danger")
+        return redirect(url_for('login'))
+
+    if not user.email_verified:
+        user.email_verified = True
+        db.session.commit()
+    flash("Email verified — you're all set!", "success")
+    return redirect(url_for('home') if current_user.is_authenticated else url_for('login'))
+
+
+@app.route('/resend-verification', methods=['POST'])
+@login_required
+def resend_verification():
+    if current_user.email_verified:
+        flash("Your email is already verified.", "success")
+        return redirect(url_for('home'))
+
+    token = reset_serializer.dumps(current_user.email, salt='email-verify')
+    verify_url = f"{YOUR_DOMAIN}/verify-email/{token}"
+    try:
+        send_verification_email(current_user.email, verify_url)
+        flash("Verification email sent — check your inbox.", "success")
+    except Exception as e:
+        app.logger.error(f"Failed to send verification email to {current_user.email}: {e}")
+        flash("Couldn't send the email right now — please try again shortly.", "danger")
+    return redirect(url_for('home'))
+
 @app.route('/')
 def home():
     if current_user.is_authenticated:
@@ -420,6 +492,7 @@ def home():
             mpesa_prices=MPESA_TIER_PRICES,
             referral_link=referral_link,
             referral_bonus_days=REFERRAL_BONUS_DAYS,
+            email_verified=current_user.email_verified,
         )
 
     return render_template(
@@ -648,6 +721,8 @@ def admin_users():
 @app.route('/api/tutor', methods=['POST'])
 @login_required
 def api_tutor():
+    if not current_user.email_verified:
+        return jsonify({"error": "Please verify your email to start chatting with the tutor — check your inbox, or resend the link from the banner above."}), 403
     if current_user.subscription_expired and not has_unlimited_access(current_user):
         return jsonify({"error": "Your trial has ended — please choose a plan."}), 402
 
@@ -706,6 +781,8 @@ def api_tutor():
 @app.route('/api/topics', methods=['POST'])
 @login_required
 def api_topics():
+    if not current_user.email_verified:
+        return jsonify({"error": "Please verify your email to continue — check your inbox, or resend the link from the banner above."}), 403
     data = request.get_json(silent=True) or {}
     subject = data.get('subject')
     level = data.get('level')
@@ -735,6 +812,8 @@ def api_topics():
 @app.route('/api/generate-test', methods=['POST'])
 @login_required
 def api_generate_test():
+    if not current_user.email_verified:
+        return jsonify({"error": "Please verify your email to continue — check your inbox, or resend the link from the banner above."}), 403
     if current_user.subscription_expired and not has_unlimited_access(current_user):
         return jsonify({"error": "Your trial has ended — please choose a plan."}), 402
 
@@ -906,6 +985,11 @@ def ensure_database_schema():
                 if 'referral_code' not in columns:
                     db.session.execute(text('ALTER TABLE "user" ADD COLUMN "referral_code" VARCHAR(12)'))
                     db.session.execute(text('ALTER TABLE "user" ADD COLUMN "referred_by_id" INTEGER'))
+                    db.session.commit()
+                if 'email_verified' not in columns:
+                    # DEFAULT TRUE grandfathers in everyone who signed up before
+                    # this feature existed — only new signups start unverified.
+                    db.session.execute(text('ALTER TABLE "user" ADD COLUMN "email_verified" BOOLEAN DEFAULT TRUE'))
                     db.session.commit()
         except Exception as exc:
             app.logger.warning(f"Could not ensure admin column exists: {exc}")
