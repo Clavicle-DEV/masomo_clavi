@@ -1167,7 +1167,7 @@ def ensure_database_schema():
                     db.session.execute(text('ALTER TABLE "user" ADD COLUMN "mpesa_code" VARCHAR(20)'))
                     db.session.execute(text('ALTER TABLE "user" ADD COLUMN "mpesa_tier" VARCHAR(20)'))
                     db.session.execute(text('ALTER TABLE "user" ADD COLUMN "mpesa_status" VARCHAR(20)'))
-                    db.session.execute(text('ALTER TABLE "user" ADD COLUMN "mpesa_submitted_at" DATETIME'))
+                    db.session.execute(text('ALTER TABLE "user" ADD COLUMN "mpesa_submitted_at" TIMESTAMP'))
                     db.session.commit()
                 if 'created_at' not in columns:
                     db.session.execute(text('ALTER TABLE "user" ADD COLUMN "created_at" TIMESTAMP'))
@@ -1186,7 +1186,7 @@ def ensure_database_schema():
                     db.session.execute(text('ALTER TABLE "user" ADD COLUMN "daily_ai_calls_date" VARCHAR(10)'))
                     db.session.commit()
                 if 'expiry_reminder_for' not in columns:
-                    db.session.execute(text('ALTER TABLE "user" ADD COLUMN "expiry_reminder_for" DATETIME'))
+                    db.session.execute(text('ALTER TABLE "user" ADD COLUMN "expiry_reminder_for" TIMESTAMP'))
                     db.session.commit()
         except Exception as exc:
             app.logger.warning(f"Could not ensure admin column exists: {exc}")
