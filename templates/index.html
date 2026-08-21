@@ -339,6 +339,13 @@
     margin: 0 0 24px;
   }
 
+  .welcome-type-btn { transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease; }
+  .welcome-type-btn:hover {
+    border-color: var(--gold) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(0,0,0,0.1);
+  }
+
   .welcome-card button {
     background: var(--chalk);
     color: var(--paper);
@@ -504,6 +511,47 @@
   .subject-card.business { background: #5C4A26; }
   .subject-card.history { background: #4A3B2E; }
   .subject-card.computer { background: #263544; }
+
+  /* Campus subjects use a cooler, flatter "course card" palette instead of
+     the warm book-cover tones above. */
+  .subject-card.statistics { background: #145A32; }
+  .subject-card.accounting { background: #1F4E5F; }
+  .subject-card.economics { background: #4A235A; }
+  .subject-card.marketing { background: #6E3A0F; }
+  .subject-card.finance { background: #117864; }
+  .subject-card.hrm { background: #6B5B0E; }
+  .subject-card.public-admin { background: #283747; }
+  .subject-card.law { background: #7B241C; }
+  .subject-card.computer-science { background: #1B2631; }
+  .subject-card.psychology { background: #6E2C00; }
+  .subject-card.sociology { background: #154360; }
+  .subject-card.political-science { background: #512E5F; }
+  .subject-card.communication { background: #78281F; }
+  .subject-card.education { background: #1E8449; }
+  .subject-card.literature { background: #6C3483; }
+  .subject-card.philosophy { background: #212F3D; }
+
+  /* Campus mode: flatter, squared "course card" look — no book spine/page
+     pseudo-elements, plus a small graduation-cap badge in the corner. */
+  .subjects.campus-mode .subject-card {
+    border-radius: 12px;
+  }
+  .subjects.campus-mode .subject-card::before,
+  .subjects.campus-mode .subject-card::after {
+    display: none;
+  }
+  .subjects.campus-mode .subject-card:hover {
+    transform: translateY(-4px);
+  }
+  .campus-badge { display: none; }
+  .subjects.campus-mode .subject-card .campus-badge {
+    display: block;
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    font-size: 15px;
+    opacity: 0.85;
+  }
 
   .subject-icon {
     width: 26px; height: 26px;
@@ -1572,10 +1620,28 @@ body{
         <path d="M12.5 24.4c3.3-1.9 6.5-2.5 8.8-2.5" stroke="#F0C24A" stroke-width="1.1" stroke-linecap="round" opacity="0.9"/>
         <path d="M21.8 8.2c1.8 0.8 3.1 2.1 4.1 3.8" stroke="#F2C34C" stroke-width="1.1" stroke-linecap="round" opacity="0.8"/>
       </svg><span class="brand-wordmark">Clavis</span></div>
-    <h2>Karibu, welcome! 👋</h2>
-    <p>Clavis is your tutor study buddy — pick a level, choose a subject, and ask anything. Your questions, progress, and settings stay right here in your browser. New accounts get a free trial period before a plan is required.</p>
-    <input type="text" id="welcomeNameInput" placeholder="What should we call you?" style="width:100%;box-sizing:border-box;padding:12px 14px;border-radius:12px;border:1px solid var(--line);font-family:'Inter',sans-serif;font-size:15px;margin-bottom:14px;" />
-    <button id="welcomeStartBtn">Get started</button>
+    <div id="welcomeStepType">
+      <h2>Karibu, welcome! 👋</h2>
+      <p>First, tell us where you're studying so we can show you the right subjects.</p>
+      <div style="display:flex; gap:10px; margin-bottom:6px;">
+        <button type="button" id="welcomeTypeHighschool" class="welcome-type-btn" style="flex:1; padding:18px 12px; border-radius:14px; border:1px solid var(--line); background:var(--paper); cursor:pointer; text-align:center; font-family:'Inter',sans-serif;">
+          <div style="font-size:26px; margin-bottom:6px;">🏫</div>
+          <div style="font-weight:700; font-size:14px; color:var(--ink);">High school</div>
+          <div style="font-size:12px; color:var(--muted); margin-top:2px;">CBC, Primary, Secondary</div>
+        </button>
+        <button type="button" id="welcomeTypeCampus" class="welcome-type-btn" style="flex:1; padding:18px 12px; border-radius:14px; border:1px solid var(--line); background:var(--paper); cursor:pointer; text-align:center; font-family:'Inter',sans-serif;">
+          <div style="font-size:26px; margin-bottom:6px;">🎓</div>
+          <div style="font-weight:700; font-size:14px; color:var(--ink);">Campus</div>
+          <div style="font-size:12px; color:var(--muted); margin-top:2px;">University students</div>
+        </button>
+      </div>
+    </div>
+    <div id="welcomeStepName" style="display:none;">
+      <h2>Karibu, welcome! 👋</h2>
+      <p>Clavis is your tutor study buddy — pick a level, choose a subject, and ask anything. Your questions, progress, and settings stay right here in your browser. New accounts get a free trial period before a plan is required.</p>
+      <input type="text" id="welcomeNameInput" placeholder="What should we call you?" style="width:100%;box-sizing:border-box;padding:12px 14px;border-radius:12px;border:1px solid var(--line);font-family:'Inter',sans-serif;font-size:15px;margin-bottom:14px;" />
+      <button id="welcomeStartBtn">Get started</button>
+    </div>
   </div>
 </div>
 
@@ -1796,6 +1862,7 @@ body{
         <button data-level="junior_school">Junior School</button>
         <button data-level="secondary" class="active">Secondary (KCSE)</button>
         <button data-level="senior_school">Senior School</button>
+        <button data-level="campus">Campus</button>
       </div>
 
       <div class="sub-level-row" id="subLevelRow">
@@ -2024,6 +2091,212 @@ body{
           <div class="subject-sub">Practical skills &amp; technology</div>
         </div>
       </div>
+
+      <!-- ===== Campus-only subjects ===== -->
+      <div class="subject-card statistics" data-subject="Statistics">
+        <span class="campus-badge">🎓</span>
+        <svg class="subject-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div class="subject-title-block">
+          <div class="subject-name">Statistics</div>
+          <div class="subject-name-rule"></div>
+          <div class="subject-sub">Probability, data &amp; inference</div>
+        </div>
+      </div>
+
+      <div class="subject-card accounting" data-subject="Accounting">
+        <span class="campus-badge">🎓</span>
+        <svg class="subject-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <rect x="4" y="3" width="16" height="18" rx="1.5"/>
+          <path d="M8 8h8M8 12h8M8 16h5" stroke-linecap="round"/>
+        </svg>
+        <div class="subject-title-block">
+          <div class="subject-name">Accounting</div>
+          <div class="subject-name-rule"></div>
+          <div class="subject-sub">Ledgers, statements &amp; bookkeeping</div>
+        </div>
+      </div>
+
+      <div class="subject-card economics" data-subject="Economics">
+        <span class="campus-badge">🎓</span>
+        <svg class="subject-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M3 17l6-6 4 4 8-8" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M15 7h6v6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div class="subject-title-block">
+          <div class="subject-name">Economics</div>
+          <div class="subject-name-rule"></div>
+          <div class="subject-sub">Micro, macro &amp; market theory</div>
+        </div>
+      </div>
+
+      <div class="subject-card marketing" data-subject="Marketing">
+        <span class="campus-badge">🎓</span>
+        <svg class="subject-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M3 11l18-7-7 18-2-8-8-3z" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div class="subject-title-block">
+          <div class="subject-name">Marketing</div>
+          <div class="subject-name-rule"></div>
+          <div class="subject-sub">Branding, strategy &amp; consumer behaviour</div>
+        </div>
+      </div>
+
+      <div class="subject-card finance" data-subject="Finance">
+        <span class="campus-badge">🎓</span>
+        <svg class="subject-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <circle cx="12" cy="12" r="9"/>
+          <path d="M12 7v10M9.5 9.5c0-1.4 1.1-2.5 2.5-2.5s2.5 1 2.5 2.2c0 3-5 1.8-5 4.8 0 1.2 1.1 2.2 2.5 2.2s2.5-1.1 2.5-2.5" stroke-linecap="round"/>
+        </svg>
+        <div class="subject-title-block">
+          <div class="subject-name">Finance</div>
+          <div class="subject-name-rule"></div>
+          <div class="subject-sub">Investment, markets &amp; corporate finance</div>
+        </div>
+      </div>
+
+      <div class="subject-card hrm" data-subject="Human Resource Management">
+        <span class="campus-badge">🎓</span>
+        <svg class="subject-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <circle cx="8" cy="8" r="3"/>
+          <circle cx="17" cy="9" r="2.5"/>
+          <path d="M2 20c0-3.3 2.7-6 6-6s6 2.7 6 6M14.5 14.5c2.8.3 4.5 2.5 4.5 5.5" stroke-linecap="round"/>
+        </svg>
+        <div class="subject-title-block">
+          <div class="subject-name">Human Resource Management</div>
+          <div class="subject-name-rule"></div>
+          <div class="subject-sub">People, recruitment &amp; organisations</div>
+        </div>
+      </div>
+
+      <div class="subject-card public-admin" data-subject="Public Administration">
+        <span class="campus-badge">🎓</span>
+        <svg class="subject-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M12 3l9 5H3l9-5z" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 21h18" stroke-linecap="round"/>
+        </svg>
+        <div class="subject-title-block">
+          <div class="subject-name">Public Administration</div>
+          <div class="subject-name-rule"></div>
+          <div class="subject-sub">Governance, policy &amp; institutions</div>
+        </div>
+      </div>
+
+      <div class="subject-card law" data-subject="Law">
+        <span class="campus-badge">🎓</span>
+        <svg class="subject-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M12 3v18M7 7l-4 8h8l-4-8zM17 7l-4 8h8l-4-8zM5 21h14" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div class="subject-title-block">
+          <div class="subject-name">Law</div>
+          <div class="subject-name-rule"></div>
+          <div class="subject-sub">Constitutional, contract &amp; criminal law</div>
+        </div>
+      </div>
+
+      <div class="subject-card computer-science" data-subject="Computer Science">
+        <span class="campus-badge">🎓</span>
+        <svg class="subject-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M9 8l-4 4 4 4M15 8l4 4-4 4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div class="subject-title-block">
+          <div class="subject-name">Computer Science</div>
+          <div class="subject-name-rule"></div>
+          <div class="subject-sub">Programming, algorithms &amp; data structures</div>
+        </div>
+      </div>
+
+      <div class="subject-card psychology" data-subject="Psychology">
+        <span class="campus-badge">🎓</span>
+        <svg class="subject-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M9 3a5 5 0 015 5c1.5 0 3 1.3 3 3 0 1-.5 1.8-1.2 2.3.5.5.7 1.1.7 1.7 0 1.4-1.1 2.5-2.5 2.5H13v3a2 2 0 01-2 2H9a2 2 0 01-2-2v-4c-1.7-.7-3-2.4-3-4.5C4 6.5 6.2 3 9 3z" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div class="subject-title-block">
+          <div class="subject-name">Psychology</div>
+          <div class="subject-name-rule"></div>
+          <div class="subject-sub">Mind, behaviour &amp; human development</div>
+        </div>
+      </div>
+
+      <div class="subject-card sociology" data-subject="Sociology">
+        <span class="campus-badge">🎓</span>
+        <svg class="subject-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <circle cx="7" cy="8" r="2.5"/>
+          <circle cx="17" cy="8" r="2.5"/>
+          <circle cx="12" cy="16" r="2.5"/>
+          <path d="M7 10.5c-2 0-3.5 1.6-3.5 3.5M17 10.5c2 0 3.5 1.6 3.5 3.5M9.7 14.2l1.3-.2M14.3 14.2l-1.3-.2" stroke-linecap="round"/>
+        </svg>
+        <div class="subject-title-block">
+          <div class="subject-name">Sociology</div>
+          <div class="subject-name-rule"></div>
+          <div class="subject-sub">Society, culture &amp; social structures</div>
+        </div>
+      </div>
+
+      <div class="subject-card political-science" data-subject="Political Science">
+        <span class="campus-badge">🎓</span>
+        <svg class="subject-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M6 3v18M6 4h11l-2.5 3.5L17 11H6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div class="subject-title-block">
+          <div class="subject-name">Political Science</div>
+          <div class="subject-name-rule"></div>
+          <div class="subject-sub">Government, ideology &amp; international relations</div>
+        </div>
+      </div>
+
+      <div class="subject-card communication" data-subject="Communication and Media Studies">
+        <span class="campus-badge">🎓</span>
+        <svg class="subject-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M4 5h16v10H8l-4 4V5z" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M8 9h8M8 12h5" stroke-linecap="round"/>
+        </svg>
+        <div class="subject-title-block">
+          <div class="subject-name">Communication and Media Studies</div>
+          <div class="subject-name-rule"></div>
+          <div class="subject-sub">Journalism, media &amp; public relations</div>
+        </div>
+      </div>
+
+      <div class="subject-card education" data-subject="Education">
+        <span class="campus-badge">🎓</span>
+        <svg class="subject-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M12 3L2 8l10 5 10-5-10-5z" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M6 10.5V16c0 1.7 2.7 3 6 3s6-1.3 6-3v-5.5" stroke-linecap="round"/>
+        </svg>
+        <div class="subject-title-block">
+          <div class="subject-name">Education</div>
+          <div class="subject-name-rule"></div>
+          <div class="subject-sub">Pedagogy, curriculum &amp; educational psychology</div>
+        </div>
+      </div>
+
+      <div class="subject-card literature" data-subject="Literature">
+        <span class="campus-badge">🎓</span>
+        <svg class="subject-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M4 5.5C4 4.7 4.7 4 5.5 4H11v16H5.5A1.5 1.5 0 014 18.5v-13z" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M20 5.5c0-.8-.7-1.5-1.5-1.5H13v16h5.5c.8 0 1.5-.7 1.5-1.5v-13z" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div class="subject-title-block">
+          <div class="subject-name">Literature</div>
+          <div class="subject-name-rule"></div>
+          <div class="subject-sub">Novels, poetry &amp; literary criticism</div>
+        </div>
+      </div>
+
+      <div class="subject-card philosophy" data-subject="Philosophy">
+        <span class="campus-badge">🎓</span>
+        <svg class="subject-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <circle cx="12" cy="9" r="6"/>
+          <path d="M9.5 20.5h5M12 15v5.5" stroke-linecap="round"/>
+        </svg>
+        <div class="subject-title-block">
+          <div class="subject-name">Philosophy</div>
+          <div class="subject-name-rule"></div>
+          <div class="subject-sub">Logic, ethics &amp; critical thinking</div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -2232,6 +2505,18 @@ body{
           <button data-opt="off">Off</button>
         </div>
       </div>
+      <div class="settings-row" style="flex-direction: column; align-items: stretch; gap: 10px;">
+        <div>
+          <div class="settings-row-label">Phone number</div>
+          <div class="settings-row-sub">Optional — get a text reminder before your access expires, in addition to email.</div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <input type="tel" id="phoneNumberInput" placeholder="07XX XXX XXX"
+                 style="flex:1; border:1px solid var(--line); background:var(--paper); border-radius:8px; padding:10px 12px; font-size:13px; color:var(--ink);" />
+          <button type="button" id="savePhoneBtn" style="background:var(--chalk); color:var(--paper); border:none; border-radius:8px; padding:0 16px; font-weight:600; font-size:13px; cursor:pointer; white-space:nowrap;">Save</button>
+        </div>
+        <div id="phoneNumberError" style="display:none; color: var(--red); font-size:12.5px;"></div>
+      </div>
     </div>
 
     <div class="settings-group">
@@ -2282,6 +2567,7 @@ body{
             <button data-level="junior_school">Junior School</button>
             <button data-level="secondary" class="active">Secondary</button>
             <button data-level="senior_school">Senior School</button>
+            <button data-level="campus">Campus</button>
           </div>
           <div class="sub-level-row" id="settingsSubLevelRow">
             <label for="settingsGradeFormSelect" class="sub-level-label" id="settingsSubLevelLabel">Form:</label>
@@ -2371,6 +2657,7 @@ body{
         <button data-level="junior_school">Junior School</button>
         <button data-level="secondary" class="active">Secondary (KCSE)</button>
         <button data-level="senior_school">Senior School</button>
+        <button data-level="campus">Campus</button>
       </div>
 
       <div class="sub-level-row">
@@ -2491,11 +2778,12 @@ body{
     upper_primary: ['Mathematics', 'English', 'Kiswahili', 'Science and Technology', 'Social Studies', 'Agriculture', 'Creative Arts'],
     junior_school: ['Mathematics', 'English', 'Kiswahili', 'Science and Technology', 'Social Studies', 'Pre-Technical Studies', 'Agriculture', 'Creative Arts', 'ICT', 'Business Studies'],
     secondary: ['Mathematics', 'English', 'Physics', 'Chemistry', 'Agriculture', 'Home Science', 'Creative Arts', 'Biology', 'Kiswahili', 'Geography', 'Religious Education', 'Business Studies', 'History', 'Computer Studies'],
-    senior_school: ['Mathematics', 'English', 'Physics', 'Chemistry', 'Agriculture', 'Home Science', 'Creative Arts', 'Biology', 'Kiswahili', 'Geography', 'Religious Education', 'Business Studies', 'History', 'Computer Studies']
+    senior_school: ['Mathematics', 'English', 'Physics', 'Chemistry', 'Agriculture', 'Home Science', 'Creative Arts', 'Biology', 'Kiswahili', 'Geography', 'Religious Education', 'Business Studies', 'History', 'Computer Studies'],
+    campus: ['Mathematics', 'Statistics', 'Accounting', 'Economics', 'Business Studies', 'Marketing', 'Finance', 'Human Resource Management', 'Public Administration', 'Law', 'Computer Science', 'Psychology', 'Sociology', 'Political Science', 'Communication and Media Studies', 'Education', 'History', 'Literature', 'Philosophy', 'Kiswahili']
   };
 
   function levelDisplayName(level) {
-    return ({ cbc: 'CBC', upper_primary: 'Upper Primary', junior_school: 'Junior School', secondary: 'Secondary (KCSE)', senior_school: 'Senior School' })[level] || 'Your level';
+    return ({ cbc: 'CBC', upper_primary: 'Upper Primary', junior_school: 'Junior School', secondary: 'Secondary (KCSE)', senior_school: 'Senior School', campus: 'Campus' })[level] || 'Your level';
   }
 
   function getVisibleSubjects() {
@@ -2507,6 +2795,7 @@ body{
     document.querySelectorAll('.subject-card').forEach(card => {
       card.classList.toggle('level-hidden', !allowed.has(card.dataset.subject));
     });
+    document.querySelector('.subjects').classList.toggle('campus-mode', currentLevel === 'campus');
     subjectsTitle.textContent = `${levelDisplayName(currentLevel)} subjects`;
     subjectCount.textContent = `${allowed.size} subjects available`;
   }
@@ -2609,6 +2898,13 @@ body{
   const JUNIOR_SCHOOL_GRADES = ['Grade 7', 'Grade 8', 'Grade 9'];
   const SECONDARY_FORMS = ['Form 1', 'Form 2', 'Form 3', 'Form 4'];
   const SENIOR_SCHOOL_GRADES = ['Grade 10', 'Grade 11', 'Grade 12'];
+  const CAMPUS_YEARS = ['Year 1', 'Year 2', 'Year 3', 'Year 4', 'Year 5'];
+
+  function subLevelLabelFor(level) {
+    if (level === 'cbc' || level === 'upper_primary' || level === 'junior_school' || level === 'senior_school') return 'Grade:';
+    if (level === 'campus') return 'Year:';
+    return 'Form:';
+  }
 
   function populateGradeFormSelect(selectEl, level, savedValue) {
     const options = level === 'cbc'
@@ -2619,7 +2915,9 @@ body{
           ? JUNIOR_SCHOOL_GRADES
           : level === 'senior_school'
             ? SENIOR_SCHOOL_GRADES
-            : SECONDARY_FORMS;
+            : level === 'campus'
+              ? CAMPUS_YEARS
+              : SECONDARY_FORMS;
     selectEl.innerHTML = options.map(o => `<option value="${o}">${o}</option>`).join('');
     if (savedValue && options.includes(savedValue)) {
       selectEl.value = savedValue;
@@ -2630,7 +2928,7 @@ body{
     [...defaultLevelToggle.children].forEach(b => b.classList.toggle('active', b.dataset.level === level));
     localStorage.setItem('clavi_default_level', level);
 
-    document.getElementById('settingsSubLevelLabel').textContent = level === 'cbc' || level === 'upper_primary' || level === 'junior_school' || level === 'senior_school' ? 'Grade:' : 'Form:';
+    document.getElementById('settingsSubLevelLabel').textContent = subLevelLabelFor(level);
     populateGradeFormSelect(document.getElementById('settingsGradeFormSelect'), level, gradeForm);
     const chosenGradeForm = document.getElementById('settingsGradeFormSelect').value;
     localStorage.setItem('clavi_default_grade_form', chosenGradeForm);
@@ -2639,7 +2937,7 @@ body{
     currentLevel = level;
     currentGradeForm = chosenGradeForm;
     [...levelToggle.children].forEach(b => b.classList.toggle('active', b.dataset.level === level));
-    document.getElementById('subLevelLabel').textContent = level === 'cbc' || level === 'upper_primary' || level === 'junior_school' || level === 'senior_school' ? 'Grade:' : 'Form:';
+    document.getElementById('subLevelLabel').textContent = subLevelLabelFor(level);
     populateGradeFormSelect(document.getElementById('gradeFormSelect'), level, chosenGradeForm);
     filterSubjectsForLevel();
   }
@@ -2683,6 +2981,9 @@ body{
   const displayNameInput = document.getElementById('displayNameInput');
   const saveDisplayNameBtn = document.getElementById('saveDisplayNameBtn');
   const leaderboardOptToggle = document.getElementById('leaderboardOptToggle');
+  const phoneNumberInput = document.getElementById('phoneNumberInput');
+  const savePhoneBtn = document.getElementById('savePhoneBtn');
+  const phoneNumberError = document.getElementById('phoneNumberError');
 
   fetch('/api/profile')
     .then(res => res.ok ? res.json() : Promise.reject())
@@ -2690,6 +2991,7 @@ body{
       displayNameInput.value = profile.displayName || '';
       const opt = profile.leaderboardOptIn ? 'on' : 'off';
       [...leaderboardOptToggle.children].forEach(b => b.classList.toggle('active', b.dataset.opt === opt));
+      if (phoneNumberInput) phoneNumberInput.value = profile.phoneNumber || '';
     })
     .catch(() => {});
 
@@ -2720,6 +3022,32 @@ body{
       body: JSON.stringify({ leaderboardOptIn: optedIn })
     }).catch(() => {});
   });
+
+  if (savePhoneBtn) {
+    savePhoneBtn.addEventListener('click', () => {
+      phoneNumberError.style.display = 'none';
+      const originalLabel = savePhoneBtn.textContent;
+      savePhoneBtn.textContent = 'Saving…';
+      fetch('/api/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumber: phoneNumberInput.value.trim() })
+      })
+        .then(async res => {
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.error || 'Could not save phone number');
+          }
+          savePhoneBtn.textContent = 'Saved!';
+        })
+        .catch(err => {
+          savePhoneBtn.textContent = 'Failed';
+          phoneNumberError.textContent = err.message;
+          phoneNumberError.style.display = 'block';
+        })
+        .finally(() => { setTimeout(() => { savePhoneBtn.textContent = originalLabel; }, 1500); });
+    });
+  }
 
   document.getElementById('clearChatBtn').addEventListener('click', () => {
     conversationHistory = [];
@@ -3039,7 +3367,7 @@ body{
     currentLevel = btn.dataset.level;
     [...levelToggle.children].forEach(b => b.classList.toggle('active', b === btn));
 
-    document.getElementById('subLevelLabel').textContent = currentLevel === 'cbc' || currentLevel === 'upper_primary' || currentLevel === 'junior_school' || currentLevel === 'senior_school' ? 'Grade:' : 'Form:';
+    document.getElementById('subLevelLabel').textContent = subLevelLabelFor(currentLevel);
     populateGradeFormSelect(gradeFormSelect, currentLevel, null);
     currentGradeForm = gradeFormSelect.value;
     filterSubjectsForLevel();
@@ -3074,7 +3402,9 @@ body{
           ? `Junior School — ${currentGradeForm}`
           : currentLevel === 'senior_school'
             ? `Senior School — ${currentGradeForm}`
-            : `Secondary — ${currentGradeForm} (KCSE)`;
+            : currentLevel === 'campus'
+              ? `Campus — ${currentGradeForm}`
+              : `Secondary — ${currentGradeForm} (KCSE)`;
 
     showScreen('chatScreen');
     questionInput.focus();
@@ -3556,7 +3886,15 @@ body{
   function levelLabelText() {
     return currentLevel === 'cbc'
       ? `CBC — ${currentGradeForm}`
-      : `Secondary — ${currentGradeForm} (KCSE)`;
+      : currentLevel === 'upper_primary'
+        ? `Upper Primary — ${currentGradeForm}`
+        : currentLevel === 'junior_school'
+          ? `Junior School — ${currentGradeForm}`
+          : currentLevel === 'senior_school'
+            ? `Senior School — ${currentGradeForm}`
+            : currentLevel === 'campus'
+              ? `Campus — ${currentGradeForm}`
+              : `Secondary — ${currentGradeForm} (KCSE)`;
   }
 
   function progressKey() {
@@ -3932,7 +4270,7 @@ body{
   }
 
   function papersLevelLabel() {
-    const map = { cbc: 'CBC', upper_primary: 'Upper Primary', junior_school: 'Junior School', secondary: 'Secondary (KCSE)', senior_school: 'Senior School' };
+    const map = { cbc: 'CBC', upper_primary: 'Upper Primary', junior_school: 'Junior School', secondary: 'Secondary (KCSE)', senior_school: 'Senior School', campus: 'Campus' };
     return map[papersLevel] || papersLevel;
   }
 
@@ -4241,10 +4579,13 @@ body{
     const savedName = localStorage.getItem('clavi_user_name');
     if (!savedName) {
       if (seen) {
-        // Returning user from before the name feature existed — ask, but don't
-        // repeat the full "Karibu, welcome!" first-timer copy.
-        const heading = document.querySelector('#welcomeOverlay h2');
-        const para = document.querySelector('#welcomeOverlay p');
+        // Returning user from before the name feature existed — they're
+        // already using the app, so skip the campus/high-school picker and
+        // just ask for a name, without the full "Karibu, welcome!" copy.
+        document.getElementById('welcomeStepType').style.display = 'none';
+        document.getElementById('welcomeStepName').style.display = 'block';
+        const heading = document.querySelector('#welcomeStepName h2');
+        const para = document.querySelector('#welcomeStepName p');
         if (heading) heading.textContent = 'One quick thing 👋';
         if (para) para.textContent = "What should we call you? We'll remember it and greet you by name next time.";
       }
@@ -4254,6 +4595,21 @@ body{
       showWelcomeBackToast(savedName);
     }
   })();
+
+  function chooseWelcomeType(type) {
+    localStorage.setItem('clavi_student_type', type);
+    document.getElementById('welcomeStepType').style.display = 'none';
+    document.getElementById('welcomeStepName').style.display = 'block';
+    if (type === 'campus') {
+      applyDefaultLevel('campus', 'Year 1');
+    }
+    document.getElementById('welcomeNameInput').focus();
+  }
+
+  const welcomeTypeHighschoolBtn = document.getElementById('welcomeTypeHighschool');
+  const welcomeTypeCampusBtn = document.getElementById('welcomeTypeCampus');
+  if (welcomeTypeHighschoolBtn) welcomeTypeHighschoolBtn.addEventListener('click', () => chooseWelcomeType('highschool'));
+  if (welcomeTypeCampusBtn) welcomeTypeCampusBtn.addEventListener('click', () => chooseWelcomeType('campus'));
 
   document.getElementById('welcomeStartBtn').addEventListener('click', () => {
     const nameInput = document.getElementById('welcomeNameInput');
