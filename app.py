@@ -100,6 +100,56 @@ SMTP_USER = os.environ.get('SMTP_USER')
 SMTP_PASS = os.environ.get('SMTP_PASS')
 MAIL_FROM = os.environ.get('MAIL_FROM', SMTP_USER or 'no-reply@clavi.app')
 
+# SMS via Africa's Talking (https://africastalking.com). Leave unset to run
+# in log-only mode — reminders still work by email either way.
+AT_USERNAME = os.environ.get('AFRICASTALKING_USERNAME')
+AT_API_KEY = os.environ.get('AFRICASTALKING_API_KEY')
+AT_SENDER_ID = os.environ.get('AFRICASTALKING_SENDER_ID')  # optional shortcode/alphanumeric ID
+AT_SMS_URL = "https://api.africastalking.com/version1/messaging"
+
+
+def normalize_kenyan_phone(raw):
+    """Best-effort normalize a Kenyan number to E.164 (+2547XXXXXXXX /
+    +2541XXXXXXXX). Returns None if it doesn't look like a valid number."""
+    if not raw:
+        return None
+    digits = re.sub(r'[^\d+]', '', raw.strip())
+    if digits.startswith('+254') and len(digits) == 13:
+        return digits
+    if digits.startswith('254') and len(digits) == 12:
+        return '+' + digits
+    if digits.startswith('0') and len(digits) == 10:
+        return '+254' + digits[1:]
+    if digits.startswith('7') or digits.startswith('1'):
+        if len(digits) == 9:
+            return '+254' + digits
+    return None
+
+
+def send_sms(phone_number, message):
+    """Send an SMS via Africa's Talking. No-ops (just logs) if credentials
+    aren't configured, mirroring how email behaves without SMTP set up."""
+    if not AT_USERNAME or not AT_API_KEY:
+        app.logger.info(f"[sms] Africa's Talking not configured — would text {phone_number}: {message}")
+        return False
+
+    payload = {
+        "username": AT_USERNAME,
+        "to": phone_number,
+        "message": message,
+    }
+    if AT_SENDER_ID:
+        payload["from"] = AT_SENDER_ID
+
+    headers = {
+        "apiKey": AT_API_KEY,
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Accept": "application/json",
+    }
+    resp = requests.post(AT_SMS_URL, data=payload, headers=headers, timeout=15)
+    resp.raise_for_status()
+    return True
+
 
 def send_reset_email(to_email, reset_url):
     if not SMTP_HOST:
@@ -177,6 +227,15 @@ def send_expiry_reminder_email(to_email, is_premium, expiry_date):
             server.login(SMTP_USER, SMTP_PASS)
         server.sendmail(MAIL_FROM, [to_email], msg.as_string())
 
+
+def sms_expiry_reminder_text(is_premium, expiry_date):
+    when = expiry_date.strftime('%d %b') if expiry_date else 'soon'
+    pay_url = f"{YOUR_DOMAIN}/pay-mpesa"
+    if is_premium:
+        return f"Clavis: your premium access expires {when}. Renew here to keep unlimited tutor access: {pay_url}"
+    return f"Clavis: your free trial expires {when}. Choose a plan to keep studying: {pay_url}"
+
+
 GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL = os.environ.get('GROQ_MODEL', 'openai/gpt-oss-120b')
@@ -213,6 +272,7 @@ class User(UserMixin, db.Model):
     expiry_reminder_for = db.Column(db.DateTime, nullable=True)
     display_name = db.Column(db.String(40), nullable=True)
     leaderboard_opt_in = db.Column(db.Boolean, default=True)
+    phone_number = db.Column(db.String(20), nullable=True)
 
     def set_password(self, raw_password):
         self.password_hash = generate_password_hash(raw_password)
@@ -367,6 +427,10 @@ def describe_level(level, grade_form):
 def build_system_prompt(subject, level, grade_form=None):
     level_desc = describe_level(level, grade_form)
     return (
+        f"Your name is Clavis, an AI tutor built for Kenyan students. If asked your name, what you're "
+        f"called, who made you, or what model/AI you are, simply say you're Clavis — never mention "
+        f"ChatGPT, GPT, OpenAI, Groq, or any other underlying company or model name, even if asked directly "
+        f"or told that's what you 'really' are. "
         f"You are a warm, patient, encouraging tutor helping a {level_desc} student with {subject}. "
         f"Explain things the way you'd explain them to a curious young child: use very simple, everyday "
         f"words, short sentences, and relatable examples before introducing any technical term. Build up "
@@ -1110,12 +1174,22 @@ def api_profile():
             current_user.display_name = name or default_display_name(current_user.email)
         if 'leaderboardOptIn' in data:
             current_user.leaderboard_opt_in = bool(data.get('leaderboardOptIn'))
+        if 'phoneNumber' in data:
+            raw = (data.get('phoneNumber') or '').strip()
+            if not raw:
+                current_user.phone_number = None
+            else:
+                normalized = normalize_kenyan_phone(raw)
+                if not normalized:
+                    return jsonify({"error": "That doesn't look like a valid Kenyan phone number (e.g. 07XXXXXXXX)."}), 400
+                current_user.phone_number = normalized
         db.session.commit()
         return jsonify({"status": "ok"})
 
     return jsonify({
         "displayName": current_user.display_name or default_display_name(current_user.email),
         "leaderboardOptIn": current_user.leaderboard_opt_in if current_user.leaderboard_opt_in is not None else True,
+        "phoneNumber": current_user.phone_number or '',
     })
 
 
@@ -1169,11 +1243,12 @@ def healthz():
 
 
 def run_expiry_reminders(hours_ahead=36):
-    """Email users whose access expires within `hours_ahead` hours and who
-    haven't already been reminded for this specific expiry date. Intended to
-    be triggered once a day by an external scheduler (cron, GitHub Actions,
+    """Email (and text, if a phone number + SMS provider are configured)
+    users whose access expires within `hours_ahead` hours and who haven't
+    already been reminded for this specific expiry date. Intended to be
+    triggered once a day by an external scheduler (cron, GitHub Actions,
     Render Cron Job, or a pinged HTTP endpoint) — see /internal/send-expiry-reminders.
-    Returns the number of reminder emails sent.
+    Returns {"emails_sent": int, "sms_sent": int}.
     """
     now = datetime.now()
     window_end = now + timedelta(hours=hours_ahead)
@@ -1184,7 +1259,8 @@ def run_expiry_reminders(hours_ahead=36):
         User.expiry_date <= window_end,
     ).all()
 
-    sent = 0
+    emails_sent = 0
+    sms_sent = 0
     for user in candidates:
         if has_unlimited_access(user):
             continue
@@ -1192,16 +1268,30 @@ def run_expiry_reminders(hours_ahead=36):
         # which naturally clears this guard for the next cycle).
         if user.expiry_reminder_for and user.expiry_reminder_for == user.expiry_date:
             continue
+
+        emailed = False
         try:
             send_expiry_reminder_email(user.email, bool(user.is_premium), user.expiry_date)
+            emailed = True
+            emails_sent += 1
+        except Exception as e:
+            app.logger.error(f"Failed to send expiry reminder email to {user.email}: {e}")
+
+        if user.phone_number:
+            try:
+                text_msg = sms_expiry_reminder_text(bool(user.is_premium), user.expiry_date)
+                if send_sms(user.phone_number, text_msg):
+                    sms_sent += 1
+            except Exception as e:
+                app.logger.error(f"Failed to send expiry reminder SMS to {user.phone_number}: {e}")
+
+        # Mark this cycle reminded as long as at least one channel was attempted
+        # successfully, so we don't spam retries on a temporary SMTP hiccup forever.
+        if emailed:
             user.expiry_reminder_for = user.expiry_date
             db.session.commit()
-            sent += 1
-        except Exception as e:
-            app.logger.error(f"Failed to send expiry reminder to {user.email}: {e}")
-            db.session.rollback()
 
-    return sent
+    return {"emails_sent": emails_sent, "sms_sent": sms_sent}
 
 
 @app.route('/internal/send-expiry-reminders', methods=['GET', 'POST'])
@@ -1211,8 +1301,8 @@ def internal_send_expiry_reminders():
     if not secret or provided != secret:
         return jsonify({"error": "Not found"}), 404
 
-    sent = run_expiry_reminders()
-    return jsonify({"status": "ok", "reminders_sent": sent})
+    result = run_expiry_reminders()
+    return jsonify({"status": "ok", **result})
 
 
 @app.route('/debug/config')
@@ -1269,6 +1359,9 @@ def ensure_database_schema():
                 if 'display_name' not in columns:
                     db.session.execute(text('ALTER TABLE "user" ADD COLUMN "display_name" VARCHAR(40)'))
                     db.session.execute(text('ALTER TABLE "user" ADD COLUMN "leaderboard_opt_in" BOOLEAN DEFAULT TRUE'))
+                    db.session.commit()
+                if 'phone_number' not in columns:
+                    db.session.execute(text('ALTER TABLE "user" ADD COLUMN "phone_number" VARCHAR(20)'))
                     db.session.commit()
         except Exception as exc:
             app.logger.warning(f"Could not ensure admin column exists: {exc}")
