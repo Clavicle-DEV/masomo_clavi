@@ -332,8 +332,8 @@
     {% endwith %}
 
     {% if mode == 'signup' %}
-      <h2>Start Learning</h2>
-      <p class="sub">Create an account to start your free 24-hour study trial.</p>
+      <h2 id="signupHeading">{{ 'Start Acing Your Units' if student_track == 'campus' else 'Start Learning' }}</h2>
+      <p class="sub" id="signupSub">{{ 'Create an account to start your free 24-hour trial — built for campus units, not just KCSE.' if student_track == 'campus' else 'Create an account to start your free 24-hour study trial.' }}</p>
       <form method="POST" action="/signup" id="signupForm">
         <input type="hidden" name="ref" value="{{ ref_code or '' }}">
         <input type="hidden" name="track" id="signupTrackInput" value="{{ student_track or '' }}">
@@ -341,6 +341,7 @@
         <input type="password" name="password" placeholder="Create a password" required>
         <button type="submit" class="submit-btn">Create Account</button>
       </form>
+      <div class="switch-text">Already have an account? <a href="/login{{ '?type=' + student_track if student_track else '' }}" id="signupToLoginLink">Log in here</a></div>
       <script>
         // localStorage (set on the landing page's campus/high-school picker)
         // is the most reliable source — prefer it over the URL param if set.
@@ -348,10 +349,18 @@
           var savedTrack = localStorage.getItem('clavi_student_type');
           if (savedTrack === 'campus' || savedTrack === 'highschool') {
             document.getElementById('signupTrackInput').value = savedTrack;
+            if (savedTrack === 'campus') {
+              document.getElementById('signupHeading').textContent = 'Start Acing Your Units';
+              document.getElementById('signupSub').textContent = 'Create an account to start your free 24-hour trial — built for campus units, not just KCSE.';
+            } else {
+              document.getElementById('signupHeading').textContent = 'Start Learning';
+              document.getElementById('signupSub').textContent = 'Create an account to start your free 24-hour study trial.';
+            }
+            var loginLink = document.getElementById('signupToLoginLink');
+            if (loginLink) loginLink.href = '/login?type=' + savedTrack;
           }
         } catch (e) {}
       </script>
-      <div class="switch-text">Already have an account? <a href="/login{{ '?type=' + student_track if student_track else '' }}" id="signupToLoginLink">Log in here</a></div>
 
     {% elif mode == 'login' %}
       <h2>Welcome Back</h2>

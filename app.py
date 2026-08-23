@@ -2,7 +2,11 @@ import os
 import json
 import re
 import smtplib
+import io
+import zipfile
 from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.application import MIMEApplication
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -107,6 +111,19 @@ AT_API_KEY = os.environ.get('AFRICASTALKING_API_KEY')
 AT_SENDER_ID = os.environ.get('AFRICASTALKING_SENDER_ID')  # optional shortcode/alphanumeric ID
 AT_SMS_URL = "https://api.africastalking.com/version1/messaging"
 
+# WhatsApp — also via Africa's Talking, same account/credentials as SMS, but
+# needs one extra thing: a WhatsApp sender number registered and approved in
+# your AT dashboard (this is a separate provisioning step from SMS — it
+# involves Meta business verification and takes some days). Leave
+# AFRICASTALKING_WHATSAPP_NUMBER unset to skip WhatsApp and fall back to SMS.
+# Note: WhatsApp's own rules mean a proactive reminder like this one may need
+# to be sent as a pre-approved message template rather than free text once
+# outside a 24-hour customer-initiated conversation window — check your AT
+# WhatsApp dashboard for template requirements before relying on this in
+# production.
+AT_WHATSAPP_NUMBER = os.environ.get('AFRICASTALKING_WHATSAPP_NUMBER')
+AT_WHATSAPP_URL = "https://chat.africastalking.com/whatsapp/message/send"
+
 
 def normalize_kenyan_phone(raw):
     """Best-effort normalize a Kenyan number to E.164 (+2547XXXXXXXX /
@@ -147,6 +164,30 @@ def send_sms(phone_number, message):
         "Accept": "application/json",
     }
     resp = requests.post(AT_SMS_URL, data=payload, headers=headers, timeout=15)
+    resp.raise_for_status()
+    return True
+
+
+def send_whatsapp(phone_number, message):
+    """Send a WhatsApp message via Africa's Talking. No-ops (just logs) if
+    the WhatsApp sender number isn't configured — callers should fall back
+    to send_sms() in that case."""
+    if not AT_USERNAME or not AT_API_KEY or not AT_WHATSAPP_NUMBER:
+        app.logger.info(f"[whatsapp] Africa's Talking WhatsApp not configured — would message {phone_number}: {message}")
+        return False
+
+    payload = {
+        "username": AT_USERNAME,
+        "waNumber": AT_WHATSAPP_NUMBER,
+        "phoneNumber": phone_number,
+        "body": {"message": message},
+    }
+    headers = {
+        "apikey": AT_API_KEY,
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+    }
+    resp = requests.post(AT_WHATSAPP_URL, json=payload, headers=headers, timeout=15)
     resp.raise_for_status()
     return True
 
@@ -274,6 +315,8 @@ class User(UserMixin, db.Model):
     leaderboard_opt_in = db.Column(db.Boolean, default=True)
     phone_number = db.Column(db.String(20), nullable=True)
     student_track = db.Column(db.String(20), nullable=True)  # 'campus' or 'highschool'
+    failed_login_attempts = db.Column(db.Integer, default=0)
+    lockout_until = db.Column(db.DateTime, nullable=True)
 
     def set_password(self, raw_password):
         self.password_hash = generate_password_hash(raw_password)
@@ -529,6 +572,10 @@ def signup():
     return render_template('auth.html', mode='signup', ref_code=request.args.get('ref', ''), student_track=request.args.get('type', ''))
 
 
+LOGIN_LOCKOUT_THRESHOLD = int(os.environ.get('LOGIN_LOCKOUT_THRESHOLD', '5'))
+LOGIN_LOCKOUT_MINUTES = int(os.environ.get('LOGIN_LOCKOUT_MINUTES', '15'))
+
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -537,15 +584,32 @@ def login():
         student_track = (request.form.get('track') or '').strip().lower()
         user = User.query.filter_by(email=email).first()
 
+        if user and user.lockout_until and user.lockout_until > datetime.now():
+            minutes_left = max(1, int((user.lockout_until - datetime.now()).total_seconds() // 60) + 1)
+            flash(f"Too many failed attempts. Please try again in {minutes_left} minute(s), or reset your password.", "danger")
+            return render_template('auth.html', mode='login', student_track=request.args.get('type', ''))
+
         if user and user.check_password(password):
+            user.failed_login_attempts = 0
+            user.lockout_until = None
             # Only apply the campus/high-school choice if this account never
             # explicitly set one — never silently flip an account that
             # already chose, just because a stray ?type= link was used.
             if user.student_track is None and student_track in ('campus', 'highschool'):
                 user.student_track = student_track
-                db.session.commit()
+            db.session.commit()
             login_user(user, remember=True)
             return redirect(url_for('home'))
+
+        if user:
+            user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
+            if user.failed_login_attempts >= LOGIN_LOCKOUT_THRESHOLD:
+                user.lockout_until = datetime.now() + timedelta(minutes=LOGIN_LOCKOUT_MINUTES)
+                user.failed_login_attempts = 0
+                db.session.commit()
+                flash(f"Too many failed attempts. Please try again in {LOGIN_LOCKOUT_MINUTES} minutes, or reset your password.", "danger")
+                return render_template('auth.html', mode='login', student_track=request.args.get('type', ''))
+            db.session.commit()
         flash('Invalid credentials!', 'danger')
 
     return render_template('auth.html', mode='login', student_track=request.args.get('type', ''))
@@ -1277,13 +1341,82 @@ def healthz():
     return jsonify({"status": "ok"})
 
 
+def export_database_to_json():
+    """Dump every row of every table to a JSON-serializable dict, keyed by
+    table name. Used for lightweight, dependency-free database backups —
+    doesn't need pg_dump or any Postgres client tools to be installed."""
+    def serialize_value(v):
+        if isinstance(v, datetime):
+            return v.isoformat()
+        return v
+
+    data = {}
+    for model in (User, PaymentLog, UserStats, ExamResult):
+        rows = []
+        for obj in model.query.all():
+            rows.append({col.name: serialize_value(getattr(obj, col.name)) for col in model.__table__.columns})
+        data[model.__tablename__] = rows
+    return data
+
+
+def run_database_backup():
+    """Export the full database to JSON, zip it, and email it as an
+    attachment to BACKUP_EMAIL (falling back to MAIL_FROM). Returns True if
+    it was actually sent, False if SMTP isn't configured (logs instead)."""
+    data = export_database_to_json()
+    total_rows = sum(len(v) for v in data.values())
+
+    if not SMTP_HOST:
+        app.logger.info(f"[backup] SMTP not configured — would back up {total_rows} rows across {len(data)} tables")
+        return False
+
+    backup_to = os.environ.get('BACKUP_EMAIL') or MAIL_FROM
+    stamp = datetime.now().strftime('%Y%m%d-%H%M%S')
+    json_bytes = json.dumps(data, indent=2).encode('utf-8')
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr(f"clavi-backup-{stamp}.json", json_bytes)
+    buf.seek(0)
+
+    msg = MIMEMultipart()
+    msg['Subject'] = f"Clavis database backup — {datetime.now().strftime('%Y-%m-%d')}"
+    msg['From'] = MAIL_FROM
+    msg['To'] = backup_to
+    summary = ', '.join(f"{name} ({len(rows)})" for name, rows in data.items())
+    msg.attach(MIMEText(f"Automated database backup attached.\n\nTables: {summary}\nTotal rows: {total_rows}\n"))
+
+    attachment = MIMEApplication(buf.read(), _subtype='zip')
+    attachment.add_header('Content-Disposition', 'attachment', filename=f"clavi-backup-{stamp}.zip")
+    msg.attach(attachment)
+
+    with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+        server.starttls()
+        if SMTP_USER and SMTP_PASS:
+            server.login(SMTP_USER, SMTP_PASS)
+        server.sendmail(MAIL_FROM, [backup_to], msg.as_string())
+    return True
+
+
+@app.route('/internal/backup-database', methods=['GET', 'POST'])
+def internal_backup_database():
+    secret = os.environ.get('CRON_SECRET')
+    provided = request.args.get('key') or request.headers.get('X-Cron-Secret')
+    if not secret or provided != secret:
+        return jsonify({"error": "Not found"}), 404
+
+    sent = run_database_backup()
+    return jsonify({"status": "ok", "emailed": sent})
+
+
 def run_expiry_reminders(hours_ahead=36):
-    """Email (and text, if a phone number + SMS provider are configured)
-    users whose access expires within `hours_ahead` hours and who haven't
-    already been reminded for this specific expiry date. Intended to be
-    triggered once a day by an external scheduler (cron, GitHub Actions,
-    Render Cron Job, or a pinged HTTP endpoint) — see /internal/send-expiry-reminders.
-    Returns {"emails_sent": int, "sms_sent": int}.
+    """Email (and message via WhatsApp or SMS, if a phone number + provider
+    are configured) users whose access expires within `hours_ahead` hours
+    and who haven't already been reminded for this specific expiry date.
+    Intended to be triggered once a day by an external scheduler (cron,
+    GitHub Actions, Render Cron Job, or a pinged HTTP endpoint) — see
+    /internal/send-expiry-reminders.
+    Returns {"emails_sent": int, "whatsapp_sent": int, "sms_sent": int}.
     """
     now = datetime.now()
     window_end = now + timedelta(hours=hours_ahead)
@@ -1295,6 +1428,7 @@ def run_expiry_reminders(hours_ahead=36):
     ).all()
 
     emails_sent = 0
+    whatsapp_sent = 0
     sms_sent = 0
     for user in candidates:
         if has_unlimited_access(user):
@@ -1313,12 +1447,23 @@ def run_expiry_reminders(hours_ahead=36):
             app.logger.error(f"Failed to send expiry reminder email to {user.email}: {e}")
 
         if user.phone_number:
-            try:
-                text_msg = sms_expiry_reminder_text(bool(user.is_premium), user.expiry_date)
-                if send_sms(user.phone_number, text_msg):
-                    sms_sent += 1
-            except Exception as e:
-                app.logger.error(f"Failed to send expiry reminder SMS to {user.phone_number}: {e}")
+            text_msg = sms_expiry_reminder_text(bool(user.is_premium), user.expiry_date)
+            # Prefer WhatsApp when it's configured (richer, usually cheaper);
+            # fall back to SMS otherwise — never send both for one reminder.
+            messaged = False
+            if AT_WHATSAPP_NUMBER:
+                try:
+                    if send_whatsapp(user.phone_number, text_msg):
+                        whatsapp_sent += 1
+                        messaged = True
+                except Exception as e:
+                    app.logger.error(f"Failed to send expiry reminder WhatsApp message to {user.phone_number}: {e}")
+            if not messaged:
+                try:
+                    if send_sms(user.phone_number, text_msg):
+                        sms_sent += 1
+                except Exception as e:
+                    app.logger.error(f"Failed to send expiry reminder SMS to {user.phone_number}: {e}")
 
         # Mark this cycle reminded as long as at least one channel was attempted
         # successfully, so we don't spam retries on a temporary SMTP hiccup forever.
@@ -1326,7 +1471,7 @@ def run_expiry_reminders(hours_ahead=36):
             user.expiry_reminder_for = user.expiry_date
             db.session.commit()
 
-    return {"emails_sent": emails_sent, "sms_sent": sms_sent}
+    return {"emails_sent": emails_sent, "whatsapp_sent": whatsapp_sent, "sms_sent": sms_sent}
 
 
 @app.route('/internal/send-expiry-reminders', methods=['GET', 'POST'])
@@ -1400,6 +1545,10 @@ def ensure_database_schema():
                     db.session.commit()
                 if 'student_track' not in columns:
                     db.session.execute(text('ALTER TABLE "user" ADD COLUMN "student_track" VARCHAR(20)'))
+                    db.session.commit()
+                if 'failed_login_attempts' not in columns:
+                    db.session.execute(text('ALTER TABLE "user" ADD COLUMN "failed_login_attempts" INTEGER DEFAULT 0'))
+                    db.session.execute(text('ALTER TABLE "user" ADD COLUMN "lockout_until" TIMESTAMP'))
                     db.session.commit()
         except Exception as exc:
             app.logger.warning(f"Could not ensure admin column exists: {exc}")

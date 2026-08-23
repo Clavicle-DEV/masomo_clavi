@@ -25,5 +25,5 @@ import app as appmod
 
 if __name__ == '__main__':
     with appmod.app.app_context():
-        sent = appmod.run_expiry_reminders()
-        print(f"Sent {sent} expiry reminder email(s).")
+        result = appmod.run_expiry_reminders()
+        print(f"Sent {result['emails_sent']} email(s), {result['whatsapp_sent']} WhatsApp message(s), and {result['sms_sent']} SMS reminder(s).")

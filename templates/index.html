@@ -4242,7 +4242,14 @@ body{
     'Geography': 2, 'History': 2, 'Religious Education': 2, 'Agriculture': 2, 'Home Science': 2,
     'Computer Studies': 2, 'Business Studies': 1, 'Creative Arts': 1
   };
+  // Most university units are a single final exam paper. A few broad units
+  // are commonly split into two distinct areas, so give those two mock
+  // papers instead of lumping everything into one.
+  const CAMPUS_PAPER_COUNTS = {
+    'Law': 2, 'Accounting': 2, 'Statistics': 2, 'Economics': 2, 'Finance': 2
+  };
   function paperCountFor(subject, level) {
+    if (level === 'campus') return CAMPUS_PAPER_COUNTS[subject] || 1;
     if (level !== 'secondary' && level !== 'senior_school') return 1;
     return KCSE_PAPER_COUNTS[subject] || 1;
   }

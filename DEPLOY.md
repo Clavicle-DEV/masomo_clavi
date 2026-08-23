@@ -84,3 +84,61 @@ if your host doesn't support running a separate scheduled process. Set a
 POST https://your-app-domain.com/internal/send-expiry-reminders?key=YOUR_CRON_SECRET
 ```
 once a day. The endpoint is disabled (returns 404) until `CRON_SECRET` is set.
+
+Students can also add a phone number in Settings to get a text reminder
+alongside the email one. This needs an Africa's Talking account — set
+`AFRICASTALKING_USERNAME` and `AFRICASTALKING_API_KEY` to activate SMS.
+Without those set, phone numbers are still collected and stored, but
+sending just logs to the console instead (same behavior as email without
+SMTP configured) — nothing breaks, it just won't actually text anyone yet.
+
+For WhatsApp instead of SMS: it's the same Africa's Talking account, but
+needs an extra step — register and get a WhatsApp sender number approved
+in your AT dashboard (involves Meta business verification, can take a
+few days). Once you have one, set `AFRICASTALKING_WHATSAPP_NUMBER` and
+reminders will use WhatsApp instead of SMS automatically — no other code
+changes needed. One important caveat: WhatsApp's own rules generally
+require proactive, business-initiated messages like this (outside a
+24-hour window where the student messaged you first) to use a
+pre-approved message template rather than free text. Check your AT
+WhatsApp dashboard for template requirements before relying on this for
+real reminders — if a send fails for that reason, it'll fall back to
+logging rather than crash anything, but it also won't have reached the
+student, so it's worth testing directly first.
+
+## 6. Database backups
+The app has no automatic backups of its own — if you're on a free-tier
+Postgres database, it can be reset or lost without much warning. There's
+a lightweight, dependency-free backup built in: it exports every row of
+every table to JSON, zips it, and emails it to you. No `pg_dump` or
+Postgres client tools needed since it goes through the same SQLAlchemy
+connection the app already uses.
+
+Trigger it the same two ways as reminders:
+
+**Option A:**
+```
+python backup_database.py
+```
+
+**Option B:**
+```
+POST https://your-app-domain.com/internal/backup-database?key=YOUR_CRON_SECRET
+```
+(same `CRON_SECRET` as reminders)
+
+Set `BACKUP_EMAIL` to choose where it goes (defaults to `MAIL_FROM` if
+unset). Run it weekly at minimum — daily if you want tighter recovery
+points. Keep in mind this emails your full user database (including
+password hashes, which are safely hashed, but still) — make sure
+`BACKUP_EMAIL` is an inbox only you control.
+
+## 7. Login security
+Repeated failed login attempts now lock an account out temporarily
+(`LOGIN_LOCKOUT_THRESHOLD` failed attempts within one session of tries,
+locked for `LOGIN_LOCKOUT_MINUTES` — both default to 5 and 15, override
+via env vars if you want different values). This protects against
+password brute-forcing now that real payments and personal data are
+involved. A locked-out user can still reset their password via
+"Forgot password?" to regain access immediately, without waiting out
+the lockout.
