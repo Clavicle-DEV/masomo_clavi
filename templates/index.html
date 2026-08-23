@@ -4577,8 +4577,25 @@ body{
   (function showWelcomeIfFirstVisit() {
     const seen = localStorage.getItem('clavi_visited');
     const savedName = localStorage.getItem('clavi_user_name');
+
+    // The campus/high-school choice is normally made on the public landing
+    // page, before signup. Fall back to a ?type= URL param (in case
+    // localStorage was blocked) so the choice still carries through.
+    const urlType = new URLSearchParams(window.location.search).get('type');
+    let studentType = localStorage.getItem('clavi_student_type');
+    if (!studentType && (urlType === 'campus' || urlType === 'highschool')) {
+      studentType = urlType;
+      localStorage.setItem('clavi_student_type', studentType);
+    }
+
     if (!savedName) {
-      if (seen) {
+      if (studentType) {
+        // Already told us on the landing page — skip straight to the name
+        // step and apply their level, no need to ask again.
+        document.getElementById('welcomeStepType').style.display = 'none';
+        document.getElementById('welcomeStepName').style.display = 'block';
+        if (studentType === 'campus') applyDefaultLevel('campus', 'Year 1');
+      } else if (seen) {
         // Returning user from before the name feature existed — they're
         // already using the app, so skip the campus/high-school picker and
         // just ask for a name, without the full "Karibu, welcome!" copy.
