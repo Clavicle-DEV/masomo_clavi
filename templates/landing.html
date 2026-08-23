@@ -69,7 +69,7 @@
         floatingNote.childNodes[0].nodeValue = p.note;
       }
 
-      function selectType(type) {
+      function selectType(type, navigate) {
         try { localStorage.setItem('clavi_student_type', type); } catch (e) {}
         typeBtns.forEach(function(b) { b.classList.toggle('selected', b.dataset.type === type); });
         applyPreview(type);
@@ -78,16 +78,20 @@
           var base = a.getAttribute('href').split('?')[0];
           a.setAttribute('href', base + '?type=' + type);
         });
+        if (navigate) {
+          window.location.href = '/signup?type=' + type;
+        }
       }
 
       typeBtns.forEach(function(btn) {
-        btn.addEventListener('click', function() { selectType(btn.dataset.type); });
+        btn.addEventListener('click', function() { selectType(btn.dataset.type, true); });
       });
 
-      // Pre-select if they've already told us before (e.g. came back later).
+      // Pre-select if they've already told us before (e.g. came back later)
+      // — but don't auto-navigate them away from the landing page for that.
       try {
         var saved = localStorage.getItem('clavi_student_type');
-        if (saved === 'campus' || saved === 'highschool') selectType(saved);
+        if (saved === 'campus' || saved === 'highschool') selectType(saved, false);
       } catch (e) {}
     })();
   </script>
