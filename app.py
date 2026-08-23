@@ -534,14 +534,21 @@ def login():
     if request.method == 'POST':
         email = request.form.get('email', '').strip().lower()
         password = request.form.get('password', '')
+        student_track = (request.form.get('track') or '').strip().lower()
         user = User.query.filter_by(email=email).first()
 
         if user and user.check_password(password):
+            # Only apply the campus/high-school choice if this account never
+            # explicitly set one — never silently flip an account that
+            # already chose, just because a stray ?type= link was used.
+            if user.student_track is None and student_track in ('campus', 'highschool'):
+                user.student_track = student_track
+                db.session.commit()
             login_user(user, remember=True)
             return redirect(url_for('home'))
         flash('Invalid credentials!', 'danger')
 
-    return render_template('auth.html', mode='login')
+    return render_template('auth.html', mode='login', student_track=request.args.get('type', ''))
 
 
 @app.route('/logout')

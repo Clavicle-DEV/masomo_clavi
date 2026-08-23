@@ -351,17 +351,28 @@
           }
         } catch (e) {}
       </script>
-      <div class="switch-text">Already have an account? <a href="/login">Log in here</a></div>
+      <div class="switch-text">Already have an account? <a href="/login{{ '?type=' + student_track if student_track else '' }}" id="signupToLoginLink">Log in here</a></div>
 
     {% elif mode == 'login' %}
       <h2>Welcome Back</h2>
       <p class="sub">Log in to access your curriculum tutor workspace.</p>
-      <form method="POST" action="/login">
+      <form method="POST" action="/login" id="loginForm">
+        <input type="hidden" name="track" id="loginTrackInput" value="{{ student_track or '' }}">
         <input type="email" name="email" placeholder="Enter your email" required>
         <input type="password" name="password" placeholder="Enter your password" required>
         <div class="forgot-link"><a href="/forgot-password">Forgot password?</a></div>
         <button type="submit" class="submit-btn">Log In Safely</button>
       </form>
+      <script>
+        // Same as signup: prefer localStorage (set by the landing page picker)
+        // over the URL param, in case it wasn't carried through a link.
+        try {
+          var savedLoginTrack = localStorage.getItem('clavi_student_type');
+          if (savedLoginTrack === 'campus' || savedLoginTrack === 'highschool') {
+            document.getElementById('loginTrackInput').value = savedLoginTrack;
+          }
+        } catch (e) {}
+      </script>
       <div class="switch-text">New to Clavis? <a href="/signup">Create an account</a></div>
 
     {% elif mode == 'forgot' %}
