@@ -334,12 +334,23 @@
     {% if mode == 'signup' %}
       <h2>Start Learning</h2>
       <p class="sub">Create an account to start your free 24-hour study trial.</p>
-      <form method="POST" action="/signup">
+      <form method="POST" action="/signup" id="signupForm">
         <input type="hidden" name="ref" value="{{ ref_code or '' }}">
+        <input type="hidden" name="track" id="signupTrackInput" value="{{ student_track or '' }}">
         <input type="email" name="email" placeholder="Enter your email" required>
         <input type="password" name="password" placeholder="Create a password" required>
         <button type="submit" class="submit-btn">Create Account</button>
       </form>
+      <script>
+        // localStorage (set on the landing page's campus/high-school picker)
+        // is the most reliable source — prefer it over the URL param if set.
+        try {
+          var savedTrack = localStorage.getItem('clavi_student_type');
+          if (savedTrack === 'campus' || savedTrack === 'highschool') {
+            document.getElementById('signupTrackInput').value = savedTrack;
+          }
+        } catch (e) {}
+      </script>
       <div class="switch-text">Already have an account? <a href="/login">Log in here</a></div>
 
     {% elif mode == 'login' %}

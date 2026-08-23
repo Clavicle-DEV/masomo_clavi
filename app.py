@@ -273,6 +273,7 @@ class User(UserMixin, db.Model):
     display_name = db.Column(db.String(40), nullable=True)
     leaderboard_opt_in = db.Column(db.Boolean, default=True)
     phone_number = db.Column(db.String(20), nullable=True)
+    student_track = db.Column(db.String(20), nullable=True)  # 'campus' or 'highschool'
 
     def set_password(self, raw_password):
         self.password_hash = generate_password_hash(raw_password)
@@ -465,6 +466,9 @@ def signup():
         email = request.form.get('email', '').strip().lower()
         password = request.form.get('password', '')
         ref_code = (request.form.get('ref') or '').strip().upper()
+        student_track = (request.form.get('track') or '').strip().lower()
+        if student_track not in ('campus', 'highschool'):
+            student_track = None
 
         if not email or not password:
             flash('Email and password are required.', 'danger')
@@ -498,6 +502,7 @@ def signup():
             referred_by_id=referrer.id if referrer else None,
             email_verified=gets_free_unlimited,
             display_name=default_display_name(email),
+            student_track=student_track,
         )
         new_user.set_password(password)
         db.session.add(new_user)
@@ -521,7 +526,7 @@ def signup():
         login_user(new_user, remember=True)
         return redirect(url_for('home'))
 
-    return render_template('auth.html', mode='signup', ref_code=request.args.get('ref', ''))
+    return render_template('auth.html', mode='signup', ref_code=request.args.get('ref', ''), student_track=request.args.get('type', ''))
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -658,6 +663,7 @@ def home():
             referral_link=referral_link,
             referral_bonus_days=REFERRAL_BONUS_DAYS,
             email_verified=current_user.email_verified,
+            student_track=current_user.student_track or 'highschool',
         )
 
     return render_template(
@@ -699,7 +705,7 @@ def sitemap_xml():
 
 @app.route('/logo.png')
 def serve_logo():
-    return send_from_directory(PROJECT_ROOT, 'logo.png', mimetype='image/png+xml')
+    return send_from_directory(os.path.join(PROJECT_ROOT, 'static', 'images'), 'logo.png', mimetype='image/png')
 
 
 @app.route('/sw.js')
@@ -1200,6 +1206,10 @@ def api_profile():
                 if not normalized:
                     return jsonify({"error": "That doesn't look like a valid Kenyan phone number (e.g. 07XXXXXXXX)."}), 400
                 current_user.phone_number = normalized
+        if 'studentTrack' in data:
+            track = (data.get('studentTrack') or '').strip().lower()
+            if track in ('campus', 'highschool'):
+                current_user.student_track = track
         db.session.commit()
         return jsonify({"status": "ok"})
 
@@ -1207,6 +1217,7 @@ def api_profile():
         "displayName": current_user.display_name or default_display_name(current_user.email),
         "leaderboardOptIn": current_user.leaderboard_opt_in if current_user.leaderboard_opt_in is not None else True,
         "phoneNumber": current_user.phone_number or '',
+        "studentTrack": current_user.student_track or 'highschool',
     })
 
 
@@ -1379,6 +1390,9 @@ def ensure_database_schema():
                     db.session.commit()
                 if 'phone_number' not in columns:
                     db.session.execute(text('ALTER TABLE "user" ADD COLUMN "phone_number" VARCHAR(20)'))
+                    db.session.commit()
+                if 'student_track' not in columns:
+                    db.session.execute(text('ALTER TABLE "user" ADD COLUMN "student_track" VARCHAR(20)'))
                     db.session.commit()
         except Exception as exc:
             app.logger.warning(f"Could not ensure admin column exists: {exc}")

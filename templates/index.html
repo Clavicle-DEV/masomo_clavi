@@ -2483,6 +2483,19 @@ body{
     <h2 class="dash-title">Settings</h2>
 
     <div class="settings-group">
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">Studying at</div>
+          <div class="settings-row-sub">Switches your whole subject list and tutor style — takes a moment to reload.</div>
+        </div>
+        <div class="level-toggle" id="accountTrackToggle">
+          <button data-track="highschool">🏫 High school</button>
+          <button data-track="campus">🎓 Campus</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-group">
       <div class="settings-row" style="flex-direction: column; align-items: stretch; gap: 10px;">
         <div>
           <div class="settings-row-label">Leaderboard name</div>
@@ -2661,7 +2674,7 @@ body{
       </div>
 
       <div class="sub-level-row">
-        <label for="papersGradeFormSelect" class="sub-level-label">Form:</label>
+        <label for="papersGradeFormSelect" class="sub-level-label" id="papersSubLevelLabel">Form:</label>
         <select id="papersGradeFormSelect" class="sub-level-select"></select>
       </div>
 
@@ -2753,10 +2766,34 @@ body{
 
 <script>
   /* ---------------- Shared state (declared early so settings load logic can use them) ---------------- */
-  let currentLevel = 'secondary';
-  let currentGradeForm = 'Form 1';
+  // Set once at signup (via the landing page picker) and fixed for the account
+  // — Clavis behaves as two separate, non-overlapping experiences depending
+  // on this, not as a togglable "grade level".
+  const ACCOUNT_TRACK = "{{ student_track }}" === 'campus' ? 'campus' : 'highschool';
+  let currentLevel = ACCOUNT_TRACK === 'campus' ? 'campus' : 'secondary';
+  let currentGradeForm = ACCOUNT_TRACK === 'campus' ? 'Year 1' : 'Form 1';
   let currentSubject = null;
   let conversationHistory = [];
+
+  /* Permanently remove the level-toggle buttons that don't belong to this
+     account's track, so switching between school-grade levels and Campus
+     is never possible from within the app — the choice is made once, at
+     signup. Uses getElementById directly (not the consts below) so it's
+     safe to call before every toggle's const has been declared yet. */
+  function pruneLevelTogglesForTrack() {
+    ['levelToggle', 'defaultLevelToggle', 'papersLevelToggle'].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (ACCOUNT_TRACK === 'campus') {
+        [...el.children].forEach(b => { if (b.dataset.level !== 'campus') b.remove(); });
+        el.style.display = 'none'; // nothing left to toggle between
+      } else {
+        const campusBtn = [...el.children].find(b => b.dataset.level === 'campus');
+        if (campusBtn) campusBtn.remove();
+      }
+    });
+  }
+  pruneLevelTogglesForTrack();
 
   /* DOM references needed early (before any settings/init logic runs) */
   const levelToggle = document.getElementById('levelToggle');
@@ -2977,6 +3014,24 @@ body{
     });
   }
 
+  /* ---------------- Account track (high school vs campus) ---------------- */
+  const accountTrackToggle = document.getElementById('accountTrackToggle');
+  if (accountTrackToggle) {
+    [...accountTrackToggle.children].forEach(b => b.classList.toggle('active', b.dataset.track === ACCOUNT_TRACK));
+    accountTrackToggle.addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
+      if (!btn || btn.dataset.track === ACCOUNT_TRACK) return;
+      const label = btn.dataset.track === 'campus' ? 'Campus' : 'High school';
+      if (!confirm(`Switch to ${label}? This changes your whole subject list and reloads the app.`)) return;
+      localStorage.setItem('clavi_student_type', btn.dataset.track);
+      fetch('/api/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentTrack: btn.dataset.track })
+      }).finally(() => { window.location.reload(); });
+    });
+  }
+
   /* ---------------- Leaderboard profile settings ---------------- */
   const displayNameInput = document.getElementById('displayNameInput');
   const saveDisplayNameBtn = document.getElementById('saveDisplayNameBtn');
@@ -3069,7 +3124,11 @@ body{
   (function loadSettings() {
     const savedTheme = localStorage.getItem('clavi_theme') || 'light';
     applyTheme(savedTheme);
-    const savedLevel = localStorage.getItem('clavi_default_level') || 'secondary';
+    let savedLevel = localStorage.getItem('clavi_default_level') || (ACCOUNT_TRACK === 'campus' ? 'campus' : 'secondary');
+    // The account's track is fixed server-side — never let a stale
+    // localStorage value put someone in the wrong track's level.
+    if (ACCOUNT_TRACK === 'campus') savedLevel = 'campus';
+    if (ACCOUNT_TRACK === 'highschool' && savedLevel === 'campus') savedLevel = 'secondary';
     const savedGradeForm = localStorage.getItem('clavi_default_grade_form') || null;
     applyDefaultLevel(savedLevel, savedGradeForm);
     applyResponseStyle(localStorage.getItem('clavi_response_style') || 'detailed');
@@ -4188,8 +4247,8 @@ body{
     return KCSE_PAPER_COUNTS[subject] || 1;
   }
 
-  let papersLevel = 'secondary';
-  let papersGradeForm = 'Form 1';
+  let papersLevel = ACCOUNT_TRACK === 'campus' ? 'campus' : 'secondary';
+  let papersGradeForm = ACCOUNT_TRACK === 'campus' ? 'Year 1' : 'Form 1';
   let papersSubject = null;
   let papersPaperNum = null;
   let papersPaperCount = null;
@@ -4233,6 +4292,8 @@ body{
       if (!btn) return;
       papersLevel = btn.dataset.level;
       [...papersLevelToggle.children].forEach(b => b.classList.toggle('active', b === btn));
+      const papersSubLevelLabel = document.getElementById('papersSubLevelLabel');
+      if (papersSubLevelLabel) papersSubLevelLabel.textContent = subLevelLabelFor(papersLevel);
       populateGradeFormSelect(papersGradeFormSelect, papersLevel, null);
       papersGradeForm = papersGradeFormSelect.value;
       renderPapersSubjectGrid();
@@ -4529,6 +4590,8 @@ body{
   }
 
   // Initialize the papers screen's grade dropdown + subject grid once the page loads.
+  const papersSubLevelLabelInit = document.getElementById('papersSubLevelLabel');
+  if (papersSubLevelLabelInit) papersSubLevelLabelInit.textContent = subLevelLabelFor(papersLevel);
   populateGradeFormSelect(papersGradeFormSelect, papersLevel, null);
   papersGradeForm = papersGradeFormSelect.value;
   renderPapersSubjectGrid();
@@ -4615,12 +4678,18 @@ body{
 
   function chooseWelcomeType(type) {
     localStorage.setItem('clavi_student_type', type);
-    document.getElementById('welcomeStepType').style.display = 'none';
-    document.getElementById('welcomeStepName').style.display = 'block';
-    if (type === 'campus') {
-      applyDefaultLevel('campus', 'Year 1');
-    }
-    document.getElementById('welcomeNameInput').focus();
+    // Persist to the account server-side, then reload — the level toggles
+    // are pruned based on the server-rendered track, so a reload is needed
+    // for the "no more switching between tracks" behavior to take effect.
+    // showWelcomeIfFirstVisit() picks the flow back up at the name step
+    // automatically, since clavi_student_type is already saved.
+    fetch('/api/profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ studentTrack: type })
+    }).catch(() => {}).finally(() => {
+      window.location.reload();
+    });
   }
 
   const welcomeTypeHighschoolBtn = document.getElementById('welcomeTypeHighschool');
