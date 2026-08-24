@@ -4,6 +4,7 @@ import re
 import smtplib
 import io
 import zipfile
+import hashlib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
@@ -317,6 +318,12 @@ class User(UserMixin, db.Model):
     student_track = db.Column(db.String(20), nullable=True)  # 'campus' or 'highschool'
     failed_login_attempts = db.Column(db.Integer, default=0)
     lockout_until = db.Column(db.DateTime, nullable=True)
+    daily_challenge_date = db.Column(db.String(10), nullable=True)  # date the cached question is for
+    daily_challenge_json = db.Column(db.Text, nullable=True)  # cached {subject, question, options, correct, explanation}
+    daily_challenge_answered = db.Column(db.Boolean, default=False)  # answered (correctly or not) today
+    daily_challenge_streak = db.Column(db.Integer, default=0)
+    daily_challenge_best_streak = db.Column(db.Integer, default=0)
+    daily_challenge_last_correct_date = db.Column(db.String(10), nullable=True)
 
     def set_password(self, raw_password):
         self.password_hash = generate_password_hash(raw_password)
@@ -1255,6 +1262,128 @@ def api_exam_progress():
     })
 
 
+DAILY_CHALLENGE_SUBJECTS = {
+    'campus': ['Mathematics', 'Statistics', 'Accounting', 'Economics', 'Business Studies', 'Marketing',
+               'Finance', 'Human Resource Management', 'Public Administration', 'Law', 'Computer Science',
+               'Psychology', 'Sociology', 'Political Science', 'Communication and Media Studies',
+               'Education', 'History', 'Literature', 'Philosophy', 'Kiswahili'],
+    'highschool': ['Mathematics', 'English', 'Physics', 'Chemistry', 'Biology', 'Kiswahili', 'Geography',
+                   'History', 'Business Studies', 'Computer Studies', 'Agriculture', 'Home Science',
+                   'Religious Education', 'Creative Arts'],
+}
+
+
+def pick_daily_subject(user):
+    track = user.student_track or 'highschool'
+    subjects = DAILY_CHALLENGE_SUBJECTS.get(track, DAILY_CHALLENGE_SUBJECTS['highschool'])
+    seed = f"{user.id}-{datetime.now().strftime('%Y-%m-%d')}"
+    idx = int(hashlib.sha256(seed.encode()).hexdigest(), 16) % len(subjects)
+    return subjects[idx]
+
+
+def generate_daily_challenge(user):
+    subject = pick_daily_subject(user)
+    track = user.student_track or 'highschool'
+    level_desc = "a university/campus student in Kenya" if track == 'campus' else "a Kenyan secondary school (KCSE) student"
+
+    prompt = (
+        f"Create ONE bite-sized multiple-choice quiz question in {subject}, suitable for {level_desc}. "
+        f"It should be fun, thought-provoking, and answerable in under 30 seconds — a quick daily brain "
+        f"teaser, not a full exam question. Return ONLY valid JSON, nothing else, in this exact shape:\n"
+        f'{{"question": "...", "options": ["...", "...", "...", "..."], "correct_index": 0, "explanation": "one friendly sentence explaining the answer"}}\n'
+        f"The options array must have exactly 4 items. correct_index is 0-based (0-3)."
+    )
+    raw = call_groq([{"role": "user", "content": prompt}], max_tokens=500)
+    data = extract_json(raw)
+    if not isinstance(data.get('options'), list) or len(data['options']) != 4:
+        raise ValueError("Malformed daily challenge response (options)")
+    if not isinstance(data.get('correct_index'), int) or not (0 <= data['correct_index'] < 4):
+        raise ValueError("Malformed daily challenge response (correct_index)")
+    data['subject'] = subject
+    return data
+
+
+@app.route('/api/daily-challenge')
+@login_required
+def api_daily_challenge():
+    if not current_user.email_verified:
+        return jsonify({"error": "Please verify your email to unlock the daily challenge."}), 403
+
+    today = datetime.now().strftime('%Y-%m-%d')
+
+    if current_user.daily_challenge_date != today or not current_user.daily_challenge_json:
+        allowed, remaining = check_and_consume_ai_call(current_user)
+        if not allowed:
+            return jsonify({"error": "You've hit today's message limit — it resets tomorrow."}), 429
+        try:
+            data = generate_daily_challenge(current_user)
+        except Exception as e:
+            app.logger.error(f"Failed to generate daily challenge for {current_user.email}: {e}")
+            return jsonify({"error": "Could not load today's challenge — try again in a moment."}), 502
+        current_user.daily_challenge_date = today
+        current_user.daily_challenge_json = json.dumps(data)
+        current_user.daily_challenge_answered = False
+        db.session.commit()
+    else:
+        data = json.loads(current_user.daily_challenge_json)
+
+    response = {
+        "subject": data['subject'],
+        "question": data['question'],
+        "options": data['options'],
+        "answered": bool(current_user.daily_challenge_answered),
+        "streak": current_user.daily_challenge_streak or 0,
+        "bestStreak": current_user.daily_challenge_best_streak or 0,
+    }
+    if current_user.daily_challenge_answered:
+        response["correctIndex"] = data['correct_index']
+        response["explanation"] = data.get('explanation', '')
+        response["wasCorrect"] = bool(data.get('was_correct'))
+    return jsonify(response)
+
+
+@app.route('/api/daily-challenge/answer', methods=['POST'])
+@login_required
+def api_daily_challenge_answer():
+    today = datetime.now().strftime('%Y-%m-%d')
+    if current_user.daily_challenge_date != today or not current_user.daily_challenge_json:
+        return jsonify({"error": "No active challenge — refresh and try again."}), 400
+    if current_user.daily_challenge_answered:
+        return jsonify({"error": "You've already answered today's challenge."}), 400
+
+    body = request.get_json(silent=True) or {}
+    chosen_index = body.get('choiceIndex')
+    if not isinstance(chosen_index, int):
+        return jsonify({"error": "Invalid answer"}), 400
+
+    challenge = json.loads(current_user.daily_challenge_json)
+    correct = (chosen_index == challenge.get('correct_index'))
+    challenge['was_correct'] = correct
+    current_user.daily_challenge_json = json.dumps(challenge)
+    current_user.daily_challenge_answered = True
+
+    if correct:
+        yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+        if current_user.daily_challenge_last_correct_date == yesterday:
+            current_user.daily_challenge_streak = (current_user.daily_challenge_streak or 0) + 1
+        else:
+            current_user.daily_challenge_streak = 1
+        current_user.daily_challenge_last_correct_date = today
+        if current_user.daily_challenge_streak > (current_user.daily_challenge_best_streak or 0):
+            current_user.daily_challenge_best_streak = current_user.daily_challenge_streak
+    else:
+        current_user.daily_challenge_streak = 0
+
+    db.session.commit()
+    return jsonify({
+        "correct": correct,
+        "correctIndex": challenge.get('correct_index'),
+        "explanation": challenge.get('explanation', ''),
+        "streak": current_user.daily_challenge_streak or 0,
+        "bestStreak": current_user.daily_challenge_best_streak or 0,
+    })
+
+
 @app.route('/api/profile', methods=['GET', 'POST'])
 @login_required
 def api_profile():
@@ -1549,6 +1678,14 @@ def ensure_database_schema():
                 if 'failed_login_attempts' not in columns:
                     db.session.execute(text('ALTER TABLE "user" ADD COLUMN "failed_login_attempts" INTEGER DEFAULT 0'))
                     db.session.execute(text('ALTER TABLE "user" ADD COLUMN "lockout_until" TIMESTAMP'))
+                    db.session.commit()
+                if 'daily_challenge_date' not in columns:
+                    db.session.execute(text('ALTER TABLE "user" ADD COLUMN "daily_challenge_date" VARCHAR(10)'))
+                    db.session.execute(text('ALTER TABLE "user" ADD COLUMN "daily_challenge_json" TEXT'))
+                    db.session.execute(text('ALTER TABLE "user" ADD COLUMN "daily_challenge_answered" BOOLEAN DEFAULT FALSE'))
+                    db.session.execute(text('ALTER TABLE "user" ADD COLUMN "daily_challenge_streak" INTEGER DEFAULT 0'))
+                    db.session.execute(text('ALTER TABLE "user" ADD COLUMN "daily_challenge_best_streak" INTEGER DEFAULT 0'))
+                    db.session.execute(text('ALTER TABLE "user" ADD COLUMN "daily_challenge_last_correct_date" VARCHAR(10)'))
                     db.session.commit()
         except Exception as exc:
             app.logger.warning(f"Could not ensure admin column exists: {exc}")

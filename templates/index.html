@@ -882,6 +882,55 @@
   .leaderboard-row .lb-name { flex: 1; color: var(--ink); font-weight: 600; }
   .leaderboard-row .lb-total { color: var(--muted); font-size: 13px; }
 
+  /* Daily Challenge option buttons */
+  .dc-option {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: rgba(255,255,255,.1);
+    border: 1px solid rgba(255,255,255,.2);
+    color: #fff;
+    border-radius: 10px;
+    padding: 11px 14px;
+    font-size: 14px;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    transition: background .15s ease, transform .1s ease;
+  }
+  .dc-option:hover:not(:disabled) { background: rgba(255,255,255,.2); transform: translateY(-1px); }
+  .dc-option:disabled { cursor: default; opacity: .55; }
+  .dc-option.dc-correct { background: rgba(92,213,140,.35); border-color: rgba(92,213,140,.6); opacity: 1; }
+  .dc-option.dc-wrong { background: rgba(213,92,92,.35); border-color: rgba(213,92,92,.6); opacity: 1; }
+
+  /* Lightweight canvas-free confetti burst */
+  .confetti-piece {
+    position: fixed;
+    top: -12px;
+    width: 8px;
+    height: 14px;
+    z-index: 9999;
+    pointer-events: none;
+    animation: confetti-fall linear forwards;
+  }
+  @keyframes confetti-fall {
+    to { transform: translateY(105vh) rotate(540deg); opacity: 0.3; }
+  }
+
+  /* XP level progress bar (Dashboard) */
+  .xp-bar-track {
+    height: 12px;
+    background: var(--line);
+    border-radius: 999px;
+    overflow: hidden;
+    margin: 8px 0 4px;
+  }
+  .xp-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--gold), var(--chalk));
+    border-radius: 999px;
+    transition: width .4s ease;
+  }
+
   .quick-links {
     display: flex;
     flex-wrap: wrap;
@@ -1853,6 +1902,18 @@ body{
       </div>
     </div>
 
+    <div id="dailyChallengeCard" style="display:none; background:linear-gradient(135deg, var(--chalk), #1c3a2c); color:#fff; border-radius:16px; padding:20px; margin-bottom:16px; position:relative; overflow:hidden;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
+        <div style="font-size:11.5px; text-transform:uppercase; letter-spacing:.06em; font-weight:700; opacity:.85;">⚡ Daily Challenge</div>
+        <div id="dcStreakBadge" style="font-size:12px; font-weight:700; background:rgba(255,255,255,.15); padding:4px 10px; border-radius:99px; display:none;"></div>
+      </div>
+      <div id="dcSubject" style="font-size:12px; font-weight:600; opacity:.8; margin-bottom:6px;"></div>
+      <div id="dcQuestion" style="font-size:16px; font-weight:700; line-height:1.4; margin-bottom:14px;"></div>
+      <div id="dcOptions" style="display:flex; flex-direction:column; gap:8px;"></div>
+      <div id="dcResult" style="display:none; margin-top:12px; padding:12px 14px; border-radius:10px; background:rgba(255,255,255,.12); font-size:13.5px; line-height:1.5;"></div>
+      <div id="dcLoading" style="font-size:13.5px; opacity:.8;">Loading today's challenge…</div>
+    </div>
+
     <div id="resumeCard" style="display:none; align-items:center; justify-content:space-between; gap:14px; background:var(--paper); border:1px solid var(--line); border-radius:14px; padding:16px 18px; margin-bottom:14px;">
       <div>
         <div style="font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); font-weight:700; margin-bottom:3px;">Pick up where you left off</div>
@@ -2410,6 +2471,15 @@ body{
 
     <div id="dashEmptyState" class="empty-dash" style="display:none;">
       You haven't asked any questions yet — pick a subject on the Home tab to get started, and your stats will show up here.
+    </div>
+
+    <div id="xpCard" style="display:none; background:var(--paper); border:1px solid var(--line); border-radius:14px; padding:16px 18px; margin-bottom:18px;">
+      <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:2px;">
+        <div id="xpLevelTitle" style="font-size:15px; font-weight:700; color:var(--ink);"></div>
+        <div id="xpLevelNum" style="font-size:12px; color:var(--muted); font-weight:600;"></div>
+      </div>
+      <div class="xp-bar-track"><div class="xp-bar-fill" id="xpBarFill" style="width:0%;"></div></div>
+      <div id="xpProgressText" style="font-size:12px; color:var(--muted);"></div>
     </div>
 
     <div class="stat-grid">
@@ -3312,6 +3382,122 @@ body{
     el.style.display = 'flex';
   }
 
+  // ---------------- Confetti (used by Daily Challenge, streak badges, level-ups) ----------------
+  function fireConfetti() {
+    const colors = ['#d9a62e', '#5c8d36', '#2E4C6E', '#B8433A', '#6C3483'];
+    const count = 60;
+    for (let i = 0; i < count; i++) {
+      const piece = document.createElement('div');
+      piece.className = 'confetti-piece';
+      piece.style.left = Math.random() * 100 + 'vw';
+      piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+      piece.style.animationDuration = (2 + Math.random() * 1.5) + 's';
+      piece.style.opacity = String(0.7 + Math.random() * 0.3);
+      document.body.appendChild(piece);
+      setTimeout(() => piece.remove(), 3600);
+    }
+  }
+
+  // ---------------- Daily Challenge ----------------
+  function renderDailyChallenge() {
+    const card = document.getElementById('dailyChallengeCard');
+    const loadingEl = document.getElementById('dcLoading');
+    const subjectEl = document.getElementById('dcSubject');
+    const questionEl = document.getElementById('dcQuestion');
+    const optionsEl = document.getElementById('dcOptions');
+    const resultEl = document.getElementById('dcResult');
+    const streakBadge = document.getElementById('dcStreakBadge');
+    if (!card) return;
+
+    card.style.display = 'block';
+    loadingEl.style.display = 'block';
+    subjectEl.textContent = '';
+    questionEl.textContent = '';
+    optionsEl.innerHTML = '';
+    resultEl.style.display = 'none';
+
+    fetch('/api/daily-challenge')
+      .then(res => res.ok ? res.json() : res.json().then(e => Promise.reject(e)))
+      .then(data => {
+        loadingEl.style.display = 'none';
+        subjectEl.textContent = data.subject;
+        questionEl.textContent = data.question;
+
+        if (data.streak > 0) {
+          streakBadge.textContent = `🔥 ${data.streak} day streak`;
+          streakBadge.style.display = 'inline-block';
+        } else {
+          streakBadge.style.display = 'none';
+        }
+
+        renderDailyChallengeOptions(data.options);
+
+        if (data.answered) {
+          disableDailyChallengeOptions();
+          if (typeof data.correctIndex === 'number') {
+            // We only know whether they were right overall on reload — not
+            // which specific wrong option they picked — so just mark the
+            // correct one; no red highlight in this reload path.
+            const correctBtn = optionsEl.querySelector(`.dc-option[data-index="${data.correctIndex}"]`);
+            if (correctBtn) correctBtn.classList.add('dc-correct');
+          }
+          resultEl.style.display = 'block';
+          resultEl.textContent = (data.wasCorrect ? '✅ Correct! ' : '➜ ') + (data.explanation || '');
+        }
+      })
+      .catch((err) => {
+        loadingEl.textContent = (err && err.error) || "Couldn't load today's challenge — try again in a moment.";
+      });
+  }
+
+  function renderDailyChallengeOptions(options) {
+    const optionsEl = document.getElementById('dcOptions');
+    optionsEl.innerHTML = options.map((opt, i) => `<button type="button" class="dc-option" data-index="${i}">${opt}</button>`).join('');
+    optionsEl.querySelectorAll('.dc-option').forEach(btn => {
+      btn.addEventListener('click', () => submitDailyChallengeAnswer(parseInt(btn.dataset.index, 10)));
+    });
+  }
+
+  function disableDailyChallengeOptions() {
+    document.querySelectorAll('#dcOptions .dc-option').forEach(b => { b.disabled = true; });
+  }
+
+  function submitDailyChallengeAnswer(choiceIndex) {
+    const optionsEl = document.getElementById('dcOptions');
+    const resultEl = document.getElementById('dcResult');
+    const streakBadge = document.getElementById('dcStreakBadge');
+    const chosenBtn = optionsEl.querySelector(`.dc-option[data-index="${choiceIndex}"]`);
+    if (chosenBtn) chosenBtn.classList.add('dc-chosen');
+    disableDailyChallengeOptions();
+
+    fetch('/api/daily-challenge/answer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ choiceIndex })
+    })
+      .then(res => res.ok ? res.json() : res.json().then(e => Promise.reject(e)))
+      .then(data => {
+        document.querySelectorAll('#dcOptions .dc-option').forEach(b => {
+          const idx = parseInt(b.dataset.index, 10);
+          if (idx === data.correctIndex) b.classList.add('dc-correct');
+          else if (idx === choiceIndex && !data.correct) b.classList.add('dc-wrong');
+        });
+        resultEl.style.display = 'block';
+        resultEl.textContent = (data.correct ? '✅ Correct! ' : '➜ ') + (data.explanation || '');
+        if (data.streak > 0) {
+          streakBadge.textContent = `🔥 ${data.streak} day streak`;
+          streakBadge.style.display = 'inline-block';
+        } else {
+          streakBadge.style.display = 'none';
+        }
+        if (data.correct) fireConfetti();
+      })
+      .catch((err) => {
+        resultEl.style.display = 'block';
+        resultEl.textContent = (err && err.error) || 'Something went wrong submitting your answer.';
+      });
+  }
+
   // On load, pull the account's saved stats from the server so progress
   // carries across devices/browsers instead of being stuck in one browser.
   (function syncStatsFromServer() {
@@ -3319,6 +3505,7 @@ body{
     if (typeof renderOnboardingChecklist === 'function') renderOnboardingChecklist();
     renderResumeCard();
     renderDailySpark();
+    renderDailyChallenge();
     fetch('/api/sync-stats')
       .then(res => res.ok ? res.json() : null)
       .then(serverStats => {
@@ -3403,11 +3590,53 @@ body{
     banner.style.display = 'block';
   }
 
+  const LEVEL_TITLES = [
+    'Fresh Start', 'Curious Mind', 'Sharp Thinker', 'Rising Scholar', 'Dedicated Learner',
+    'Subject Explorer', 'Knowledge Seeker', 'Study Champion', 'Clavis Scholar', 'Clavis Legend'
+  ];
+  const QUESTIONS_PER_LEVEL = 15;
+
+  function computeLevelInfo(total) {
+    const level = Math.floor(total / QUESTIONS_PER_LEVEL) + 1;
+    const titleIdx = Math.min(level, LEVEL_TITLES.length) - 1;
+    const inLevel = total % QUESTIONS_PER_LEVEL;
+    return {
+      level,
+      title: LEVEL_TITLES[titleIdx],
+      inLevel,
+      needed: QUESTIONS_PER_LEVEL,
+      progressPct: (inLevel / QUESTIONS_PER_LEVEL) * 100,
+    };
+  }
+
+  function renderXpCard(stats) {
+    const card = document.getElementById('xpCard');
+    if (!card) return;
+    if (!stats.total) { card.style.display = 'none'; return; }
+    card.style.display = 'block';
+
+    const info = computeLevelInfo(stats.total);
+    document.getElementById('xpLevelTitle').textContent = info.title;
+    document.getElementById('xpLevelNum').textContent = `Level ${info.level}`;
+    document.getElementById('xpBarFill').style.width = info.progressPct + '%';
+    document.getElementById('xpProgressText').textContent = `${info.inLevel} / ${info.needed} questions to next level`;
+
+    // Celebrate crossing into a new level since we last checked — but not
+    // on the very first load (that would confetti-blast every new account).
+    let seenLevel = 0;
+    try { seenLevel = parseInt(localStorage.getItem('clavi_seen_level') || '0', 10); } catch (_) {}
+    if (info.level > seenLevel) {
+      if (seenLevel > 0) fireConfetti();
+      try { localStorage.setItem('clavi_seen_level', String(info.level)); } catch (_) {}
+    }
+  }
+
   function renderDashboard() {
     const stats = getStats();
     const dashEmptyState = document.getElementById('dashEmptyState');
     const subjectBarsWrap = document.getElementById('subjectBarsWrap');
 
+    renderXpCard(stats);
     document.getElementById('statTotal').textContent = stats.total;
     document.getElementById('statStreak').textContent = stats.streak;
 
@@ -3443,17 +3672,31 @@ body{
 
   function renderBadges(stats, averagePercent) {
     const badges = [];
-    if (stats.streak >= 3) badges.push('🔥 3-day streak');
-    if (stats.streak >= 7) badges.push('🔥 Week warrior');
-    if (stats.streak >= 30) badges.push('🔥 30-day streak');
-    if (stats.total >= 10) badges.push('📚 10 questions asked');
-    if (stats.total >= 50) badges.push('📚 50 questions club');
-    if (stats.total >= 200) badges.push('📚 200 questions club');
-    if (averagePercent !== null && averagePercent >= 70) badges.push('⭐ Averaging 70%+');
-    if (averagePercent !== null && averagePercent >= 90) badges.push('🏆 Top scorer');
+    if (stats.streak >= 3) badges.push({ key: 'streak3', label: '🔥 3-day streak' });
+    if (stats.streak >= 7) badges.push({ key: 'streak7', label: '🔥 Week warrior' });
+    if (stats.streak >= 30) badges.push({ key: 'streak30', label: '🔥 30-day streak' });
+    if (stats.total >= 10) badges.push({ key: 'total10', label: '📚 10 questions asked' });
+    if (stats.total >= 50) badges.push({ key: 'total50', label: '📚 50 questions club' });
+    if (stats.total >= 200) badges.push({ key: 'total200', label: '📚 200 questions club' });
+    if (averagePercent !== null && averagePercent >= 70) badges.push({ key: 'avg70', label: '⭐ Averaging 70%+' });
+    if (averagePercent !== null && averagePercent >= 90) badges.push({ key: 'avg90', label: '🏆 Top scorer' });
 
     const el = document.getElementById('badgeRow');
-    el.innerHTML = badges.map(b => `<div class="badge-chip">${b}</div>`).join('');
+    el.innerHTML = badges.map(b => `<div class="badge-chip">${b.label}</div>`).join('');
+
+    // Celebrate any badge earned since the last time we checked — but skip
+    // the very first-ever render, so an account with existing history
+    // doesn't confetti-blast for every badge it already has all at once.
+    let seen = [];
+    let hasSeenBefore = false;
+    try {
+      const raw = localStorage.getItem('clavi_seen_badges');
+      hasSeenBefore = raw !== null;
+      seen = raw ? JSON.parse(raw) : [];
+    } catch (_) {}
+    const newlyEarned = badges.map(b => b.key).filter(k => !seen.includes(k));
+    if (hasSeenBefore && newlyEarned.length) fireConfetti();
+    try { localStorage.setItem('clavi_seen_badges', JSON.stringify(badges.map(b => b.key))); } catch (_) {}
   }
 
   function scoreTier(pct) {
