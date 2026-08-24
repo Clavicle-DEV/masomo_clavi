@@ -1852,6 +1852,20 @@ body{
         <button type="button" id="dismissInstallBtn" style="background:none; border:none; color:rgba(255,255,255,.75); font-size:18px; cursor:pointer; line-height:1;">&times;</button>
       </div>
     </div>
+
+    <div id="resumeCard" style="display:none; align-items:center; justify-content:space-between; gap:14px; background:var(--paper); border:1px solid var(--line); border-radius:14px; padding:16px 18px; margin-bottom:14px;">
+      <div>
+        <div style="font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); font-weight:700; margin-bottom:3px;">Pick up where you left off</div>
+        <div id="resumeCardText" style="font-size:15px; font-weight:700; color:var(--ink);"></div>
+      </div>
+      <button type="button" id="resumeCardBtn" style="background:var(--chalk); color:#fff; border:none; border-radius:10px; padding:10px 18px; font-weight:700; font-size:13.5px; cursor:pointer; white-space:nowrap; flex-shrink:0;">Continue →</button>
+    </div>
+
+    <div id="dailySparkCard" style="display:none; align-items:flex-start; gap:10px; background:linear-gradient(120deg, rgba(92,141,54,.1), rgba(92,141,54,.03)); border:1px solid rgba(92,141,54,.25); border-radius:14px; padding:14px 18px; margin-bottom:18px; font-size:13.5px; color:var(--ink);">
+      <span style="font-size:17px; line-height:1.3;">💡</span>
+      <div><span style="font-weight:700;">Did you know? </span><span id="dailySparkText"></span></div>
+    </div>
+
     <div class="hero">
       <h1>Ask a question.<br>Get a clear explanation.</h1>
       <p>A study buddy for students who can't always get extra tuition. Pick a level, choose a subject, and ask anything.</p>
@@ -2799,6 +2813,50 @@ body{
   const levelToggle = document.getElementById('levelToggle');
   const notebook = document.getElementById('notebook');
   const emptyHint = document.getElementById('emptyHint');
+
+  // A subject-appropriate example question shown as a starter hint when a
+  // chat is empty — used to be the same "quadratic equation" example for
+  // every subject, which looked broken for anything that wasn't Math.
+  const SUBJECT_EXAMPLE_QUESTIONS = {
+    'Mathematics': 'How do I factorise a quadratic equation?',
+    'English': 'What\'s the difference between a metaphor and a simile?',
+    'Kiswahili': 'Ni tofauti gani kati ya nomino na kivumishi?',
+    'Physics': 'Why does a heavier object not fall faster than a lighter one?',
+    'Chemistry': 'How do I balance a chemical equation?',
+    'Biology': 'How does photosynthesis actually work?',
+    'Agriculture': 'What\'s the difference between organic and inorganic fertiliser?',
+    'Home Science': 'What are the food groups and why do we need each one?',
+    'Creative Arts': 'What\'s the difference between primary and secondary colours?',
+    'Geography': 'What causes rainfall to form?',
+    'Religious Education': 'What is the significance of the Ten Commandments?',
+    'Business Studies': 'What\'s the difference between a debtor and a creditor?',
+    'History': 'What were the main causes of the First World War?',
+    'Computer Studies': 'What\'s the difference between hardware and software?',
+    'Science and Technology': 'How do plants make their own food?',
+    'Social Studies': 'What are the three levels of government in Kenya?',
+    'Pre-Technical Studies': 'What\'s the difference between a bolt and a screw?',
+    'ICT': 'What\'s the difference between RAM and storage?',
+    'Statistics': 'What\'s the difference between mean, median and mode?',
+    'Accounting': 'What\'s the accounting equation, and why does it always balance?',
+    'Economics': 'What\'s the difference between demand and quantity demanded?',
+    'Marketing': 'What are the 4 Ps of marketing?',
+    'Finance': 'What\'s the difference between simple and compound interest?',
+    'Human Resource Management': 'What\'s the difference between recruitment and selection?',
+    'Public Administration': 'What\'s the difference between centralisation and devolution?',
+    'Law': 'What\'s the difference between civil law and criminal law?',
+    'Computer Science': 'What\'s the difference between a stack and a queue?',
+    'Psychology': 'What\'s the difference between classical and operant conditioning?',
+    'Sociology': 'What\'s the difference between a norm and a value?',
+    'Political Science': 'What\'s the difference between a unitary and a federal system?',
+    'Communication and Media Studies': 'What makes a news story newsworthy?',
+    'Education': 'What\'s the difference between formative and summative assessment?',
+    'Literature': 'How do I identify the theme of a novel?',
+    'Philosophy': 'What\'s the difference between deductive and inductive reasoning?',
+  };
+  function exampleQuestionFor(subject) {
+    return SUBJECT_EXAMPLE_QUESTIONS[subject] || 'What would you like help understanding?';
+  }
+
   const questionInput = document.getElementById('questionInput');
   const sendBtn = document.getElementById('sendBtn');
   const typingIndicator = document.getElementById('typingIndicator');
@@ -3108,6 +3166,7 @@ body{
     conversationHistory = [];
     notebook.innerHTML = '';
     notebook.appendChild(emptyHint);
+    emptyHint.innerHTML = `Type a question below to get started — e.g. "${exampleQuestionFor(currentSubject)}"`;
     emptyHint.style.display = 'block';
     if (currentSubject) {
       try { localStorage.removeItem(chatStorageKey(currentLevel, currentGradeForm, currentSubject)); } catch (_) {}
@@ -3187,11 +3246,79 @@ body{
       });
   }
 
+  // ---------------- Resume card + Daily Spark (home screen extras) ----------------
+  function renderResumeCard() {
+    const el = document.getElementById('resumeCard');
+    const textEl = document.getElementById('resumeCardText');
+    const btn = document.getElementById('resumeCardBtn');
+    if (!el || !textEl || !btn) return;
+
+    let last = null;
+    try { last = JSON.parse(localStorage.getItem('clavi_last_subject') || 'null'); } catch (_) {}
+
+    // Only offer to resume within the account's own track — never suggest a
+    // stale subject from the other track (can happen if someone switched
+    // tracks in Settings after previously studying under the old one).
+    if (!last || !last.subject ||
+        (ACCOUNT_TRACK === 'campus' && last.level !== 'campus') ||
+        (ACCOUNT_TRACK === 'highschool' && last.level === 'campus')) {
+      el.style.display = 'none';
+      return;
+    }
+
+    textEl.textContent = `${last.subject} — continue where you left off`;
+    el.style.display = 'flex';
+    btn.onclick = () => {
+      currentLevel = last.level;
+      currentGradeForm = last.gradeForm;
+      [...levelToggle.children].forEach(b => b.classList.toggle('active', b.dataset.level === currentLevel));
+      document.getElementById('subLevelLabel').textContent = subLevelLabelFor(currentLevel);
+      populateGradeFormSelect(gradeFormSelect, currentLevel, currentGradeForm);
+      filterSubjectsForLevel();
+      showScreen('chatScreen');
+      openSubjectChat(last.subject);
+    };
+  }
+
+  const DAILY_SPARK_FACTS = [
+    "Kenya has 47 counties, each led by an elected governor.",
+    "The word \"algebra\" comes from the Arabic \"al-jabr\", meaning \"reunion of broken parts\".",
+    "Mount Kenya is Africa's second-highest peak, after Kilimanjaro.",
+    "A group of lions is called a \"pride\" — a group of hyenas is a \"clan\".",
+    "The human heart beats about 100,000 times a day.",
+    "Water expands by about 9% when it freezes — that's why ice floats.",
+    "The Great Rift Valley runs right through Kenya, and is slowly widening every year.",
+    "Shakespeare invented or popularised over 1,700 words still used in English today.",
+    "Photosynthesis produces the oxygen in roughly 2 out of every 3 breaths you take.",
+    "Nairobi is one of the few capital cities in the world with a national park inside it.",
+    "The Pythagorean theorem was known and used by Babylonian mathematicians over 1,000 years before Pythagoras.",
+    "Kiswahili is spoken by over 200 million people across East Africa.",
+    "A bolt of lightning is roughly five times hotter than the surface of the sun.",
+    "The first computer \"bug\" was an actual moth found stuck in a relay in 1947.",
+    "Honey never spoils — archaeologists have found edible honey in 3,000-year-old Egyptian tombs.",
+    "The Maasai Mara hosts one of the largest wildlife migrations on Earth every year.",
+    "Compound interest was once called \"the eighth wonder of the world\" — famously attributed to Einstein.",
+    "Octopuses have three hearts and blue blood.",
+    "Kenya's Lake Turkana is the world's largest permanent desert lake.",
+    "The shortest war in recorded history lasted just 38 minutes, between Britain and Zanzibar in 1896.",
+  ];
+  function renderDailySpark() {
+    const el = document.getElementById('dailySparkCard');
+    const textEl = document.getElementById('dailySparkText');
+    if (!el || !textEl) return;
+    const start = new Date(new Date().getFullYear(), 0, 0);
+    const dayOfYear = Math.floor((Date.now() - start) / 86400000);
+    textEl.textContent = DAILY_SPARK_FACTS[dayOfYear % DAILY_SPARK_FACTS.length];
+    el.style.display = 'flex';
+  }
+
   // On load, pull the account's saved stats from the server so progress
   // carries across devices/browsers instead of being stuck in one browser.
   (function syncStatsFromServer() {
     if (typeof showStreakReminderIfNeeded === 'function') showStreakReminderIfNeeded();
     if (typeof renderOnboardingChecklist === 'function') renderOnboardingChecklist();
+    renderResumeCard();
+    renderDailySpark();
     fetch('/api/sync-stats')
       .then(res => res.ok ? res.json() : null)
       .then(serverStats => {
@@ -3440,6 +3567,13 @@ body{
     currentSubject = subject;
     notebook.innerHTML = '';
     notebook.appendChild(emptyHint);
+    emptyHint.innerHTML = `Type a question below to get started — e.g. "${exampleQuestionFor(subject)}"`;
+
+    try {
+      localStorage.setItem('clavi_last_subject', JSON.stringify({
+        subject, level: currentLevel, gradeForm: currentGradeForm
+      }));
+    } catch (_) {}
 
     const saved = loadChatProgress(currentLevel, currentGradeForm, subject);
     if (saved && saved.length) {
