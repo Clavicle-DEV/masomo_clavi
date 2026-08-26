@@ -387,6 +387,7 @@ class UserStats(db.Model):
     by_subject_json = db.Column(db.Text, nullable=True)  # JSON-encoded {subject: count}
     last_active_date = db.Column(db.String(10), nullable=True)  # 'YYYY-MM-DD'
     streak = db.Column(db.Integer, default=0)
+    freezes_available = db.Column(db.Integer, default=1)  # protects the streak if exactly one day is missed
     updated_at = db.Column(db.DateTime, nullable=True)
 
 
@@ -1147,12 +1148,14 @@ def api_sync_stats():
         row.by_subject_json = json.dumps(data.get('bySubject', {}) or {})
         row.last_active_date = data.get('lastActiveDate')
         row.streak = int(data.get('streak', 0) or 0)
+        if 'freezesAvailable' in data:
+            row.freezes_available = max(0, min(2, int(data.get('freezesAvailable', 1) or 0)))
         row.updated_at = datetime.now()
         db.session.commit()
         return jsonify({"status": "ok"})
 
     if row is None:
-        return jsonify({"total": 0, "bySubject": {}, "lastActiveDate": None, "streak": 0})
+        return jsonify({"total": 0, "bySubject": {}, "lastActiveDate": None, "streak": 0, "freezesAvailable": 1})
     try:
         by_subject = json.loads(row.by_subject_json) if row.by_subject_json else {}
     except (TypeError, ValueError):
@@ -1162,6 +1165,7 @@ def api_sync_stats():
         "bySubject": by_subject,
         "lastActiveDate": row.last_active_date,
         "streak": row.streak or 0,
+        "freezesAvailable": row.freezes_available if row.freezes_available is not None else 1,
     })
 
 
@@ -1686,6 +1690,13 @@ def ensure_database_schema():
                     db.session.execute(text('ALTER TABLE "user" ADD COLUMN "daily_challenge_streak" INTEGER DEFAULT 0'))
                     db.session.execute(text('ALTER TABLE "user" ADD COLUMN "daily_challenge_best_streak" INTEGER DEFAULT 0'))
                     db.session.execute(text('ALTER TABLE "user" ADD COLUMN "daily_challenge_last_correct_date" VARCHAR(10)'))
+                    db.session.commit()
+            if 'user_stats' in inspector.get_table_names():
+                stats_columns = {column['name'] for column in inspector.get_columns('user_stats')}
+                if 'freezes_available' not in stats_columns:
+                    # DEFAULT 1 gives everyone (existing accounts included) an
+                    # immediate freeze available, matching what a new signup gets.
+                    db.session.execute(text('ALTER TABLE "user_stats" ADD COLUMN "freezes_available" INTEGER DEFAULT 1'))
                     db.session.commit()
         except Exception as exc:
             app.logger.warning(f"Could not ensure admin column exists: {exc}")
