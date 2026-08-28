@@ -388,6 +388,8 @@ class UserStats(db.Model):
     last_active_date = db.Column(db.String(10), nullable=True)  # 'YYYY-MM-DD'
     streak = db.Column(db.Integer, default=0)
     freezes_available = db.Column(db.Integer, default=1)  # protects the streak if exactly one day is missed
+    weekly_total = db.Column(db.Integer, default=0)  # questions asked since week_start_date (Monday)
+    week_start_date = db.Column(db.String(10), nullable=True)
     updated_at = db.Column(db.DateTime, nullable=True)
 
 
@@ -1134,6 +1136,12 @@ Include 5 to 8 questions total, mixing "mcq" and "short" types. Number "id" sequ
     return jsonify(test_data)
 
 
+def week_start_str(d=None):
+    """Monday-based ISO week start, as 'YYYY-MM-DD'."""
+    d = d or datetime.now()
+    return (d - timedelta(days=d.weekday())).strftime('%Y-%m-%d')
+
+
 @app.route('/api/sync-stats', methods=['GET', 'POST'])
 @login_required
 def api_sync_stats():
@@ -1144,7 +1152,18 @@ def api_sync_stats():
         if row is None:
             row = UserStats(user_id=current_user.id)
             db.session.add(row)
-        row.total = int(data.get('total', 0) or 0)
+
+        new_total = int(data.get('total', 0) or 0)
+        old_total = row.total or 0
+        delta = max(0, new_total - old_total)  # ignore any decrease (e.g. a stale/reset client)
+
+        current_week = week_start_str()
+        if row.week_start_date != current_week:
+            row.weekly_total = 0
+            row.week_start_date = current_week
+        row.weekly_total = (row.weekly_total or 0) + delta
+
+        row.total = new_total
         row.by_subject_json = json.dumps(data.get('bySubject', {}) or {})
         row.last_active_date = data.get('lastActiveDate')
         row.streak = int(data.get('streak', 0) or 0)
@@ -1428,36 +1447,67 @@ def api_profile():
 @app.route('/api/leaderboard')
 @login_required
 def api_leaderboard():
-    rows = (
-        db.session.query(User, UserStats)
-        .join(UserStats, UserStats.user_id == User.id)
-        .filter(UserStats.total > 0)
-        .all()
-    )
+    period = request.args.get('period', 'all')
+    if period not in ('all', 'week', 'inviters'):
+        period = 'all'
 
-    entries = []
-    for user, stats in rows:
-        # Admins/co-admins aren't students competing for a place on the board.
-        if is_full_admin(user) or is_co_admin(user):
-            continue
-        opted_in = user.leaderboard_opt_in if user.leaderboard_opt_in is not None else True
-        entries.append({
-            "user_id": user.id,
-            "name": user.display_name or default_display_name(user.email),
-            "total": stats.total or 0,
-            "streak": stats.streak or 0,
-            "opted_in": bool(opted_in),
-        })
+    if period == 'inviters':
+        # A completely different metric — how many friends you've referred —
+        # not tied to UserStats at all.
+        referral_counts = dict(
+            db.session.query(User.referred_by_id, db.func.count(User.id))
+            .filter(User.referred_by_id != None)
+            .group_by(User.referred_by_id)
+            .all()
+        )
+        inviters = User.query.filter(User.id.in_(referral_counts.keys())).all() if referral_counts else []
+        entries = []
+        for user in inviters:
+            if is_full_admin(user) or is_co_admin(user):
+                continue
+            opted_in = user.leaderboard_opt_in if user.leaderboard_opt_in is not None else True
+            entries.append({
+                "user_id": user.id,
+                "name": user.display_name or default_display_name(user.email),
+                "total": referral_counts.get(user.id, 0),
+                "streak": 0,  # not a meaningful metric for this board
+                "opted_in": bool(opted_in),
+            })
+    else:
+        rows = (
+            db.session.query(User, UserStats)
+            .join(UserStats, UserStats.user_id == User.id)
+            .all()
+        )
+        current_week = week_start_str()
+        entries = []
+        for user, stats in rows:
+            # Admins/co-admins aren't students competing for a place on the board.
+            if is_full_admin(user) or is_co_admin(user):
+                continue
+            opted_in = user.leaderboard_opt_in if user.leaderboard_opt_in is not None else True
+            if period == 'week':
+                score = (stats.weekly_total or 0) if stats.week_start_date == current_week else 0
+            else:
+                score = stats.total or 0
+            entries.append({
+                "user_id": user.id,
+                "name": user.display_name or default_display_name(user.email),
+                "total": score,
+                "streak": stats.streak or 0,
+                "opted_in": bool(opted_in),
+            })
 
-    visible = [e for e in entries if e['opted_in']]
+    visible = [e for e in entries if e['opted_in'] and e['total'] > 0]
     visible.sort(key=lambda e: (-e['total'], -e['streak']))
     for i, e in enumerate(visible):
         e['rank'] = i + 1
 
     me = next((e for e in entries if e['user_id'] == current_user.id), None)
-    my_rank = me['rank'] if (me and me['opted_in']) else None
+    my_rank = me.get('rank') if (me and me['opted_in'] and me['total'] > 0) else None
 
     return jsonify({
+        "period": period,
         "top": [
             {"rank": e['rank'], "name": e['name'], "total": e['total'], "streak": e['streak'], "isMe": e['user_id'] == current_user.id}
             for e in visible[:20]
@@ -1697,6 +1747,10 @@ def ensure_database_schema():
                     # DEFAULT 1 gives everyone (existing accounts included) an
                     # immediate freeze available, matching what a new signup gets.
                     db.session.execute(text('ALTER TABLE "user_stats" ADD COLUMN "freezes_available" INTEGER DEFAULT 1'))
+                    db.session.commit()
+                if 'weekly_total' not in stats_columns:
+                    db.session.execute(text('ALTER TABLE "user_stats" ADD COLUMN "weekly_total" INTEGER DEFAULT 0'))
+                    db.session.execute(text('ALTER TABLE "user_stats" ADD COLUMN "week_start_date" VARCHAR(10)'))
                     db.session.commit()
         except Exception as exc:
             app.logger.warning(f"Could not ensure admin column exists: {exc}")

@@ -1911,6 +1911,7 @@ body{
       <div id="dcQuestion" style="font-size:16px; font-weight:700; line-height:1.4; margin-bottom:14px;"></div>
       <div id="dcOptions" style="display:flex; flex-direction:column; gap:8px;"></div>
       <div id="dcResult" style="display:none; margin-top:12px; padding:12px 14px; border-radius:10px; background:rgba(255,255,255,.12); font-size:13.5px; line-height:1.5;"></div>
+      <button type="button" id="dcShareBtn" style="display:none; margin-top:10px; background:#25D366; color:#fff; border:none; border-radius:10px; padding:10px 16px; font-weight:700; font-size:13.5px; cursor:pointer;">📤 Share on WhatsApp</button>
       <div id="dcLoading" style="font-size:13.5px; opacity:.8;">Loading today's challenge…</div>
     </div>
 
@@ -2538,7 +2539,13 @@ body{
   <!-- ============ LEADERBOARD SCREEN ============ -->
   <div class="screen" id="leaderboardScreen">
     <h2 class="dash-title">Leaderboard</h2>
-    <p class="sub" style="color:var(--muted);font-size:13.5px;margin:-8px 0 20px;">Ranked by questions asked. Only students who've chosen to appear are shown.</p>
+    <p class="sub" id="lbSubtitle" style="color:var(--muted);font-size:13.5px;margin:-8px 0 16px;">Ranked by questions asked. Only students who've chosen to appear are shown.</p>
+
+    <div class="level-toggle" id="lbPeriodToggle" style="margin-bottom:18px;">
+      <button data-period="all" class="active">All time</button>
+      <button data-period="week">This week</button>
+      <button data-period="inviters">Top inviters</button>
+    </div>
 
     <div id="lbOptedOutNotice" class="progress-callout" style="display:none;">
       <span class="callout-label">You're hidden</span>
@@ -2552,7 +2559,7 @@ body{
       </div>
       <div class="stat-card">
         <div class="stat-num" id="lbMyTotal">0</div>
-        <div class="stat-label">Your questions</div>
+        <div class="stat-label" id="lbMyTotalLabel">Your questions</div>
       </div>
     </div>
 
@@ -2855,6 +2862,7 @@ body{
   // — Clavis behaves as two separate, non-overlapping experiences depending
   // on this, not as a togglable "grade level".
   const ACCOUNT_TRACK = "{{ student_track }}" === 'campus' ? 'campus' : 'highschool';
+  const REFERRAL_LINK = {{ (referral_link if referral_link else '')|tojson }};
   let currentLevel = ACCOUNT_TRACK === 'campus' ? 'campus' : 'secondary';
   let currentGradeForm = ACCOUNT_TRACK === 'campus' ? 'Year 1' : 'Form 1';
   let currentSubject = null;
@@ -3350,6 +3358,16 @@ body{
   }
 
   // ---------------- Resume card + Daily Spark (home screen extras) ----------------
+  function comebackMessageFor(last) {
+    if (!last.savedAt) return `${last.subject} — continue where you left off`;
+    const daysAway = Math.floor((Date.now() - last.savedAt) / 86400000);
+    if (daysAway <= 0) return `${last.subject} — continue where you left off`;
+    if (daysAway === 1) return `Welcome back! Pick up ${last.subject} from yesterday`;
+    if (daysAway <= 6) return `It's been ${daysAway} days — jump back into ${last.subject}?`;
+    if (daysAway <= 20) return `We've missed you! Let's get back into ${last.subject}`;
+    return `Long time no see! Ease back in with ${last.subject}`;
+  }
+
   function renderResumeCard() {
     const el = document.getElementById('resumeCard');
     const textEl = document.getElementById('resumeCardText');
@@ -3369,7 +3387,7 @@ body{
       return;
     }
 
-    textEl.textContent = `${last.subject} — continue where you left off`;
+    textEl.textContent = comebackMessageFor(last);
     el.style.display = 'flex';
     btn.onclick = () => {
       currentLevel = last.level;
@@ -3448,6 +3466,7 @@ body{
     questionEl.textContent = '';
     optionsEl.innerHTML = '';
     resultEl.style.display = 'none';
+    document.getElementById('dcShareBtn').style.display = 'none';
 
     fetch('/api/daily-challenge')
       .then(res => res.ok ? res.json() : res.json().then(e => Promise.reject(e)))
@@ -3476,6 +3495,7 @@ body{
           }
           resultEl.style.display = 'block';
           resultEl.textContent = (data.wasCorrect ? '✅ Correct! ' : '➜ ') + (data.explanation || '');
+          updateDailyChallengeShareButton(data.streak);
         }
       })
       .catch((err) => {
@@ -3493,6 +3513,23 @@ body{
 
   function disableDailyChallengeOptions() {
     document.querySelectorAll('#dcOptions .dc-option').forEach(b => { b.disabled = true; });
+  }
+
+  function updateDailyChallengeShareButton(streak) {
+    const btn = document.getElementById('dcShareBtn');
+    if (!btn) return;
+    if (streak > 0) {
+      btn.style.display = 'inline-block';
+      btn.onclick = () => shareDailyChallengeStreak(streak);
+    } else {
+      btn.style.display = 'none';
+    }
+  }
+
+  function shareDailyChallengeStreak(streak) {
+    const link = REFERRAL_LINK || window.location.origin;
+    const message = `🔥 I'm on a ${streak}-day Daily Challenge streak on Clavis! Think you can beat me? Try it here: ${link}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
   }
 
   function submitDailyChallengeAnswer(choiceIndex) {
@@ -3523,6 +3560,7 @@ body{
         } else {
           streakBadge.style.display = 'none';
         }
+        updateDailyChallengeShareButton(data.streak);
         if (data.correct) fireConfetti();
       })
       .catch((err) => {
@@ -3792,13 +3830,26 @@ body{
       });
   }
 
+  let lbCurrentPeriod = 'all';
+
+  const LB_PERIOD_META = {
+    all: { subtitle: "Ranked by questions asked, all time. Only students who've chosen to appear are shown.", totalLabel: 'Your questions', unit: 'questions', showStreak: true },
+    week: { subtitle: "Ranked by questions asked this week — resets every Monday, so it's a fresh start for everyone.", totalLabel: 'Your questions this week', unit: 'questions', showStreak: true },
+    inviters: { subtitle: 'Ranked by friends invited to Clavis. Share your link from Settings to climb the board!', totalLabel: 'Friends invited', unit: 'invited', showStreak: false },
+  };
+
   function renderLeaderboard() {
     const listEl = document.getElementById('lbList');
     const emptyEl = document.getElementById('lbEmptyState');
     const myRankCard = document.getElementById('lbMyRankCard');
     const optedOutNotice = document.getElementById('lbOptedOutNotice');
+    const subtitleEl = document.getElementById('lbSubtitle');
+    const meta = LB_PERIOD_META[lbCurrentPeriod] || LB_PERIOD_META.all;
 
-    fetch('/api/leaderboard')
+    subtitleEl.textContent = meta.subtitle;
+    document.getElementById('lbMyTotalLabel').textContent = meta.totalLabel;
+
+    fetch(`/api/leaderboard?period=${lbCurrentPeriod}`)
       .then(res => res.ok ? res.json() : Promise.reject())
       .then(data => {
         optedOutNotice.style.display = data.optedIn ? 'none' : 'block';
@@ -3813,6 +3864,9 @@ body{
 
         if (!data.top || !data.top.length) {
           emptyEl.style.display = 'block';
+          emptyEl.textContent = lbCurrentPeriod === 'inviters'
+            ? "No one's invited a friend yet — share your link from Settings and be the first!"
+            : "No one's on the board yet — ask a few questions and be the first!";
           listEl.innerHTML = '';
           return;
         }
@@ -3822,7 +3876,7 @@ body{
           <div class="leaderboard-row ${e.isMe ? 'is-me' : ''}">
             <div class="lb-rank">${e.rank <= 3 ? ['🥇','🥈','🥉'][e.rank - 1] : '#' + e.rank}</div>
             <div class="lb-name">${e.name}${e.isMe ? ' (you)' : ''}</div>
-            <div class="lb-total">${e.total} questions · 🔥 ${e.streak}</div>
+            <div class="lb-total">${e.total} ${meta.unit}${meta.showStreak ? ' · 🔥 ' + e.streak : ''}</div>
           </div>
         `).join('');
       })
@@ -3830,6 +3884,17 @@ body{
         listEl.innerHTML = '';
         emptyEl.style.display = 'block';
       });
+  }
+
+  const lbPeriodToggle = document.getElementById('lbPeriodToggle');
+  if (lbPeriodToggle) {
+    lbPeriodToggle.addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      lbCurrentPeriod = btn.dataset.period;
+      [...lbPeriodToggle.children].forEach(b => b.classList.toggle('active', b === btn));
+      renderLeaderboard();
+    });
   }
 
   /* ---------------- Home / Chat logic ---------------- */
@@ -3857,7 +3922,7 @@ body{
 
     try {
       localStorage.setItem('clavi_last_subject', JSON.stringify({
-        subject, level: currentLevel, gradeForm: currentGradeForm
+        subject, level: currentLevel, gradeForm: currentGradeForm, savedAt: Date.now()
       }));
     } catch (_) {}
 
