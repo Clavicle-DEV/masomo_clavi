@@ -480,6 +480,25 @@ def describe_level(level, grade_form):
     return f"{grade_form or 'Form 1'} secondary school (KCSE track) in Kenya"
 
 
+def build_teaching_instructions(topic, all_topics):
+    topic_list = ", ".join(t for t in (all_topics or []) if t)
+    return (
+        f" Right now you are TEACHING the topic '{topic}' from a structured course covering these "
+        f"topics in order: {topic_list or topic}. "
+        f"Teach in small steps: cover ONE idea or sub-part of '{topic}' per message, never the whole "
+        f"topic at once. End every teaching message with a short check like a mini question or 'does "
+        f"that make sense so far?' and wait — do not move ahead until the learner responds. "
+        f"When a simple diagram, shape, sketch, or labelled layout would genuinely help (e.g. a cell, "
+        f"a circuit, a graph, a geometric figure, a map, a process flow), draw a small plain-text "
+        f"diagram using characters like | - + / \\ o and simple labels, kept narrow enough to read on "
+        f"a phone screen, then briefly explain it. Only do this when it truly helps, not for every "
+        f"message. "
+        f"Once you have fully covered '{topic}' and the learner seems ready to move on, end that "
+        f"message with the exact tag [TOPIC_COMPLETE] on its own at the very end (this tag is hidden "
+        f"from the learner, so never mention or explain it)."
+    )
+
+
 def build_system_prompt(subject, level, grade_form=None):
     level_desc = describe_level(level, grade_form)
     identity = (
@@ -990,11 +1009,15 @@ def api_tutor():
     language = data.get('language', 'en')
     attachment = data.get('attachment')
     messages = data.get('messages', [])
+    teach_topic = data.get('teachTopic')
+    teach_topics = data.get('teachTopics')
 
     if not subject or not messages:
         return jsonify({"error": "subject and messages are required"}), 400
 
     system_prompt = build_system_prompt(subject, level, grade_form)
+    if teach_topic:
+        system_prompt += build_teaching_instructions(teach_topic, teach_topics)
     if response_style == 'concise':
         system_prompt += " Keep answers brief and focused: use only the key steps, then offer to explain more."
     else:
@@ -1031,7 +1054,12 @@ def api_tutor():
     except RuntimeError as e:
         return jsonify({"error": str(e)}), 502
 
-    return jsonify({"answer": answer})
+    topic_complete = False
+    if teach_topic and '[TOPIC_COMPLETE]' in answer:
+        topic_complete = True
+        answer = answer.replace('[TOPIC_COMPLETE]', '').rstrip()
+
+    return jsonify({"answer": answer, "topicComplete": topic_complete})
 
 
 @app.route('/api/topics', methods=['POST'])

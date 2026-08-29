@@ -748,6 +748,21 @@
   .goal-banner { margin-top: 12px; padding: 8px 14px; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; font-size: 12.5px; color: var(--ink); font-weight: 600; }
   .goal-banner[hidden] { display: none; }
 
+  .teach-starter { text-align: center; margin: 18px auto; padding: 16px; max-width: 320px; background: var(--paper); border: 1px solid var(--line); border-radius: 14px; }
+  .teach-starter[hidden] { display: none; }
+  .teach-starter-title { font-weight: 700; font-size: 14.5px; color: var(--ink); margin-bottom: 4px; }
+  .teach-starter-sub { font-size: 12.5px; color: var(--muted); margin-bottom: 12px; }
+  .teach-starter-btn { border: none; border-radius: 10px; padding: 10px 16px; background: var(--chalk); color: var(--paper); font-weight: 700; font-size: 13px; cursor: pointer; }
+
+  .teach-bar { margin-top: 12px; padding: 10px 14px; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .teach-bar[hidden] { display: none; }
+  .teach-bar-label { font-size: 12px; font-weight: 700; color: var(--ink); flex: 1 1 auto; }
+  .teach-bar button { border: none; border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 700; cursor: pointer; }
+  .teach-continue-btn { background: var(--chalk); color: var(--paper); }
+  .teach-exit-btn { background: transparent; color: var(--muted); border: 1px solid var(--line) !important; }
+
+  .teach-pick-btn { width: 100%; text-align: left; border: none; border-radius: 10px; padding: 10px 14px; margin-bottom: 10px; background: var(--chalk); color: var(--paper); font-weight: 700; font-size: 13.5px; cursor: pointer; }
+
   .typing-row {
     display: flex;
     align-items: center;
@@ -2389,8 +2404,18 @@ body{
 
     <div class="notebook" id="notebook">
       <div class="empty-hint" id="emptyHint">Type a question below to get started — e.g. "How do I factorise a quadratic equation?"</div>
+      <div class="teach-starter" id="teachStarter" hidden>
+        <div class="teach-starter-title">New to this subject?</div>
+        <div class="teach-starter-sub">Let Clavis teach you everything here, topic by topic — pick up right where you left off next time.</div>
+        <button type="button" class="teach-starter-btn" id="teachStarterBtn">🎓 Teach me everything</button>
+      </div>
     </div>
 
+    <div class="teach-bar" id="teachBar" hidden>
+      <span class="teach-bar-label" id="teachBarLabel"></span>
+      <button type="button" class="teach-continue-btn" id="teachContinueBtn">Continue ▶</button>
+      <button type="button" class="teach-exit-btn" id="teachExitBtn">Exit</button>
+    </div>
     <div class="goal-banner" id="goalBanner" hidden></div>
     <div class="composer">
       <div class="composer-tools">
@@ -2447,7 +2472,7 @@ body{
     <div id="topicsLoading" class="loading-block" style="display:none;">Loading topics...</div>
     <div class="topic-list" id="topicList"></div>
 
-    <div class="final-exam-card">
+    <div class="final-exam-card" id="finalExamCard">
       <div class="final-exam-title">Final Subject Exam</div>
       <div class="final-exam-sub" id="finalExamProgress">Complete all topics above to unlock this.</div>
       <button class="final-exam-btn" id="finalExamBtn" disabled>Take Final Exam</button>
@@ -2866,6 +2891,8 @@ body{
   let currentLevel = ACCOUNT_TRACK === 'campus' ? 'campus' : 'secondary';
   let currentGradeForm = ACCOUNT_TRACK === 'campus' ? 'Year 1' : 'Form 1';
   let currentSubject = null;
+  let teachState = null; // { topics: [...], topicIndex: 0, pendingTopicStart: bool }
+  let teachPickerMode = false;
   let conversationHistory = [];
 
   /* Permanently remove the level-toggle buttons that don't belong to this
@@ -2892,6 +2919,12 @@ body{
   const levelToggle = document.getElementById('levelToggle');
   const notebook = document.getElementById('notebook');
   const emptyHint = document.getElementById('emptyHint');
+  const teachStarter = document.getElementById('teachStarter');
+  const teachStarterBtn = document.getElementById('teachStarterBtn');
+  const teachBar = document.getElementById('teachBar');
+  const teachBarLabel = document.getElementById('teachBarLabel');
+  const teachContinueBtn = document.getElementById('teachContinueBtn');
+  const teachExitBtn = document.getElementById('teachExitBtn');
 
   // A subject-appropriate example question shown as a starter hint when a
   // chat is empty — used to be the same "quadratic equation" example for
@@ -3918,6 +3951,7 @@ body{
     currentSubject = subject;
     notebook.innerHTML = '';
     notebook.appendChild(emptyHint);
+    notebook.appendChild(teachStarter);
     emptyHint.innerHTML = `Type a question below to get started — e.g. "${exampleQuestionFor(subject)}"`;
 
     try {
@@ -3927,15 +3961,19 @@ body{
     } catch (_) {}
 
     const saved = loadChatProgress(currentLevel, currentGradeForm, subject);
+    teachState = loadTeachState(currentLevel, currentGradeForm, subject);
     if (saved && saved.length) {
       conversationHistory = saved;
       emptyHint.style.display = 'none';
+      teachStarter.hidden = true;
       saved.forEach(m => addMessage(m.role === 'assistant' ? 'tutor' : 'user', m.content));
       if (saved[saved.length - 1].role === 'assistant') showExplainDifferentlyButton();
     } else {
       conversationHistory = [];
-      emptyHint.style.display = 'block';
+      emptyHint.style.display = teachState ? 'none' : 'block';
+      teachStarter.hidden = !!teachState;
     }
+    updateTeachBar();
 
     chatSubjectLabel.textContent = currentSubject;
     chatLevelLabel.textContent = currentLevel === 'cbc'
@@ -4048,6 +4086,10 @@ body{
       messages: conversationHistory
     };
     if (attachment) body.attachment = attachment;
+    if (teachState) {
+      body.teachTopic = currentTeachTopic();
+      body.teachTopics = teachState.topics;
+    }
 
     const response = await fetch("/api/tutor", {
       method: "POST",
@@ -4067,7 +4109,7 @@ body{
     const data = await response.json();
     const answer = data.answer || "Sorry, I couldn't come up with an answer just now — try asking again.";
     conversationHistory.push({ role: 'assistant', content: answer });
-    return answer;
+    return { answer, topicComplete: !!data.topicComplete };
   }
 
   async function handleSend() {
@@ -4085,11 +4127,25 @@ body{
     playAvatarState('thinking', true);
 
     try {
-      const answer = await askTutor(displayText, attachment);
-      addMessage('tutor', answer);
+      const result = await askTutor(displayText, attachment);
+      addMessage('tutor', result.answer);
       saveChatProgress();
       recordQuestion(currentSubject);
       showExplainDifferentlyButton();
+      if (teachState && result.topicComplete) {
+        markTopicTaught(currentSubject, currentLevel, currentGradeForm, currentTeachTopic());
+        if (teachState.topicIndex < teachState.topics.length - 1) {
+          teachState.topicIndex += 1;
+          teachState.pendingTopicStart = true;
+          saveTeachState();
+          addMessage('tutor', `✅ Great work — you've finished "${teachState.topics[teachState.topicIndex - 1]}". Ready for the next topic, "${currentTeachTopic()}"? Tap "Start next topic" below whenever you're ready.`);
+        } else {
+          addMessage('tutor', `🎉 That's the last topic done — you've been taught the full ${currentSubject} course! You can revise anytime, or head to Topics & Tests to check your understanding.`);
+          teachState = null;
+          saveTeachState();
+        }
+      }
+      updateTeachBar();
       typingLabel.textContent = 'Got it!';
       playAvatarState('yes', false);
       setTimeout(() => { typingIndicator.style.visibility = 'hidden'; }, 900);
@@ -4134,11 +4190,11 @@ body{
     typingLabel.textContent = 'Finding another way to explain it...';
     playAvatarState('thinking', true);
     try {
-      const answer = await askTutor(
+      const result = await askTutor(
         'Please explain your previous answer again, but differently this time — use a different approach, a simpler everyday analogy, or a different example than you used last time.',
         null
       );
-      addMessage('tutor', answer);
+      addMessage('tutor', result.answer);
       saveChatProgress();
       showExplainDifferentlyButton();
       typingLabel.textContent = 'Got it!';
@@ -4418,6 +4474,7 @@ body{
   const topicsLevelLabel = document.getElementById('topicsLevelLabel');
   const finalExamProgress = document.getElementById('finalExamProgress');
   const finalExamBtn = document.getElementById('finalExamBtn');
+  const finalExamCard = document.getElementById('finalExamCard');
   const examLoading = document.getElementById('examLoading');
   const examTakingView = document.getElementById('examTakingView');
   const examResultsView = document.getElementById('examResultsView');
@@ -4471,14 +4528,21 @@ body{
     localStorage.setItem('clavi_topics_cache', JSON.stringify(cache));
   }
 
-  topicsNavBtn.addEventListener('click', () => openTopicsScreen());
-  topicsBackBtn.addEventListener('click', () => showScreen('chatScreen'));
+  topicsNavBtn.addEventListener('click', () => { teachPickerMode = false; openTopicsScreen(); });
+  topicsBackBtn.addEventListener('click', () => { teachPickerMode = false; showScreen('chatScreen'); });
   examBackBtn.addEventListener('click', () => showScreen('topicsScreen'));
 
-  async function openTopicsScreen() {
+  async function openTopicsScreen(pickerMode) {
+    teachPickerMode = !!pickerMode;
     topicsSubjectLabel.textContent = currentSubject;
     topicsLevelLabel.textContent = levelLabelText();
+    finalExamCard.style.display = teachPickerMode ? 'none' : '';
     showScreen('topicsScreen');
+
+    if (teachPickerMode) {
+      renderTopicList();
+      return;
+    }
 
     const cache = getTopicsCache();
     const cached = cache[progressKey()];
@@ -4515,6 +4579,10 @@ body{
   }
 
   function renderTopicList() {
+    if (teachPickerMode) {
+      renderTeachPickerList();
+      return;
+    }
     const all = getAllProgress();
     const progress = all[progressKey()] || {};
 
@@ -4526,7 +4594,7 @@ body{
           <div class="topic-row-left">
             <div class="topic-badge ${done ? 'done' : ''}">${done ? '✓' : ''}</div>
             <div>
-              <div class="topic-name">${topic}</div>
+              <div class="topic-name">${topic}${entry && entry.taught ? ' 📖' : ''}</div>
               ${entry ? `<div class="topic-score">Last score: ${entry.score}</div>` : ''}
             </div>
           </div>
@@ -4542,6 +4610,39 @@ body{
     const completedCount = currentTopics.filter(t => progress[t] && progress[t].done).length;
     finalExamProgress.textContent = `${completedCount}/${currentTopics.length} topics completed`;
     finalExamBtn.disabled = completedCount < currentTopics.length;
+  }
+
+  function renderTeachPickerList() {
+    const all = getAllProgress();
+    const progress = all[progressKey()] || {};
+    const startBtn = `<button type="button" class="teach-pick-btn" id="teachPickBeginning">▶ Start from the beginning</button>`;
+    const rows = currentTopics.map((topic, idx) => {
+      const entry = progress[topic];
+      const taught = entry && entry.taught;
+      return `
+        <div class="topic-row">
+          <div class="topic-row-left">
+            <div class="topic-badge ${taught ? 'done' : ''}">${taught ? '📖' : ''}</div>
+            <div class="topic-name">${topic}</div>
+          </div>
+          <button class="topic-test-btn" data-idx="${idx}">Start here</button>
+        </div>
+      `;
+    }).join('');
+    topicList.innerHTML = startBtn + rows;
+
+    document.getElementById('teachPickBeginning').addEventListener('click', () => {
+      teachPickerMode = false;
+      showScreen('chatScreen');
+      startTeachingTopic(currentTopics, 0);
+    });
+    topicList.querySelectorAll('.topic-test-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        teachPickerMode = false;
+        showScreen('chatScreen');
+        startTeachingTopic(currentTopics, parseInt(btn.dataset.idx, 10));
+      });
+    });
   }
 
   finalExamBtn.addEventListener('click', () => openExamScreen(null));
@@ -5220,6 +5321,147 @@ body{
       return null;
     }
   }
+
+  /* ---------------- Teach mode (step-by-step topic teaching) ---------------- */
+  function teachStorageKey(level, gradeForm, subject) {
+    return `clavi_teach_${level}_${gradeForm}_${subject}`;
+  }
+
+  function saveTeachState() {
+    if (!currentSubject) return;
+    try {
+      const key = teachStorageKey(currentLevel, currentGradeForm, currentSubject);
+      if (teachState) localStorage.setItem(key, JSON.stringify(teachState));
+      else localStorage.removeItem(key);
+    } catch (_) {}
+  }
+
+  function loadTeachState(level, gradeForm, subject) {
+    try {
+      const raw = localStorage.getItem(teachStorageKey(level, gradeForm, subject));
+      return raw ? JSON.parse(raw) : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function markTopicTaught(subject, level, gradeForm, topic) {
+    try {
+      const raw = localStorage.getItem('clavi_topic_progress');
+      const all = raw ? JSON.parse(raw) : {};
+      const key = `${subject}|${level}|${gradeForm}`;
+      all[key] = all[key] || {};
+      all[key][topic] = Object.assign({}, all[key][topic], { taught: true });
+      localStorage.setItem('clavi_topic_progress', JSON.stringify(all));
+    } catch (_) {}
+  }
+
+  function currentTeachTopic() {
+    return teachState && teachState.topics ? teachState.topics[teachState.topicIndex] : null;
+  }
+
+  function updateTeachBar() {
+    if (!teachState) { teachBar.hidden = true; return; }
+    teachBar.hidden = false;
+    const topic = currentTeachTopic();
+    const total = teachState.topics.length;
+    teachBarLabel.textContent = `📖 Topic ${teachState.topicIndex + 1}/${total}: ${topic}`;
+    teachContinueBtn.textContent = teachState.pendingTopicStart ? 'Start next topic ▶' : 'Continue ▶';
+  }
+
+  async function startTeachingTopic(topics, topicIndex) {
+    teachState = { topics, topicIndex, pendingTopicStart: false };
+    saveTeachState();
+    emptyHint.style.display = 'none';
+    teachStarter.hidden = true;
+    updateTeachBar();
+    await sendTeachTurn(`Please start teaching me "${currentTeachTopic()}" from the very beginning, one small step at a time.`, `🎓 Teach me: ${currentTeachTopic()}`);
+  }
+
+  async function sendTeachTurn(hiddenPromptText, displayText) {
+    addMessage('user', displayText);
+    sendBtn.disabled = true;
+    teachContinueBtn.disabled = true;
+    typingIndicator.style.visibility = 'visible';
+    typingLabel.textContent = 'Tutor is thinking...';
+    playAvatarState('thinking', true);
+    try {
+      const result = await askTutor(hiddenPromptText);
+      addMessage('tutor', result.answer);
+      saveChatProgress();
+      typingLabel.textContent = 'Got it!';
+      playAvatarState('yes', false);
+      if (result.topicComplete) {
+        markTopicTaught(currentSubject, currentLevel, currentGradeForm, currentTeachTopic());
+        if (teachState.topicIndex < teachState.topics.length - 1) {
+          teachState.topicIndex += 1;
+          teachState.pendingTopicStart = true;
+          saveTeachState();
+          addMessage('tutor', `✅ Great work — you've finished "${teachState.topics[teachState.topicIndex - 1]}". Ready for the next topic, "${currentTeachTopic()}"? Tap "Start next topic" below whenever you're ready.`);
+        } else {
+          addMessage('tutor', `🎉 That's the last topic done — you've been taught the full ${currentSubject} course! You can revise anytime, or head to Topics & Tests to check your understanding.`);
+          teachState = null;
+          saveTeachState();
+        }
+      }
+      updateTeachBar();
+      setTimeout(() => { typingIndicator.style.visibility = 'hidden'; }, 900);
+    } catch (err) {
+      addMessage('tutor', err.message || "Something went wrong reaching the tutor. Please try again.");
+      typingLabel.textContent = 'Something went wrong';
+      playAvatarState('alert', false);
+      setTimeout(() => { typingIndicator.style.visibility = 'hidden'; }, 900);
+    } finally {
+      sendBtn.disabled = false;
+      teachContinueBtn.disabled = false;
+    }
+  }
+
+  teachStarterBtn.addEventListener('click', async () => {
+    teachStarterBtn.disabled = true;
+    teachStarterBtn.textContent = 'Loading topics...';
+    try {
+      const res = await fetch('/api/topics', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subject: currentSubject, level: currentLevel, gradeForm: currentGradeForm })
+      });
+      if (!res.ok) throw new Error('Could not load topics right now.');
+      const data = await res.json();
+      const topics = data.topics || [];
+      if (!topics.length) throw new Error('No topics came back — please try again.');
+      saveTopicsCache(topics);
+      openTeachPicker(topics);
+    } catch (err) {
+      addMessage('tutor', err.message || 'Could not load topics right now. Please try again.');
+    } finally {
+      teachStarterBtn.disabled = false;
+      teachStarterBtn.textContent = '🎓 Teach me everything';
+    }
+  });
+
+  function openTeachPicker(topics) {
+    teachPickerMode = true;
+    currentTopics = topics;
+    openTopicsScreen(true);
+  }
+
+  teachContinueBtn.addEventListener('click', () => {
+    if (!teachState) return;
+    if (teachState.pendingTopicStart) {
+      teachState.pendingTopicStart = false;
+      saveTeachState();
+      sendTeachTurn(`Please start teaching me "${currentTeachTopic()}" from the very beginning, one small step at a time.`, `🎓 Teach me: ${currentTeachTopic()}`);
+    } else {
+      sendTeachTurn('Please continue with the next step.', 'Continue ▶');
+    }
+  });
+
+  teachExitBtn.addEventListener('click', () => {
+    teachState = null;
+    saveTeachState();
+    updateTeachBar();
+  });
 
   /* ---------------- Install App banner ---------------- */
   let deferredInstallPrompt = null;
