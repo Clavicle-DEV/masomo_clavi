@@ -481,15 +481,25 @@ def describe_level(level, grade_form):
 
 
 DIAGRAM_INSTRUCTIONS = (
-    " When a simple diagram, labelled figure, graph, shape, circuit, cell, map, or process flow would "
-    "genuinely help explain something, you may include ONE real diagram using SVG. Put it on its own "
-    "lines wrapped exactly like this, with nothing else inside the tags: "
+    " You may include ONE real diagram using SVG, but ONLY for these safe categories where accurate "
+    "proportions are easy to get right: a graph of a function or data (axes, curve/bars, labelled "
+    "points), a number line, a geometric shape or construction (with correctly labelled sides/angles), "
+    "or a simple boxes-and-arrows flowchart/process diagram. "
+    "Do NOT draw biological structures (cells, organs, plants, animals, human anatomy), chemical "
+    "structures or lab apparatus, maps, circuits, or anything else where a real textbook diagram has "
+    "specific, precise proportions or standard symbols — an SVG you improvise for these is very likely "
+    "to be subtly wrong, and a wrong diagram is worse than none because a student could copy it into an "
+    "exam. For those topics, instead describe the structure clearly in words, list and explain its "
+    "labelled parts one by one, and tell the learner to check their textbook or a proper reference "
+    "image for exactly how it should look and be drawn/labelled. "
+    "When a diagram IS one of the safe categories above, put it on its own lines wrapped exactly like "
+    "this, with nothing else inside the tags: "
     "[DIAGRAM]<svg viewBox=\"0 0 320 220\" xmlns=\"http://www.w3.org/2000/svg\">...</svg>[/DIAGRAM] "
-    "Rules for the SVG: use viewBox=\"0 0 320 220\" so it fits a phone screen; only use basic shapes and "
-    "text (rect, circle, ellipse, line, polygon, polyline, path, text) with simple stroke/fill colors; "
-    "label parts clearly with short <text> elements; never include <script>, event handler attributes "
-    "(like onclick), <image>, <foreignObject>, or any external links or references. Only add a diagram "
-    "when it truly helps understanding, not for every message — most messages need no diagram at all."
+    "Use viewBox=\"0 0 320 220\" so it fits a phone screen; only use basic shapes and text (rect, circle, "
+    "ellipse, line, polygon, polyline, path, text); label parts clearly with short <text> elements; "
+    "never include <script>, event handler attributes (like onclick), <image>, <foreignObject>, or any "
+    "external links or references. Only add a diagram when it truly helps and fits a safe category — "
+    "most messages need no diagram at all."
 )
 
 
@@ -784,7 +794,7 @@ def home():
 
     return render_template(
         'landing.html',
-        title='Clavis — Study Help',
+        title='Clavis',
         description='A friendly AI study tutor for students in Kenya, with help for Mathematics, English, and more.',
     )
 
