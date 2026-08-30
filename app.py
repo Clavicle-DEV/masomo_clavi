@@ -480,6 +480,19 @@ def describe_level(level, grade_form):
     return f"{grade_form or 'Form 1'} secondary school (KCSE track) in Kenya"
 
 
+DIAGRAM_INSTRUCTIONS = (
+    " When a simple diagram, labelled figure, graph, shape, circuit, cell, map, or process flow would "
+    "genuinely help explain something, you may include ONE real diagram using SVG. Put it on its own "
+    "lines wrapped exactly like this, with nothing else inside the tags: "
+    "[DIAGRAM]<svg viewBox=\"0 0 320 220\" xmlns=\"http://www.w3.org/2000/svg\">...</svg>[/DIAGRAM] "
+    "Rules for the SVG: use viewBox=\"0 0 320 220\" so it fits a phone screen; only use basic shapes and "
+    "text (rect, circle, ellipse, line, polygon, polyline, path, text) with simple stroke/fill colors; "
+    "label parts clearly with short <text> elements; never include <script>, event handler attributes "
+    "(like onclick), <image>, <foreignObject>, or any external links or references. Only add a diagram "
+    "when it truly helps understanding, not for every message — most messages need no diagram at all."
+)
+
+
 def build_teaching_instructions(topic, all_topics):
     topic_list = ", ".join(t for t in (all_topics or []) if t)
     return (
@@ -487,13 +500,9 @@ def build_teaching_instructions(topic, all_topics):
         f"topics in order: {topic_list or topic}. "
         f"Teach in small steps: cover ONE idea or sub-part of '{topic}' per message, never the whole "
         f"topic at once. End every teaching message with a short check like a mini question or 'does "
-        f"that make sense so far?' and wait — do not move ahead until the learner responds. "
-        f"When a simple diagram, shape, sketch, or labelled layout would genuinely help (e.g. a cell, "
-        f"a circuit, a graph, a geometric figure, a map, a process flow), draw a small plain-text "
-        f"diagram using characters like | - + / \\ o and simple labels, kept narrow enough to read on "
-        f"a phone screen, then briefly explain it. Only do this when it truly helps, not for every "
-        f"message. "
-        f"Once you have fully covered '{topic}' and the learner seems ready to move on, end that "
+        f"that make sense so far?' and wait — do not move ahead until the learner responds. " +
+        DIAGRAM_INSTRUCTIONS +
+        f" Once you have fully covered '{topic}' and the learner seems ready to move on, end that "
         f"message with the exact tag [TOPIC_COMPLETE] on its own at the very end (this tag is hidden "
         f"from the learner, so never mention or explain it)."
     )
@@ -517,7 +526,8 @@ def build_system_prompt(subject, level, grade_form=None):
             f"relevant, and to walk through the reasoning behind a concept rather than just stating it. "
             f"Do not use markdown formatting like asterisks for bold or bullet points (no **word** and no "
             f"lines starting with *). Write in plain sentences, and if you need a list, use a dash (-) or "
-            f"simply number the points (1., 2., 3.)."
+            f"simply number the points (1., 2., 3.)." +
+            DIAGRAM_INSTRUCTIONS
         )
     return (
         identity +
@@ -529,7 +539,8 @@ def build_system_prompt(subject, level, grade_form=None):
         f"to Kenya. "
         f"Do not use markdown formatting like asterisks for bold or bullet points (no **word** and no lines "
         f"starting with *). Write in plain sentences, and if you need a list, use a dash (-) or simply number "
-        f"the points (1., 2., 3.)."
+        f"the points (1., 2., 3.)." +
+        DIAGRAM_INSTRUCTIONS
     )
 
 @app.route('/signup', methods=['GET', 'POST'])
