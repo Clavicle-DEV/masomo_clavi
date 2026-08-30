@@ -396,6 +396,8 @@
   }
   .level-toggle::-webkit-scrollbar { display: none; }
   .level-toggle button { flex-shrink: 0; white-space: nowrap; }
+  .level-toggle.disabled { opacity: .55; }
+  .level-toggle.disabled button { cursor: not-allowed; }
 
   .level-toggle button {
     border: none;
@@ -2625,11 +2627,12 @@ body{
           <div class="settings-row-label">Studying at</div>
           <div class="settings-row-sub">Switches your whole subject list and tutor style — takes a moment to reload.</div>
         </div>
-        <div class="level-toggle" id="accountTrackToggle">
+        <div class="level-toggle" id="accountTrackToggle" data-locked="{{ 'true' if student_track_locked else 'false' }}">
           <button data-track="highschool">🏫 High school</button>
           <button data-track="campus">🎓 Campus</button>
         </div>
       </div>
+      <div class="settings-row-sub" id="trackLockedNote" style="{{ '' if student_track_locked else 'display:none;' }} margin-top:6px;">🔒 Locked in for your account — contact support if this needs to change.</div>
     </div>
 
     <div class="settings-group">
@@ -3207,8 +3210,14 @@ body{
   /* ---------------- Account track (high school vs campus) ---------------- */
   const accountTrackToggle = document.getElementById('accountTrackToggle');
   if (accountTrackToggle) {
+    const trackLocked = accountTrackToggle.dataset.locked === 'true';
     [...accountTrackToggle.children].forEach(b => b.classList.toggle('active', b.dataset.track === ACCOUNT_TRACK));
+    if (trackLocked) {
+      accountTrackToggle.classList.add('disabled');
+      [...accountTrackToggle.children].forEach(b => { b.disabled = true; });
+    }
     accountTrackToggle.addEventListener('click', (e) => {
+      if (trackLocked) return;
       const btn = e.target.closest('button');
       if (!btn || btn.dataset.track === ACCOUNT_TRACK) return;
       const label = btn.dataset.track === 'campus' ? 'Campus' : 'High school';

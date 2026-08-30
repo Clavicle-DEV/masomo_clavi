@@ -621,10 +621,14 @@ def login():
         if user and user.check_password(password):
             user.failed_login_attempts = 0
             user.lockout_until = None
-            # Only apply the campus/high-school choice if this account never
-            # explicitly set one — never silently flip an account that
-            # already chose, just because a stray ?type= link was used.
-            if user.student_track is None and student_track in ('campus', 'highschool'):
+            # Track (High school vs Campus) is locked in per account after the
+            # first choice — a stray ?type= link must never silently flip a
+            # student's whole subject list. Only the site owner's own account
+            # can freely change it just by tapping a different type and
+            # logging in; this does not extend to co-admins.
+            if is_full_admin(user) and student_track in ('campus', 'highschool'):
+                user.student_track = student_track
+            elif user.student_track is None and student_track in ('campus', 'highschool'):
                 user.student_track = student_track
             db.session.commit()
             login_user(user, remember=True)
@@ -764,6 +768,7 @@ def home():
             referral_bonus_days=REFERRAL_BONUS_DAYS,
             email_verified=current_user.email_verified,
             student_track=current_user.student_track or 'highschool',
+            student_track_locked=(not is_full_admin(current_user)) and current_user.student_track is not None,
         )
 
     return render_template(
@@ -1463,7 +1468,12 @@ def api_profile():
         if 'studentTrack' in data:
             track = (data.get('studentTrack') or '').strip().lower()
             if track in ('campus', 'highschool'):
-                current_user.student_track = track
+                # Same rule as login: locked in after the first choice for
+                # everyone except the site owner's own account.
+                if is_full_admin(current_user) or current_user.student_track is None:
+                    current_user.student_track = track
+                else:
+                    return jsonify({"error": "Your study track is locked in and can't be changed here. Contact support if this needs to change."}), 403
         db.session.commit()
         return jsonify({"status": "ok"})
 
