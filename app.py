@@ -1131,12 +1131,15 @@ def api_generate_test():
         scope_note = f"Paper {paper}" + (f" of {paper_count}" if paper_count else "")
         prompt = f"""Create a full mock exam paper for a {level_desc} student on {subject} — {scope_note}, styled in the spirit of {paper_style}.
 Cover a broad spread of the whole {subject} syllabus for this level (not just one topic), the way a real end-of-course paper would.
+Group questions into 2 logical sections (e.g. "SECTION A" for shorter/objective questions, "SECTION B" for longer/structured ones) — adjust section names to fit {subject} convention if there's a more standard pair of names.
 Return ONLY valid JSON in exactly this shape, no commentary, no markdown fences:
 {{
+  "time_allowed": "<realistic time allocation for this level and paper, e.g. '1 Hour 30 Minutes' or '2 Hours 30 Minutes'>",
+  "instructions": ["Write your name and admission number in the spaces provided.", "Answer ALL questions.", "<2 to 4 more short, realistic exam instructions specific to {subject}>"],
   "total_marks": <int>,
   "questions": [
-    {{"id": 1, "type": "mcq", "question": "...", "options": {{"A": "...", "B": "...", "C": "...", "D": "..."}}, "correct_option": "A", "marks": 1, "explanation": "..."}},
-    {{"id": 2, "type": "short", "question": "...", "marks": 3, "model_answer": "...", "marking_points": ["...", "...", "..."]}}
+    {{"id": 1, "section": "SECTION A", "type": "mcq", "question": "...", "options": {{"A": "...", "B": "...", "C": "...", "D": "..."}}, "correct_option": "A", "marks": 1, "explanation": "..."}},
+    {{"id": 2, "section": "SECTION B", "type": "short", "question": "...", "marks": 3, "model_answer": "...", "marking_points": ["...", "...", "..."]}}
   ]
 }}
 Include 10 to 14 questions total, mixing "mcq" and "short" types appropriately for this paper's style. Number "id" sequentially starting at 1."""

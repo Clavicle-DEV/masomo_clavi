@@ -763,6 +763,17 @@
 
   .teach-pick-btn { width: 100%; text-align: left; border: none; border-radius: 10px; padding: 10px 14px; margin-bottom: 10px; background: var(--chalk); color: var(--paper); font-weight: 700; font-size: 13.5px; cursor: pointer; }
 
+  .paper-header { text-align: center; border-bottom: 2px solid var(--chalk); padding-bottom: 14px; margin-bottom: 18px; }
+  .paper-logo { width: 46px; height: 46px; object-fit: contain; margin-bottom: 4px; }
+  .paper-header-name { font-family: 'Fraunces', serif; font-weight: 700; font-size: 20px; color: var(--chalk); letter-spacing: 1px; }
+  .paper-header-sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .paper-header-title { font-weight: 700; font-size: 16px; margin-top: 8px; }
+  .paper-meta-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 18px; margin-top: 10px; font-size: 13px; }
+  .paper-meta-row { white-space: nowrap; }
+  .paper-instructions-title { font-weight: 700; font-size: 12.5px; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+  .paper-instructions-list { margin: 0; padding-left: 18px; font-size: 12.5px; color: var(--ink); line-height: 1.6; }
+  .paper-section-title { font-family: 'Fraunces', serif; font-weight: 700; font-size: 14.5px; text-align: center; margin: 22px 0 14px; padding: 6px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+
   .typing-row {
     display: flex;
     align-items: center;
@@ -1642,12 +1653,21 @@ body{
 }
 }
   @media print {
+    @page { margin: 1.6cm; }
     body * { visibility: hidden; }
     #paperTakingView, #paperTakingView * { visibility: visible; }
     #paperTakingView { position: absolute; top: 0; left: 0; width: 100%; margin: 0; padding: 0; }
     #paperTakingView .exam-submit-btn,
     #paperTakingView #downloadPaperBtn { display: none !important; }
-    .exam-paper { box-shadow: none; border: none; }
+    .printable-paper, .printable-paper * {
+      background: #ffffff !important;
+      color: #1a1a1a !important;
+      box-shadow: none !important;
+      border-color: #333 !important;
+    }
+    .printable-paper { border: none; padding: 0 !important; }
+    .paper-logo { filter: none !important; }
+    .exam-question, .paper-section-title { break-inside: avoid; }
   }
 </style>
 </head>
@@ -4971,7 +4991,15 @@ body{
 
   function renderFormalPaper() {
     const test = papersTestData;
-    const questionsHtml = test.questions.map(q => {
+    const sections = {};
+    const sectionOrder = [];
+    test.questions.forEach(q => {
+      const sec = q.section || '';
+      if (!(sec in sections)) { sections[sec] = []; sectionOrder.push(sec); }
+      sections[sec].push(q);
+    });
+
+    const renderQuestion = (q) => {
       const marksLabel = `(${q.marks} mk${q.marks > 1 ? 's' : ''})`;
       if (q.type === 'mcq') {
         const optionsHtml = Object.entries(q.options).map(([letter, text]) => `
@@ -4994,18 +5022,38 @@ body{
           </div>
         `;
       }
-    }).join('');
+    };
+
+    const questionsHtml = sectionOrder.map(sec => `
+      ${sec ? `<div class="paper-section-title">${sec}</div>` : ''}
+      ${sections[sec].map(renderQuestion).join('')}
+    `).join('');
+
+    const instructions = (test.instructions && test.instructions.length)
+      ? test.instructions
+      : ['Write your name in the space provided.', 'Answer ALL questions.'];
+    const instructionsHtml = `<ul class="paper-instructions-list">${instructions.map(i => `<li>${i}</li>`).join('')}</ul>`;
+    const timeAllowed = test.time_allowed ? `<div class="paper-meta-row"><strong>Time:</strong> ${test.time_allowed}</div>` : '';
+    const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
     paperTakingView.innerHTML = `
-      <div class="exam-paper">
-        <div style="text-align:center; border-bottom:2px solid var(--chalk); padding-bottom:14px; margin-bottom:18px;">
-          <div style="font-family:'Fraunces',serif; font-weight:700; font-size:22px; color:var(--chalk);">clavis</div>
-          <div style="color:var(--muted); font-size:12px; margin-bottom:10px;">Kenya Certificate of Secondary Education (style) Examination</div>
-          <div style="font-weight:700; font-size:16px;">${papersSubject} — Paper ${papersPaperNum}${papersPaperCount > 1 ? ' of ' + papersPaperCount : ''}</div>
-          <div style="color:var(--muted); font-size:13px; margin-top:2px;">${papersLevelLabel()} — ${papersGradeForm} — Total: ${test.total_marks} marks</div>
-          <div style="margin-top:10px; font-size:14px;"><strong>Name:</strong> ${papersStudentName}</div>
+      <div class="exam-paper printable-paper">
+        <div class="paper-header">
+          <img src="/static/images/logo.png" alt="Clavis" class="paper-logo" />
+          <div class="paper-header-name">CLAVIS</div>
+          <div class="paper-header-sub">Practice Paper — styled on the ${papersLevelLabel()} exam format</div>
+          <div class="paper-header-title">${papersSubject} — Paper ${papersPaperNum}${papersPaperCount > 1 ? ' of ' + papersPaperCount : ''}</div>
+          <div class="paper-header-sub">${papersLevelLabel()} — ${papersGradeForm} &nbsp;•&nbsp; Total: ${test.total_marks} marks</div>
+          <div class="paper-meta-grid">
+            <div class="paper-meta-row"><strong>Name:</strong> ${papersStudentName}</div>
+            <div class="paper-meta-row"><strong>Date:</strong> ${today}</div>
+            ${timeAllowed}
+          </div>
         </div>
-        <div class="exam-instructions">Answer ALL questions.</div>
+        <div class="exam-instructions">
+          <div class="paper-instructions-title">Instructions to candidates</div>
+          ${instructionsHtml}
+        </div>
         ${questionsHtml}
         <button type="button" id="downloadPaperBtn" style="width:100%; background:var(--paper); border:1px solid var(--line); color:var(--chalk); font-weight:600; padding:12px 20px; border-radius:8px; cursor:pointer; margin-bottom:10px;">🖨️ Download / Print PDF</button>
         <button class="exam-submit-btn" id="submitPaperBtn">Submit Paper</button>
