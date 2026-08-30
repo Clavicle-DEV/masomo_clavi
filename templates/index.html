@@ -314,6 +314,17 @@
   [data-theme="dark"] .app-splash-name { color: var(--ink); }
   .app-splash-tagline { font-size: 13px; color: var(--muted); margin-top: 6px; letter-spacing: .3px; }
 
+  @media (min-width: 768px) {
+    .app-splash-badge { width: 96px; height: 96px; margin-bottom: 20px; }
+    .app-splash-name { font-size: 44px; }
+    .app-splash-tagline { font-size: 17px; margin-top: 10px; }
+  }
+  @media (min-width: 1200px) {
+    .app-splash-badge { width: 128px; height: 128px; margin-bottom: 26px; }
+    .app-splash-name { font-size: 58px; }
+    .app-splash-tagline { font-size: 20px; margin-top: 12px; }
+  }
+
   /* ---------- Welcome overlay ---------- */
   .welcome-overlay {
     position: fixed;
