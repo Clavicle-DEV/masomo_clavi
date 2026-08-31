@@ -58,6 +58,8 @@
   .layout {
     display: flex;
     justify-content: center;
+    position: relative;
+    z-index: 2;
   }
 
   .app {
@@ -324,6 +326,46 @@
     .app-splash-name { font-size: 58px; }
     .app-splash-tagline { font-size: 20px; margin-top: 12px; }
   }
+
+  /* ---------- App wallpaper (premium backdrop, behind all content) ---------- */
+  .app-wallpaper {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    background: var(--bg);
+    background-size: 200% 200%;
+    transition: background 0.5s ease;
+  }
+  .app-wallpaper-grain {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    opacity: .12;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.1'/%3E%3C/svg%3E");
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .app-wallpaper[data-animated="true"] { animation: wallpaperDrift 26s ease infinite alternate; }
+  }
+  @keyframes wallpaperDrift {
+    0% { background-position: 0% 30%; }
+    100% { background-position: 100% 70%; }
+  }
+
+  .wp-midnight { background-image: radial-gradient(circle at 85% 8%, rgba(240,194,74,.20) 0%, rgba(240,194,74,0) 32%), radial-gradient(circle at 10% 90%, rgba(63,130,92,.28) 0%, rgba(63,130,92,0) 40%), linear-gradient(160deg, #0a1712 0%, #112E23 45%, #1F3B30 100%); }
+  .wp-savanna { background-image: radial-gradient(circle at 90% 10%, rgba(255,255,255,.18) 0%, rgba(255,255,255,0) 30%), linear-gradient(135deg, #F2C34C 0%, #E8874A 45%, #B8433A 100%); }
+  .wp-aurora { background-image: radial-gradient(circle at 15% 15%, rgba(127,214,196,.30) 0%, rgba(127,214,196,0) 35%), radial-gradient(circle at 85% 85%, rgba(148,120,220,.25) 0%, rgba(148,120,220,0) 40%), linear-gradient(150deg, #0f1b3d 0%, #1d3a5f 55%, #123a36 100%); }
+  .wp-emerald { background-image: radial-gradient(circle at 25% 20%, rgba(255,255,255,.10) 0%, rgba(255,255,255,0) 25%), radial-gradient(circle at 75% 75%, rgba(217,166,46,.16) 0%, rgba(217,166,46,0) 35%), linear-gradient(145deg, #0b1f18 0%, #173B2B 50%, #22553C 100%); }
+  .wp-rosegold { background-image: radial-gradient(circle at 80% 20%, rgba(240,194,74,.30) 0%, rgba(240,194,74,0) 35%), linear-gradient(140deg, #3a1f2b 0%, #7a3f4a 45%, #d98a6b 100%); }
+  .wp-obsidian { background-image: radial-gradient(circle at 50% 0%, rgba(232,190,85,.22) 0%, rgba(232,190,85,0) 30%), radial-gradient(circle at 90% 100%, rgba(232,190,85,.10) 0%, rgba(232,190,85,0) 30%), linear-gradient(180deg, #05070a 0%, #10151c 60%, #05070a 100%); }
+  .wp-ocean { background-image: radial-gradient(circle at 20% 85%, rgba(127,214,196,.20) 0%, rgba(127,214,196,0) 35%), linear-gradient(150deg, #041b2b 0%, #0c3b4a 50%, #135a5f 100%); }
+
+  .wallpaper-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 12px; }
+  .wallpaper-swatch { position: relative; aspect-ratio: 1; border-radius: 12px; border: 2px solid var(--line); cursor: pointer; overflow: hidden; background-size: 200% 200%; }
+  .wallpaper-swatch.active { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(217,166,46,.35); }
+  .wallpaper-swatch .wp-check { position: absolute; top: 4px; right: 4px; width: 16px; height: 16px; border-radius: 50%; background: var(--gold); color: #1F3B30; font-size: 11px; font-weight: 700; display: none; align-items: center; justify-content: center; }
+  .wallpaper-swatch.active .wp-check { display: flex; }
+  .wallpaper-label { text-align: center; font-size: 10.5px; color: var(--muted); margin-top: 4px; }
 
   /* ---------- Welcome overlay ---------- */
   .welcome-overlay {
@@ -1707,6 +1749,9 @@ body{
 </head>
 <body>
 
+<div class="app-wallpaper" id="appWallpaper"></div>
+<div class="app-wallpaper-grain"></div>
+
 <div class="app-splash" id="appSplash">
   <svg class="app-splash-badge" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
     <defs>
@@ -2786,6 +2831,21 @@ body{
     </div>
 
     <div class="settings-group">
+      <div class="settings-row-label">Wallpaper</div>
+      <div class="settings-row-sub">Pick a backdrop for your whole learning space.</div>
+      <div class="wallpaper-grid" id="wallpaperGrid">
+        <div><div class="wallpaper-swatch" data-wallpaper="" style="background:var(--bg);"><span class="wp-check">✓</span></div><div class="wallpaper-label">Classic</div></div>
+        <div><div class="wallpaper-swatch wp-midnight" data-wallpaper="wp-midnight"><span class="wp-check">✓</span></div><div class="wallpaper-label">Midnight Forest</div></div>
+        <div><div class="wallpaper-swatch wp-savanna" data-wallpaper="wp-savanna"><span class="wp-check">✓</span></div><div class="wallpaper-label">Golden Savanna</div></div>
+        <div><div class="wallpaper-swatch wp-aurora" data-wallpaper="wp-aurora"><span class="wp-check">✓</span></div><div class="wallpaper-label">Aurora Ink</div></div>
+        <div><div class="wallpaper-swatch wp-emerald" data-wallpaper="wp-emerald"><span class="wp-check">✓</span></div><div class="wallpaper-label">Emerald</div></div>
+        <div><div class="wallpaper-swatch wp-rosegold" data-wallpaper="wp-rosegold"><span class="wp-check">✓</span></div><div class="wallpaper-label">Rose Gold</div></div>
+        <div><div class="wallpaper-swatch wp-obsidian" data-wallpaper="wp-obsidian"><span class="wp-check">✓</span></div><div class="wallpaper-label">Obsidian</div></div>
+        <div><div class="wallpaper-swatch wp-ocean" data-wallpaper="wp-ocean"><span class="wp-check">✓</span></div><div class="wallpaper-label">Ocean Depths</div></div>
+      </div>
+    </div>
+
+    <div class="settings-group">
       <div class="settings-row">
         <div>
           <div class="settings-row-label">Answer language</div>
@@ -3144,6 +3204,35 @@ body{
     applyTheme(btn.dataset.theme);
   });
 
+  /* ---------------- Wallpaper ---------------- */
+  const appWallpaper = document.getElementById('appWallpaper');
+  const wallpaperGrid = document.getElementById('wallpaperGrid');
+  const WALLPAPER_CLASSES = ['wp-midnight', 'wp-savanna', 'wp-aurora', 'wp-emerald', 'wp-rosegold', 'wp-obsidian', 'wp-ocean'];
+
+  function applyWallpaper(name) {
+    if (!appWallpaper) return;
+    WALLPAPER_CLASSES.forEach(c => appWallpaper.classList.remove(c));
+    appWallpaper.removeAttribute('data-animated');
+    if (name) {
+      appWallpaper.classList.add(name);
+      appWallpaper.setAttribute('data-animated', 'true');
+    }
+    if (wallpaperGrid) {
+      wallpaperGrid.querySelectorAll('.wallpaper-swatch').forEach(sw => {
+        sw.classList.toggle('active', sw.dataset.wallpaper === (name || ''));
+      });
+    }
+    localStorage.setItem('clavi_wallpaper', name || '');
+  }
+
+  if (wallpaperGrid) {
+    wallpaperGrid.addEventListener('click', (e) => {
+      const swatch = e.target.closest('.wallpaper-swatch');
+      if (!swatch) return;
+      applyWallpaper(swatch.dataset.wallpaper);
+    });
+  }
+
   function applyResponseStyle(style) {
     tutorResponseStyle = style;
     [...responseStyleToggle.children].forEach(b => b.classList.toggle('active', b.dataset.style === style));
@@ -3379,6 +3468,7 @@ body{
   (function loadSettings() {
     const savedTheme = localStorage.getItem('clavi_theme') || 'light';
     applyTheme(savedTheme);
+    applyWallpaper(localStorage.getItem('clavi_wallpaper') || '');
     let savedLevel = localStorage.getItem('clavi_default_level') || (ACCOUNT_TRACK === 'campus' ? 'campus' : 'secondary');
     // The account's track is fixed server-side — never let a stale
     // localStorage value put someone in the wrong track's level.
