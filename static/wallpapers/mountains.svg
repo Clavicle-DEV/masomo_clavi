@@ -1,0 +1,56 @@
+<svg viewBox="0 0 800 500" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="mtnSky" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0c1130"/>
+      <stop offset="40%" stop-color="#2c2a5e"/>
+      <stop offset="70%" stop-color="#a24f6e"/>
+      <stop offset="100%" stop-color="#f0a860"/>
+    </linearGradient>
+    <radialGradient id="mtnMoon" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fff8e6"/>
+      <stop offset="60%" stop-color="#ffe9b0" stop-opacity="0.7"/>
+      <stop offset="100%" stop-color="#ffe9b0" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="mtnFar" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#5b5a8a"/>
+      <stop offset="100%" stop-color="#463f6e"/>
+    </linearGradient>
+    <linearGradient id="mtnMid" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#3c3564"/>
+      <stop offset="100%" stop-color="#2a2650"/>
+    </linearGradient>
+    <linearGradient id="mtnNear" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1c1a3a"/>
+      <stop offset="100%" stop-color="#100e26"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="0" y="0" width="800" height="500" fill="url(#mtnSky)"/>
+  <circle cx="610" cy="120" r="150" fill="url(#mtnMoon)"/>
+  <circle cx="610" cy="120" r="34" fill="#fffaf0"/>
+
+  <!-- far mountain layer -->
+  <path d="M0 300 L90 210 L160 270 L230 180 L300 260 L360 200 L430 280 L500 190 L560 260 L640 200 L710 270 L800 220 L800 500 L0 500 Z" fill="url(#mtnFar)" opacity="0.85"/>
+  <!-- snow caps far -->
+  <g fill="#e9e6ff" opacity="0.55">
+    <polygon points="230,180 218,205 242,205"/>
+    <polygon points="500,190 488,213 512,213"/>
+  </g>
+
+  <!-- mid mountain layer -->
+  <path d="M0 360 L70 280 L150 340 L230 250 L320 350 L400 270 L480 355 L560 265 L650 345 L730 275 L800 330 L800 500 L0 500 Z" fill="url(#mtnMid)"/>
+  <g fill="#f4f1ff" opacity="0.5">
+    <polygon points="230,250 216,278 244,278"/>
+    <polygon points="400,270 386,298 414,298"/>
+    <polygon points="560,265 546,293 574,293"/>
+  </g>
+
+  <!-- near mountain layer -->
+  <path d="M0 420 L110 330 L210 400 L310 320 L420 410 L520 330 L620 405 L720 335 L800 390 L800 500 L0 500 Z" fill="url(#mtnNear)"/>
+
+  <!-- floating birds -->
+  <g stroke="#e8e4ff" stroke-width="2.4" fill="none" opacity="0.6">
+    <path d="M300 120 q8 -10 16 0 q8 -10 16 0"/>
+    <path d="M340 100 q7 -9 14 0 q7 -9 14 0"/>
+  </g>
+</svg>

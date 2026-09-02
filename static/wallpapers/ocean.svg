@@ -1,0 +1,43 @@
+<svg viewBox="0 0 800 500" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="oceanSky" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1b1440"/>
+      <stop offset="35%" stop-color="#5a3b6b"/>
+      <stop offset="62%" stop-color="#e8794f"/>
+      <stop offset="82%" stop-color="#f6b45a"/>
+    </linearGradient>
+    <radialGradient id="oceanSun" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fff3d6"/>
+      <stop offset="55%" stop-color="#ffd077" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#ffd077" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="oceanWater" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#f2a15c"/>
+      <stop offset="18%" stop-color="#8a5a72"/>
+      <stop offset="55%" stop-color="#2d3f6b"/>
+      <stop offset="100%" stop-color="#101d3d"/>
+    </linearGradient>
+    <linearGradient id="sunPath" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffe9b8" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#ffe9b8" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="0" y="0" width="800" height="330" fill="url(#oceanSky)"/>
+  <circle cx="400" cy="300" r="230" fill="url(#oceanSun)"/>
+  <circle cx="400" cy="300" r="62" fill="#fff6df"/>
+
+  <rect x="0" y="300" width="800" height="200" fill="url(#oceanWater)"/>
+  <polygon points="330,300 470,300 560,500 240,500" fill="url(#sunPath)"/>
+
+  <g opacity="0.5" fill="none" stroke="#ffe3b3" stroke-width="2">
+    <path d="M120 350 q40 -10 80 0 t80 0"/>
+    <path d="M540 380 q40 -8 80 0 t80 0"/>
+    <path d="M60 420 q50 -12 100 0 t100 0"/>
+    <path d="M480 440 q45 -10 90 0 t90 0"/>
+  </g>
+
+  <g fill="#0c1730" opacity="0.9">
+    <path d="M0 468 q40 -18 90 -4 t90 -4 t90 4 t90 -6 t90 6 t90 -4 t90 4 t90 -8 v40 h-720z"/>
+  </g>
+</svg>

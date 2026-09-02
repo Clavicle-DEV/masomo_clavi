@@ -1,0 +1,81 @@
+<svg viewBox="0 0 800 500" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="roomWall" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#3c2a20"/>
+      <stop offset="45%" stop-color="#4a3527"/>
+      <stop offset="100%" stop-color="#2c2018"/>
+    </linearGradient>
+    <radialGradient id="windowGlow" cx="50%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#fff2c4" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#fff2c4" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="board" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#20493a"/>
+      <stop offset="100%" stop-color="#153328"/>
+    </linearGradient>
+    <linearGradient id="deskWood" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#8a5a34"/>
+      <stop offset="100%" stop-color="#6b4224"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="0" y="0" width="800" height="500" fill="url(#roomWall)"/>
+
+  <!-- window with warm light -->
+  <rect x="560" y="40" width="180" height="220" rx="6" fill="#1b120c"/>
+  <rect x="572" y="52" width="156" height="196" rx="4" fill="#e9c869"/>
+  <rect x="572" y="52" width="156" height="196" fill="url(#windowGlow)"/>
+  <rect x="646" y="52" width="8" height="196" fill="#1b120c"/>
+  <rect x="572" y="146" width="156" height="8" fill="#1b120c"/>
+
+  <!-- chalkboard -->
+  <rect x="90" y="60" width="360" height="210" rx="8" fill="#5a3a22"/>
+  <rect x="106" y="76" width="328" height="178" rx="4" fill="url(#board)"/>
+  <g stroke="#eef3e8" stroke-width="3" stroke-linecap="round" opacity="0.85" fill="none">
+    <path d="M130 110 h120"/>
+    <path d="M130 140 h180"/>
+    <path d="M130 170 h90"/>
+    <circle cx="330" cy="200" r="26"/>
+    <path d="M356 200 h40"/>
+  </g>
+
+  <!-- floor -->
+  <rect x="0" y="360" width="800" height="140" fill="#241a13"/>
+  <g stroke="#33241a" stroke-width="2" opacity="0.6">
+    <line x1="0" y1="390" x2="800" y2="390"/>
+    <line x1="0" y1="425" x2="800" y2="425"/>
+    <line x1="0" y1="460" x2="800" y2="460"/>
+  </g>
+
+  <!-- desk -->
+  <g transform="translate(300,320)">
+    <rect x="-140" y="70" width="280" height="16" rx="4" fill="url(#deskWood)"/>
+    <rect x="-120" y="86" width="16" height="70" fill="#4a2f1a"/>
+    <rect x="104" y="86" width="16" height="70" fill="#4a2f1a"/>
+    <rect x="-150" y="40" width="300" height="34" rx="6" fill="url(#deskWood)"/>
+    <!-- book on desk -->
+    <rect x="-30" y="24" width="90" height="12" rx="2" fill="#d9c27a"/>
+    <rect x="-30" y="14" width="90" height="12" rx="2" fill="#e8874a"/>
+  </g>
+
+  <!-- seated student -->
+  <g transform="translate(300,235)">
+    <!-- chair back -->
+    <rect x="-46" y="10" width="92" height="70" rx="10" fill="#3a2818"/>
+    <!-- torso -->
+    <path d="M-38 40 q38 -30 76 0 l-6 62 h-64 z" fill="#2f6e57"/>
+    <!-- head -->
+    <circle cx="0" cy="10" r="26" fill="#8a5a3c"/>
+    <path d="M-26 0 q26 -34 52 0 q4 -18 -8 -26 q-18 -12 -36 0 q-12 8 -8 26 z" fill="#20140c"/>
+    <!-- arm resting on desk -->
+    <rect x="-10" y="66" width="60" height="14" rx="7" fill="#8a5a3c"/>
+  </g>
+
+  <!-- second student silhouette, smaller/farther -->
+  <g transform="translate(520,300) scale(0.7)" opacity="0.85">
+    <rect x="-40" y="8" width="80" height="60" rx="9" fill="#33241a"/>
+    <path d="M-32 34 q32 -26 64 0 l-5 52 h-54 z" fill="#7a4a63"/>
+    <circle cx="0" cy="8" r="22" fill="#7a5636"/>
+    <path d="M-22 0 q22 -28 44 0 q4 -15 -7 -22 q-15 -10 -30 0 q-11 7 -7 22 z" fill="#1c130c"/>
+  </g>
+</svg>

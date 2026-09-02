@@ -360,6 +360,12 @@
   .wp-obsidian { background-image: radial-gradient(circle at 50% 0%, rgba(232,190,85,.22) 0%, rgba(232,190,85,0) 30%), radial-gradient(circle at 90% 100%, rgba(232,190,85,.10) 0%, rgba(232,190,85,0) 30%), linear-gradient(180deg, #05070a 0%, #10151c 60%, #05070a 100%); }
   .wp-ocean { background-image: radial-gradient(circle at 20% 85%, rgba(127,214,196,.20) 0%, rgba(127,214,196,0) 35%), linear-gradient(150deg, #041b2b 0%, #0c3b4a 50%, #135a5f 100%); }
 
+  .wp-ocean-sunset, .wp-mountains, .wp-hills, .wp-classroom { background-size: cover; background-position: center; background-repeat: no-repeat; }
+  .wp-ocean-sunset { background-image: url('/static/wallpapers/ocean.svg'); }
+  .wp-mountains { background-image: url('/static/wallpapers/mountains.svg'); }
+  .wp-hills { background-image: url('/static/wallpapers/hills.svg'); }
+  .wp-classroom { background-image: url('/static/wallpapers/classroom.svg'); }
+
   .wallpaper-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 12px; }
   .wallpaper-swatch { position: relative; aspect-ratio: 1; border-radius: 12px; border: 2px solid var(--line); cursor: pointer; overflow: hidden; background-size: 200% 200%; }
   .wallpaper-swatch.active { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(217,166,46,.35); }
@@ -2842,6 +2848,10 @@ body{
         <div><div class="wallpaper-swatch wp-rosegold" data-wallpaper="wp-rosegold"><span class="wp-check">✓</span></div><div class="wallpaper-label">Rose Gold</div></div>
         <div><div class="wallpaper-swatch wp-obsidian" data-wallpaper="wp-obsidian"><span class="wp-check">✓</span></div><div class="wallpaper-label">Obsidian</div></div>
         <div><div class="wallpaper-swatch wp-ocean" data-wallpaper="wp-ocean"><span class="wp-check">✓</span></div><div class="wallpaper-label">Ocean Depths</div></div>
+        <div><div class="wallpaper-swatch wp-ocean-sunset" data-wallpaper="wp-ocean-sunset"><span class="wp-check">✓</span></div><div class="wallpaper-label">Ocean Sunset</div></div>
+        <div><div class="wallpaper-swatch wp-mountains" data-wallpaper="wp-mountains"><span class="wp-check">✓</span></div><div class="wallpaper-label">Mountain Peaks</div></div>
+        <div><div class="wallpaper-swatch wp-hills" data-wallpaper="wp-hills"><span class="wp-check">✓</span></div><div class="wallpaper-label">Rolling Hills</div></div>
+        <div><div class="wallpaper-swatch wp-classroom" data-wallpaper="wp-classroom"><span class="wp-check">✓</span></div><div class="wallpaper-label">Classroom</div></div>
       </div>
     </div>
 
@@ -3207,7 +3217,7 @@ body{
   /* ---------------- Wallpaper ---------------- */
   const appWallpaper = document.getElementById('appWallpaper');
   const wallpaperGrid = document.getElementById('wallpaperGrid');
-  const WALLPAPER_CLASSES = ['wp-midnight', 'wp-savanna', 'wp-aurora', 'wp-emerald', 'wp-rosegold', 'wp-obsidian', 'wp-ocean'];
+  const WALLPAPER_CLASSES = ['wp-midnight', 'wp-savanna', 'wp-aurora', 'wp-emerald', 'wp-rosegold', 'wp-obsidian', 'wp-ocean', 'wp-ocean-sunset', 'wp-mountains', 'wp-hills', 'wp-classroom'];
 
   function applyWallpaper(name) {
     if (!appWallpaper) return;

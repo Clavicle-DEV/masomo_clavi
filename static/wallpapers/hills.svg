@@ -1,0 +1,57 @@
+<svg viewBox="0 0 800 500" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="hillSky" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#bfe3f0"/>
+      <stop offset="55%" stop-color="#eaf4dd"/>
+      <stop offset="100%" stop-color="#fdf3d0"/>
+    </linearGradient>
+    <radialGradient id="hillSun" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fffceb"/>
+      <stop offset="55%" stop-color="#ffe9a8" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#ffe9a8" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="hillFar" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#a9cf8c"/>
+      <stop offset="100%" stop-color="#8fbf72"/>
+    </linearGradient>
+    <linearGradient id="hillMid" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#79b25c"/>
+      <stop offset="100%" stop-color="#5f9c46"/>
+    </linearGradient>
+    <linearGradient id="hillNear" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#468040"/>
+      <stop offset="100%" stop-color="#356630"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="0" y="0" width="800" height="500" fill="url(#hillSky)"/>
+  <circle cx="640" cy="110" r="200" fill="url(#hillSun)"/>
+  <circle cx="640" cy="110" r="46" fill="#fffdf2"/>
+
+  <g fill="#ffffff" opacity="0.85">
+    <ellipse cx="140" cy="90" rx="46" ry="16"/>
+    <ellipse cx="175" cy="80" rx="34" ry="13"/>
+    <ellipse cx="105" cy="82" rx="30" ry="12"/>
+    <ellipse cx="330" cy="60" rx="40" ry="14"/>
+    <ellipse cx="360" cy="52" rx="28" ry="11"/>
+  </g>
+
+  <!-- far hill -->
+  <path d="M0 300 Q140 240 280 300 T560 300 T800 290 V500 H0 Z" fill="url(#hillFar)"/>
+  <!-- mid hill -->
+  <path d="M0 360 Q180 290 360 360 T800 350 V500 H0 Z" fill="url(#hillMid)"/>
+  <!-- near hill -->
+  <path d="M0 430 Q220 360 440 430 T800 420 V500 H0 Z" fill="url(#hillNear)"/>
+
+  <!-- acacia tree silhouette -->
+  <g transform="translate(140,370)">
+    <rect x="-4" y="0" width="8" height="46" fill="#2c4a24"/>
+    <ellipse cx="0" cy="-14" rx="56" ry="16" fill="#33552b"/>
+    <ellipse cx="-26" cy="-4" rx="30" ry="10" fill="#33552b"/>
+    <ellipse cx="30" cy="-2" rx="26" ry="9" fill="#33552b"/>
+  </g>
+  <g transform="translate(660,410) scale(0.75)">
+    <rect x="-4" y="0" width="8" height="46" fill="#2c4a24"/>
+    <ellipse cx="0" cy="-14" rx="56" ry="16" fill="#2e4f27"/>
+  </g>
+</svg>
