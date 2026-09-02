@@ -740,6 +740,26 @@
     margin-top: 4px;
   }
 
+  .msg-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .msg-header .label { margin-top: 4px; }
+  .speak-btn {
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    padding: 2px 4px;
+    border-radius: 6px;
+    opacity: 0.55;
+    transition: opacity .15s ease, transform .15s ease;
+  }
+  .speak-btn:hover { opacity: 0.9; }
+  .speak-btn.speaking { opacity: 1; animation: speakPulse 1s ease-in-out infinite; }
+  @keyframes speakPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+  }
+
   .msg-content { white-space: pre-wrap; }
 
   .explain-differently-wrap { text-align: center; margin: 4px 0 14px; }
@@ -3160,6 +3180,7 @@ body{
   const screens = document.querySelectorAll('.screen');
 
   function showScreen(id) {
+    stopSpeaking();
     screens.forEach(s => s.classList.toggle('active', s.id === id));
     [...mainNav.children].forEach(b => b.classList.toggle('active', b.dataset.screen === id));
     if (id === 'dashboardScreen') renderDashboard();
@@ -4234,12 +4255,47 @@ body{
     });
   }
 
+  const SPEECH_SUPPORTED = typeof window !== 'undefined' && 'speechSynthesis' in window;
+  let currentSpeakBtn = null;
+
+  function stopSpeaking() {
+    if (SPEECH_SUPPORTED) window.speechSynthesis.cancel();
+    if (currentSpeakBtn) currentSpeakBtn.classList.remove('speaking');
+    currentSpeakBtn = null;
+  }
+
+  function toggleSpeak(btn, text) {
+    if (!SPEECH_SUPPORTED || !text) return;
+    const wasThisOne = currentSpeakBtn === btn;
+    stopSpeaking();
+    if (wasThisOne) return;
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = tutorLanguage === 'sw' ? 'sw-KE' : 'en-US';
+    utter.rate = 0.98;
+    utter.pitch = 1;
+    const clear = () => { btn.classList.remove('speaking'); if (currentSpeakBtn === btn) currentSpeakBtn = null; };
+    utter.onend = clear;
+    utter.onerror = clear;
+    currentSpeakBtn = btn;
+    btn.classList.add('speaking');
+    window.speechSynthesis.speak(utter);
+  }
+
+  notebook.addEventListener('click', (e) => {
+    const btn = e.target.closest('.speak-btn');
+    if (!btn) return;
+    const msgDiv = btn.closest('.msg');
+    toggleSpeak(btn, (msgDiv && msgDiv.dataset.speakText) || '');
+  });
+
   function addMessage(role, text, attachment) {
     if (emptyHint.style.display !== 'none') emptyHint.style.display = 'none';
     const div = document.createElement('div');
     div.className = 'msg ' + (role === 'user' ? 'user' : 'tutor');
     if (role === 'tutor') {
-      div.innerHTML = '<span class="label">Tutor</span><span class="msg-content"></span>';
+      const speakBtn = SPEECH_SUPPORTED ? '<button type="button" class="speak-btn" aria-label="Read aloud">🔊</button>' : '';
+      div.innerHTML = '<div class="msg-header"><span class="label">Tutor</span>' + speakBtn + '</div><span class="msg-content"></span>';
+      div.dataset.speakText = (text || '').replace(/\[DIAGRAM\][\s\S]*?\[\/DIAGRAM\]/g, ' ').replace(/\s+/g, ' ').trim();
       renderTutorContent(div.querySelector('.msg-content'), text);
     } else {
       if (attachment && attachment.data) {
