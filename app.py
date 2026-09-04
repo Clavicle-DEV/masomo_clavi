@@ -502,6 +502,28 @@ DIAGRAM_INSTRUCTIONS = (
     "most messages need no diagram at all."
 )
 
+MATH_NOTATION_INSTRUCTIONS = (
+    "Write every mathematical expression, equation, or formula wrapped in LaTeX delimiters so it can be "
+    "typeset properly: use \\( ... \\) for anything inline within a sentence, and \\[ ... \\] only for a "
+    "standalone equation on its own line. Use standard LaTeX commands (e.g. \\frac{a}{b}, \\sqrt{x}, "
+    "x^{2}, \\sin, \\theta, \\times, \\leq). Never write a bare equation with no delimiters, and never mix "
+    "plain-text math (like \"x^2\" or \"sqrt(2)/2\") outside of these delimiters."
+)
+
+EXAM_DIAGRAM_INSTRUCTIONS = (
+    "Real exam papers usually include a diagram for at least a few questions — a labelled geometric "
+    "figure, a graph to read or sketch on, a number line, or a simple flowchart — wherever the question "
+    "describes one (e.g. a triangle with given side lengths, a graph of a function, a shape to "
+    "construct). For each question where a real exam paper would show a figure, include one using the "
+    "same safe-category SVG approach: wrap it in [DIAGRAM]<svg viewBox=\"0 0 320 220\" "
+    "xmlns=\"http://www.w3.org/2000/svg\">...</svg>[/DIAGRAM] inside that question's \"question\" text, "
+    "using only basic shapes and labelled <text> elements, sized to fit a phone screen. Only do this for "
+    "geometry figures, graphs, number lines, and simple flowcharts — never for biology, anatomy, "
+    "chemistry apparatus, maps, or circuits, since an improvised diagram for those is too likely to be "
+    "inaccurate for a real exam. Not every question needs a diagram — only the ones that would genuinely "
+    "have one in a real paper."
+)
+
 
 def build_teaching_instructions(topic, all_topics):
     topic_list = ", ".join(t for t in (all_topics or []) if t)
@@ -536,7 +558,8 @@ def build_system_prompt(subject, level, grade_form=None):
             f"relevant, and to walk through the reasoning behind a concept rather than just stating it. "
             f"Do not use markdown formatting like asterisks for bold or bullet points (no **word** and no "
             f"lines starting with *). Write in plain sentences, and if you need a list, use a dash (-) or "
-            f"simply number the points (1., 2., 3.)." +
+            f"simply number the points (1., 2., 3.). " +
+            MATH_NOTATION_INSTRUCTIONS +
             DIAGRAM_INSTRUCTIONS
         )
     return (
@@ -549,7 +572,8 @@ def build_system_prompt(subject, level, grade_form=None):
         f"to Kenya. "
         f"Do not use markdown formatting like asterisks for bold or bullet points (no **word** and no lines "
         f"starting with *). Write in plain sentences, and if you need a list, use a dash (-) or simply number "
-        f"the points (1., 2., 3.)." +
+        f"the points (1., 2., 3.). " +
+        MATH_NOTATION_INSTRUCTIONS +
         DIAGRAM_INSTRUCTIONS
     )
 
@@ -1158,6 +1182,8 @@ def api_generate_test():
         prompt = f"""Create a full mock exam paper for a {level_desc} student on {subject} — {scope_note}, styled in the spirit of {paper_style}.
 Cover a broad spread of the whole {subject} syllabus for this level (not just one topic), the way a real end-of-course paper would.
 Group questions into 2 logical sections (e.g. "SECTION A" for shorter/objective questions, "SECTION B" for longer/structured ones) — adjust section names to fit {subject} convention if there's a more standard pair of names.
+{MATH_NOTATION_INSTRUCTIONS}
+{EXAM_DIAGRAM_INSTRUCTIONS}
 Return ONLY valid JSON in exactly this shape, no commentary, no markdown fences:
 {{
   "time_allowed": "<realistic time allocation for this level and paper, e.g. '1 Hour 30 Minutes' or '2 Hours 30 Minutes'>",
@@ -1172,6 +1198,8 @@ Include 10 to 14 questions total, mixing "mcq" and "short" types appropriately f
     else:
         scope = f"the topic '{topic}'" if topic else f"all of these topics: {', '.join(all_topics)}"
         prompt = f"""Create a short test for a {level_desc} student on {subject}, covering {scope}.
+{MATH_NOTATION_INSTRUCTIONS}
+{EXAM_DIAGRAM_INSTRUCTIONS}
 Return ONLY valid JSON in exactly this shape, no commentary, no markdown fences:
 {{
   "total_marks": <int>,

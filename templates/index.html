@@ -17,6 +17,9 @@
 </head>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -4234,6 +4237,17 @@ body{
     return svg;
   }
 
+  /* Pulls an optional [DIAGRAM]...[/DIAGRAM] block out of exam/paper question text,
+     returning the remaining text plus a ready-to-insert sanitized diagram-wrap HTML string. */
+  function extractDiagramHtml(text) {
+    if (!text) return { text: '', diagramHtml: '' };
+    const match = /\[DIAGRAM\]([\s\S]*?)\[\/DIAGRAM\]/.exec(text);
+    if (!match) return { text: text, diagramHtml: '' };
+    const cleanText = (text.slice(0, match.index) + text.slice(match.index + match[0].length)).trim();
+    const safeSvg = sanitizeDiagramSvg(match[1]);
+    return { text: cleanText, diagramHtml: safeSvg ? `<div class="diagram-wrap">${safeSvg}</div>` : '' };
+  }
+
   function renderTutorContent(container, text) {
     container.innerHTML = '';
     const parts = (text || '').split(/\[DIAGRAM\]([\s\S]*?)\[\/DIAGRAM\]/g);
@@ -4253,6 +4267,22 @@ body{
         }
       }
     });
+    renderMath(container);
+  }
+
+  /* Typesets any \( \), \[ \] LaTeX left in rendered text — used for chat, tests, and papers alike. */
+  function renderMath(container) {
+    if (typeof renderMathInElement !== 'function' || !container) return;
+    try {
+      renderMathInElement(container, {
+        delimiters: [
+          { left: '\\[', right: '\\]', display: true },
+          { left: '\\(', right: '\\)', display: false },
+          { left: '$$', right: '$$', display: true }
+        ],
+        throwOnError: false
+      });
+    } catch (_) {}
   }
 
   const SPEECH_SUPPORTED = typeof window !== 'undefined' && 'speechSynthesis' in window;
@@ -4965,6 +4995,7 @@ body{
 
     const questionsHtml = test.questions.map(q => {
       const marksLabel = `(${q.marks} mk${q.marks > 1 ? 's' : ''})`;
+      const { text: qText, diagramHtml } = extractDiagramHtml(q.question);
       if (q.type === 'mcq') {
         const optionsHtml = Object.entries(q.options).map(([letter, text]) => `
           <label class="exam-option">
@@ -4974,14 +5005,16 @@ body{
         `).join('');
         return `
           <div class="exam-question">
-            <div class="exam-question-text">${q.id}. ${q.question} <span class="exam-question-marks">${marksLabel}</span></div>
+            <div class="exam-question-text">${q.id}. ${qText} <span class="exam-question-marks">${marksLabel}</span></div>
+            ${diagramHtml}
             <div class="exam-options">${optionsHtml}</div>
           </div>
         `;
       } else {
         return `
           <div class="exam-question exam-short-answer">
-            <div class="exam-question-text">${q.id}. ${q.question} <span class="exam-question-marks">${marksLabel}</span></div>
+            <div class="exam-question-text">${q.id}. ${qText} <span class="exam-question-marks">${marksLabel}</span></div>
+            ${diagramHtml}
             <textarea id="short_${q.id}" placeholder="Write your answer..."></textarea>
           </div>
         `;
@@ -5001,6 +5034,7 @@ body{
     `;
 
     document.getElementById('submitExamBtn').addEventListener('click', handleSubmitExam);
+    renderMath(examTakingView);
   }
 
   function handleSubmitExam() {
@@ -5008,6 +5042,7 @@ body{
     let autoMarks = 0;
 
     const itemsHtml = test.questions.map(q => {
+      const { text: qText, diagramHtml } = extractDiagramHtml(q.question);
       if (q.type === 'mcq') {
         const selected = document.querySelector(`input[name="q_${q.id}"]:checked`);
         const selectedValue = selected ? selected.value : null;
@@ -5016,7 +5051,8 @@ body{
 
         return `
           <div class="marking-item" data-marks="${correct ? q.marks : 0}" data-max="${q.marks}">
-            <div class="marking-question">${q.id}. ${q.question}</div>
+            <div class="marking-question">${q.id}. ${qText}</div>
+            ${diagramHtml}
             <div class="marking-row">Your answer: <strong>${selectedValue || '(not answered)'}</strong></div>
             <div class="marking-row ${correct ? 'marking-correct' : 'marking-wrong'}">
               Correct answer: <strong>${q.correct_option}</strong> ${correct ? '✓' : '✗'}
@@ -5030,7 +5066,8 @@ body{
         const pointsHtml = q.marking_points.map(p => `<li>${p}</li>`).join('');
         return `
           <div class="marking-item" data-marks="0" data-max="${q.marks}" data-self-mark-max="${q.marks}">
-            <div class="marking-question">${q.id}. ${q.question}</div>
+            <div class="marking-question">${q.id}. ${qText}</div>
+            ${diagramHtml}
             <div class="marking-row"><strong>Your answer:</strong> ${studentAnswer}</div>
             <div class="marking-row"><strong>Model answer:</strong> ${q.model_answer}</div>
             <div class="marking-row">Marking points:</div>
@@ -5059,6 +5096,7 @@ body{
 
     examTakingView.style.display = 'none';
     examResultsView.style.display = 'block';
+    renderMath(examResultsView);
 
     const selfMarkInputs = examResultsView.querySelectorAll('.self-mark-input');
     function recalcTotal() {
@@ -5256,6 +5294,7 @@ body{
 
     const renderQuestion = (q) => {
       const marksLabel = `(${q.marks} mk${q.marks > 1 ? 's' : ''})`;
+      const { text: qText, diagramHtml } = extractDiagramHtml(q.question);
       if (q.type === 'mcq') {
         const optionsHtml = Object.entries(q.options).map(([letter, text]) => `
           <label class="exam-option">
@@ -5265,14 +5304,16 @@ body{
         `).join('');
         return `
           <div class="exam-question">
-            <div class="exam-question-text">${q.id}. ${q.question} <span class="exam-question-marks">${marksLabel}</span></div>
+            <div class="exam-question-text">${q.id}. ${qText} <span class="exam-question-marks">${marksLabel}</span></div>
+            ${diagramHtml}
             <div class="exam-options">${optionsHtml}</div>
           </div>
         `;
       } else {
         return `
           <div class="exam-question exam-short-answer">
-            <div class="exam-question-text">${q.id}. ${q.question} <span class="exam-question-marks">${marksLabel}</span></div>
+            <div class="exam-question-text">${q.id}. ${qText} <span class="exam-question-marks">${marksLabel}</span></div>
+            ${diagramHtml}
             <textarea id="pshort_${q.id}" placeholder="Write your answer..."></textarea>
           </div>
         `;
@@ -5316,6 +5357,7 @@ body{
     `;
     document.getElementById('submitPaperBtn').addEventListener('click', handleSubmitFormalPaper);
     document.getElementById('downloadPaperBtn').addEventListener('click', () => window.print());
+    renderMath(paperTakingView);
   }
 
   function saveFormalPaperResult(finalTotal, totalMarks) {
@@ -5351,6 +5393,7 @@ body{
     let autoMarks = 0;
 
     const itemsHtml = test.questions.map(q => {
+      const { text: qText, diagramHtml } = extractDiagramHtml(q.question);
       if (q.type === 'mcq') {
         const selected = document.querySelector(`input[name="pq_${q.id}"]:checked`);
         const selectedValue = selected ? selected.value : null;
@@ -5358,7 +5401,8 @@ body{
         if (correct) autoMarks += q.marks;
         return `
           <div class="marking-item" data-marks="${correct ? q.marks : 0}" data-max="${q.marks}">
-            <div class="marking-question">${q.id}. ${q.question}</div>
+            <div class="marking-question">${q.id}. ${qText}</div>
+            ${diagramHtml}
             <div class="marking-row">Your answer: <strong>${selectedValue || '(not answered)'}</strong></div>
             <div class="marking-row ${correct ? 'marking-correct' : 'marking-wrong'}">
               Correct answer: <strong>${q.correct_option}</strong> ${correct ? '✓' : '✗'}
@@ -5372,7 +5416,8 @@ body{
         const pointsHtml = q.marking_points.map(p => `<li>${p}</li>`).join('');
         return `
           <div class="marking-item" data-marks="0" data-max="${q.marks}" data-self-mark-max="${q.marks}">
-            <div class="marking-question">${q.id}. ${q.question}</div>
+            <div class="marking-question">${q.id}. ${qText}</div>
+            ${diagramHtml}
             <div class="marking-row"><strong>Your answer:</strong> ${studentAnswer}</div>
             <div class="marking-row"><strong>Model answer:</strong> ${q.model_answer}</div>
             <div class="marking-row">Marking points:</div>
@@ -5400,6 +5445,7 @@ body{
     `;
 
     papersShowOnly(paperResultsView);
+    renderMath(paperResultsView);
 
     const selfMarkInputs = paperResultsView.querySelectorAll('.self-mark-input');
     function recalcTotal() {
