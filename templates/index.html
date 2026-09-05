@@ -17,9 +17,9 @@
 </head>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -4272,17 +4272,69 @@ body{
 
   /* Typesets any \( \), \[ \] LaTeX left in rendered text — used for chat, tests, and papers alike. */
   function renderMath(container) {
-    if (typeof renderMathInElement !== 'function' || !container) return;
-    try {
-      renderMathInElement(container, {
-        delimiters: [
-          { left: '\\[', right: '\\]', display: true },
-          { left: '\\(', right: '\\)', display: false },
-          { left: '$$', right: '$$', display: true }
-        ],
-        throwOnError: false
-      });
-    } catch (_) {}
+    if (!container) return;
+    if (typeof renderMathInElement === 'function') {
+      try {
+        renderMathInElement(container, {
+          delimiters: [
+            { left: '\\[', right: '\\]', display: true },
+            { left: '\\(', right: '\\)', display: false },
+            { left: '$$', right: '$$', display: true }
+          ],
+          throwOnError: false
+        });
+      } catch (_) {}
+    }
+    // Whether or not KaTeX ran, sweep for any LaTeX still left as raw text (covers
+    // both "the library failed to load" and "this one expression didn't match") so
+    // backslashes never show to the student either way.
+    applyMathFallback(container);
+  }
+
+  function plainizeMath(text) {
+    let out = text;
+    for (let pass = 0; pass < 3; pass++) {
+      out = out
+        .replace(/\^\{\\circ\}|\^\\circ/g, '°')
+        .replace(/\\sqrt\{([^{}]*)\}/g, '√($1)')
+        .replace(/\\frac\{([^{}]*)\}\{([^{}]*)\}/g, '($1)/($2)')
+        .replace(/\\dfrac\{([^{}]*)\}\{([^{}]*)\}/g, '($1)/($2)')
+        .replace(/\^\{([^{}]*)\}/g, '^$1')
+        .replace(/_\{([^{}]*)\}/g, '_$1')
+        .replace(/\\text\{([^{}]*)\}/g, '$1');
+    }
+    return out
+      .replace(/\\\[|\\\]|\\\(|\\\)/g, '')
+      .replace(/\$\$/g, '')
+      .replace(/\\left|\\right/g, '')
+      .replace(/\\circ/g, '°')
+      .replace(/\\times/g, '×')
+      .replace(/\\div/g, '÷')
+      .replace(/\\cdot/g, '·')
+      .replace(/\\pm/g, '±')
+      .replace(/\\leq/g, '≤')
+      .replace(/\\geq/g, '≥')
+      .replace(/\\neq/g, '≠')
+      .replace(/\\approx/g, '≈')
+      .replace(/\\pi/g, 'π')
+      .replace(/\\theta/g, 'θ')
+      .replace(/\\alpha/g, 'α')
+      .replace(/\\beta/g, 'β')
+      .replace(/\\infty/g, '∞')
+      .replace(/\\(sin|cos|tan|log|ln)\b/g, '$1');
+  }
+
+  function applyMathFallback(container) {
+    if (!/\\\(|\\\[|\\frac|\\dfrac|\\sqrt|\\sin|\\cos|\\tan|\\circ|\$\$/.test(container.textContent || '')) return;
+    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    let n;
+    while ((n = walker.nextNode())) nodes.push(n);
+    nodes.forEach(node => {
+      if (/\\\(|\\\[|\\frac|\\dfrac|\\sqrt|\\sin|\\cos|\\tan|\\circ|\$\$/.test(node.textContent)) {
+        node.textContent = plainizeMath(node.textContent);
+      }
+    });
   }
 
   const SPEECH_SUPPORTED = typeof window !== 'undefined' && 'speechSynthesis' in window;
