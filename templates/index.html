@@ -4296,42 +4296,81 @@ body{
     for (let pass = 0; pass < 3; pass++) {
       out = out
         .replace(/\^\{\\circ\}|\^\\circ/g, '°')
+        .replace(/\\sqrt\[(\d+)\]\{([^{}]*)\}/g, '$1√($2)')
         .replace(/\\sqrt\{([^{}]*)\}/g, '√($1)')
         .replace(/\\frac\{([^{}]*)\}\{([^{}]*)\}/g, '($1)/($2)')
         .replace(/\\dfrac\{([^{}]*)\}\{([^{}]*)\}/g, '($1)/($2)')
+        .replace(/\\binom\{([^{}]*)\}\{([^{}]*)\}/g, '($1 choose $2)')
+        .replace(/\\overrightarrow\{([^{}]*)\}/g, '$1\u20D7')
+        .replace(/\\overline\{([^{}]*)\}/g, '$1\u0305')
+        .replace(/\\vec\{([^{}]*)\}/g, '$1\u20D7')
         .replace(/\^\{([^{}]*)\}/g, '^$1')
         .replace(/_\{([^{}]*)\}/g, '_$1')
-        .replace(/\\text\{([^{}]*)\}/g, '$1');
+        .replace(/\\text\{([^{}]*)\}/g, '$1')
+        .replace(/\\mathrm\{([^{}]*)\}/g, '$1');
     }
     return out
       .replace(/\\\[|\\\]|\\\(|\\\)/g, '')
       .replace(/\$\$/g, '')
-      .replace(/\\left|\\right/g, '')
+      .replace(/\\rightarrow\b/g, '→')
+      .replace(/\\Rightarrow\b/g, '⇒')
+      .replace(/\\leftrightarrow\b/g, '↔')
+      .replace(/\\left\b|\\right\b/g, '')
       .replace(/\\circ/g, '°')
       .replace(/\\times/g, '×')
       .replace(/\\div/g, '÷')
       .replace(/\\cdot/g, '·')
       .replace(/\\pm/g, '±')
+      .replace(/\\mp/g, '∓')
       .replace(/\\leq/g, '≤')
       .replace(/\\geq/g, '≥')
       .replace(/\\neq/g, '≠')
       .replace(/\\approx/g, '≈')
-      .replace(/\\pi/g, 'π')
-      .replace(/\\theta/g, 'θ')
-      .replace(/\\alpha/g, 'α')
-      .replace(/\\beta/g, 'β')
-      .replace(/\\infty/g, '∞')
-      .replace(/\\(sin|cos|tan|log|ln)\b/g, '$1');
+      .replace(/\\equiv/g, '≡')
+      .replace(/\\sim\b/g, '~')
+      .replace(/\\propto\b/g, '∝')
+      .replace(/\\parallel\b/g, '∥')
+      .replace(/\\perp\b/g, '⊥')
+      .replace(/\\angle\b/g, '∠')
+      .replace(/\\triangle\b/g, '△')
+      .replace(/\\infty\b/g, '∞')
+      .replace(/\\pi\b/g, 'π')
+      .replace(/\\theta\b/g, 'θ')
+      .replace(/\\alpha\b/g, 'α')
+      .replace(/\\beta\b/g, 'β')
+      .replace(/\\gamma\b/g, 'γ')
+      .replace(/\\delta\b/g, 'δ')
+      .replace(/\\mu\b/g, 'μ')
+      .replace(/\\lambda\b/g, 'λ')
+      .replace(/\\sigma\b/g, 'σ')
+      .replace(/\\in\b/g, '∈')
+      .replace(/\\notin\b/g, '∉')
+      .replace(/\\subset\b/g, '⊂')
+      .replace(/\\cup\b/g, '∪')
+      .replace(/\\cap\b/g, '∩')
+      .replace(/\\forall\b/g, '∀')
+      .replace(/\\exists\b/g, '∃')
+      .replace(/\\ldots\b|\\cdots\b|\\dots\b/g, '…')
+      .replace(/\\quad\b|\\qquad\b|\\,|\\;|\\!|\\ /g, ' ')
+      .replace(/\\(sin|cos|tan|log|ln|lim|sum|int|max|min|exp)\b/g, '$1')
+      // Catch-all: any remaining "\word" -> just "word" (drop backslash, keep letters) —
+      // covers any LaTeX command not specifically handled above.
+      .replace(/\\([a-zA-Z]+)/g, '$1')
+      // Catch-all: any remaining lone backslash (e.g. \%, \_, \$) -> drop the backslash
+      .replace(/\\(.)/g, '$1')
+      .replace(/\\/g, '')
+      // Clean up any stray unmatched braces left behind by unusual patterns
+      .replace(/\{([^{}]*)\}/g, '$1');
   }
 
   function applyMathFallback(container) {
-    if (!/\\\(|\\\[|\\frac|\\dfrac|\\sqrt|\\sin|\\cos|\\tan|\\circ|\$\$/.test(container.textContent || '')) return;
+    if (!/\\\S/.test(container.textContent || '')) return;
     const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
     const nodes = [];
     let n;
     while ((n = walker.nextNode())) nodes.push(n);
     nodes.forEach(node => {
-      if (/\\\(|\\\[|\\frac|\\dfrac|\\sqrt|\\sin|\\cos|\\tan|\\circ|\$\$/.test(node.textContent)) {
+      if (/\\\S/.test(node.textContent)) {
         node.textContent = plainizeMath(node.textContent);
       }
     });
