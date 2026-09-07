@@ -3527,10 +3527,11 @@ body{
     localStorage.setItem('clavi_stats', JSON.stringify(stats));
   }
 
-  function recordQuestion(subject) {
+  function recordQuestion(subject, amount) {
+    amount = amount || 1;
     const stats = getStats();
-    stats.total += 1;
-    stats.bySubject[subject] = (stats.bySubject[subject] || 0) + 1;
+    stats.total += amount;
+    stats.bySubject[subject] = (stats.bySubject[subject] || 0) + amount;
 
     const today = new Date().toISOString().slice(0, 10);
     if (stats.lastActiveDate !== today) {
@@ -4526,7 +4527,7 @@ body{
       const result = await askTutor(displayText, attachment);
       addMessage('tutor', result.answer);
       saveChatProgress();
-      recordQuestion(currentSubject);
+      recordQuestion(currentSubject, (teachState && result.topicComplete) ? 3 : 1);
       showExplainDifferentlyButton();
       if (teachState && result.topicComplete) {
         markTopicTaught(currentSubject, currentLevel, currentGradeForm, currentTeachTopic());
@@ -5217,6 +5218,7 @@ body{
       if (!currentExamIsFinal) {
         saveTopicResult(currentExamTopic, finalTotal, test.total_marks);
       }
+      recordQuestion(currentSubject, 3);
 
       document.getElementById('finishExamBtn').textContent = 'Saved ✓ — Back to Topics';
       document.getElementById('finishExamBtn').onclick = () => {
@@ -5563,6 +5565,7 @@ body{
       verdictEl.className = 'result-verdict ' + (passed ? 'pass' : 'retry');
 
       saveFormalPaperResult(finalTotal, test.total_marks);
+      recordQuestion(papersSubject, 5);
 
       document.getElementById('finishPaperBtn').textContent = 'Saved ✓ — Back to Papers';
       document.getElementById('finishPaperBtn').onclick = () => papersShowOnly(papersSetupView);
@@ -5829,6 +5832,7 @@ body{
       const result = await askTutor(hiddenPromptText);
       addMessage('tutor', result.answer);
       saveChatProgress();
+      recordQuestion(currentSubject, result.topicComplete ? 3 : 1);
       typingLabel.textContent = 'Got it!';
       playAvatarState('yes', false);
       if (result.topicComplete) {
