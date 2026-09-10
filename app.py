@@ -15,6 +15,8 @@ import requests
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, Response, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from werkzeug.security import generate_password_hash, check_password_hash
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from sqlalchemy import inspect, text
@@ -40,6 +42,30 @@ db = SQLAlchemy(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'signup'
+
+def rate_limit_key():
+    """Rate-limit by logged-in account when we have one (so a shared school
+    WiFi doesn't get one student's usage blocking everyone else on it), and
+    fall back to IP address for routes hit before login (signup/login itself)."""
+    try:
+        if current_user.is_authenticated:
+            return f"user:{current_user.id}"
+    except Exception:
+        pass
+    return get_remote_address()
+
+limiter = Limiter(
+    key_func=rate_limit_key,
+    app=app,
+    default_limits=["200 per hour"],
+    storage_uri="memory://",
+)
+limiter.exempt(app.view_functions['static'])
+
+
+@app.errorhandler(429)
+def handle_rate_limit(e):
+    return jsonify({"error": "You're sending requests a bit fast — please wait a moment and try again."}), 429
 
 app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=365)
 app.config['REMEMBER_COOKIE_SECURE'] = False
@@ -1041,6 +1067,7 @@ def admin_users():
 
 @app.route('/api/tutor', methods=['POST'])
 @login_required
+@limiter.limit("15 per minute; 100 per hour")
 def api_tutor():
     if not current_user.email_verified:
         return jsonify({"error": "Please verify your email to start chatting with the tutor — check your inbox, or resend the link from the banner above."}), 403
@@ -1114,6 +1141,7 @@ def api_tutor():
 
 @app.route('/api/topics', methods=['POST'])
 @login_required
+@limiter.limit("10 per minute; 60 per hour")
 def api_topics():
     if not current_user.email_verified:
         return jsonify({"error": "Please verify your email to continue — check your inbox, or resend the link from the banner above."}), 403
@@ -1148,6 +1176,7 @@ def api_topics():
 
 @app.route('/api/generate-test', methods=['POST'])
 @login_required
+@limiter.limit("6 per minute; 30 per hour")
 def api_generate_test():
     if not current_user.email_verified:
         return jsonify({"error": "Please verify your email to continue — check your inbox, or resend the link from the banner above."}), 403
@@ -1610,6 +1639,7 @@ def api_leaderboard():
 
 
 @app.route('/healthz')
+@limiter.exempt
 def healthz():
     return jsonify({"status": "ok"})
 
