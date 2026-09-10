@@ -54,10 +54,19 @@ def rate_limit_key():
         pass
     return get_remote_address()
 
+def is_unlimited_rate_limit_user():
+    """Admins and co-admins already have unlimited AI-call quota
+    (has_unlimited_access) — exempt them from rate limiting too."""
+    try:
+        return current_user.is_authenticated and has_unlimited_access(current_user)
+    except Exception:
+        return False
+
 limiter = Limiter(
     key_func=rate_limit_key,
     app=app,
     default_limits=["200 per hour"],
+    default_limits_exempt_when=is_unlimited_rate_limit_user,
     storage_uri="memory://",
 )
 limiter.exempt(app.view_functions['static'])
@@ -1067,7 +1076,7 @@ def admin_users():
 
 @app.route('/api/tutor', methods=['POST'])
 @login_required
-@limiter.limit("15 per minute; 100 per hour")
+@limiter.limit("15 per minute; 100 per hour", exempt_when=is_unlimited_rate_limit_user)
 def api_tutor():
     if not current_user.email_verified:
         return jsonify({"error": "Please verify your email to start chatting with the tutor — check your inbox, or resend the link from the banner above."}), 403
@@ -1141,7 +1150,7 @@ def api_tutor():
 
 @app.route('/api/topics', methods=['POST'])
 @login_required
-@limiter.limit("10 per minute; 60 per hour")
+@limiter.limit("10 per minute; 60 per hour", exempt_when=is_unlimited_rate_limit_user)
 def api_topics():
     if not current_user.email_verified:
         return jsonify({"error": "Please verify your email to continue — check your inbox, or resend the link from the banner above."}), 403
@@ -1176,7 +1185,7 @@ def api_topics():
 
 @app.route('/api/generate-test', methods=['POST'])
 @login_required
-@limiter.limit("6 per minute; 30 per hour")
+@limiter.limit("6 per minute; 30 per hour", exempt_when=is_unlimited_rate_limit_user)
 def api_generate_test():
     if not current_user.email_verified:
         return jsonify({"error": "Please verify your email to continue — check your inbox, or resend the link from the banner above."}), 403
