@@ -1300,6 +1300,20 @@
 <script>
   const ACCOUNT_TRACK = "{{ student_track }}" === 'campus' ? 'campus' : 'highschool';
   const REFERRAL_LINK = {{ (referral_link if referral_link else '')|tojson }};
+
+  /* Splash hide lives here, independent of app.js, so a slow network or an
+     error anywhere in that much larger file can never leave the splash
+     stuck on screen forever. */
+  (function() {
+    const splash = document.getElementById('appSplash');
+    if (!splash) return;
+    const MIN_SHOW_MS = 900;
+    const hide = () => {
+      splash.classList.add('fade-out');
+      setTimeout(() => { splash.style.display = 'none'; }, 450);
+    };
+    setTimeout(hide, MIN_SHOW_MS);
+  })();
 </script>
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
