@@ -1494,7 +1494,8 @@
 
   .pricing-modal-card {
     background: var(--paper);
-    border-radius: 12px;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
     max-width: 460px;
     width: 100%;
     padding: 32px 28px;
@@ -1502,6 +1503,14 @@
     max-height: 90vh;
     overflow-y: auto;
   }
+
+  .pricing-tier-option:hover { border-color: var(--gold) !important; }
+  .pricing-tier-option:has(input:checked) {
+    border-color: var(--gold) !important;
+    box-shadow: 0 0 0 3px rgba(198, 146, 42, 0.14);
+  }
+
+  #mpesaPayBtn:hover, #mpesaPayBtnPaywall:hover { transform: translateY(-1px); }
 
   .pricing-modal-close {
     position: absolute;
