@@ -24,59 +24,14 @@
 <body>
 
 <div class="app-splash" id="appSplash">
-  <svg class="app-splash-badge" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <linearGradient id="g-splash" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stop-color="#112E23"/>
-        <stop offset="60%" stop-color="#22553C"/>
-        <stop offset="100%" stop-color="#3E825C"/>
-      </linearGradient>
-      <linearGradient id="shine-splash" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stop-color="#FFF7D7"/>
-        <stop offset="100%" stop-color="#F0C24A"/>
-      </linearGradient>
-    </defs>
-    <circle cx="20" cy="20" r="16" fill="none" stroke="#F2C34C" stroke-opacity="0.28" stroke-width="1.2"/>
-    <circle cx="20" cy="20" r="13" fill="url(#g-splash)"/>
-    <path d="M20 6.5l7.4 2.5v6.8c0 4.7-2.8 8.8-7.4 11.8-4.6-3-7.4-7.1-7.4-11.8V9L20 6.5z" fill="#F7F0DB" opacity="0.96"/>
-    <path d="M14 13.2h12v6.5c0 3.2-2.2 6.2-6 8.1-3.8-1.9-6-4.9-6-8.1v-6.5z" fill="none" stroke="#173B2B" stroke-width="1.1"/>
-    <path d="M15.4 13.8h9.2c1 0 1.8.8 1.8 1.8v4.4c0 2.3-1.3 4-3.3 5.2-2-1.2-3.3-2.9-3.3-5.2v-4.4c0-1-.8-1.8-1.8-1.8z" fill="url(#shine-splash)"/>
-  </svg>
+  <img class="app-splash-badge" src="{{ url_for('static', filename='images/shield-icon.png') }}" alt="Clavis">
   <div class="app-splash-name">Clavis</div>
   <div class="app-splash-tagline">Learn with clarity</div>
 </div>
 
 <div class="welcome-overlay" id="welcomeOverlay" style="display:none;">
   <div class="welcome-card">
-    <div class="brand"><svg class="brand-badge" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id="g-welcome" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#112E23"/>
-            <stop offset="60%" stop-color="#22553C"/>
-            <stop offset="100%" stop-color="#3E825C"/>
-          </linearGradient>
-          <linearGradient id="shine-welcome" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#FFF7D7"/>
-            <stop offset="100%" stop-color="#F0C24A"/>
-          </linearGradient>
-          <filter id="glow-welcome" x="-30%" y="-30%" width="160%" height="160%">
-            <feGaussianBlur stdDeviation="0.9" result="blur"/>
-            <feMerge>
-              <feMergeNode in="blur"/>
-              <feMergeNode in="SourceGraphic"/>
-            </feMerge>
-          </filter>
-        </defs>
-        <circle cx="20" cy="20" r="16" fill="none" stroke="#F2C34C" stroke-opacity="0.28" stroke-width="1.2"/>
-        <circle cx="20" cy="20" r="13" fill="url(#g-welcome)"/>
-        <path d="M20 6.5l7.4 2.5v6.8c0 4.7-2.8 8.8-7.4 11.8-4.6-3-7.4-7.1-7.4-11.8V9L20 6.5z" fill="#F7F0DB" opacity="0.96"/>
-        <path d="M14 13.2h12v6.5c0 3.2-2.2 6.2-6 8.1-3.8-1.9-6-4.9-6-8.1v-6.5z" fill="none" stroke="#173B2B" stroke-width="1.1"/>
-        <path d="M15.4 13.8h9.2c1 0 1.8.8 1.8 1.8v4.4c0 2.3-1.3 4-3.3 5.2-2-1.2-3.3-2.9-3.3-5.2v-4.4c0-1-.8-1.8-1.8-1.8z" fill="url(#shine-welcome)"/>
-        <path d="M20 10.8l3.2-2.2 1 1.5-3.2 2.2-1-1.5z" fill="#FFF4C2"/>
-        <circle cx="25.2" cy="10" r="1.15" fill="#FFF4C2" filter="url(#glow-welcome)"/>
-        <path d="M12.5 24.4c3.3-1.9 6.5-2.5 8.8-2.5" stroke="#F0C24A" stroke-width="1.1" stroke-linecap="round" opacity="0.9"/>
-        <path d="M21.8 8.2c1.8 0.8 3.1 2.1 4.1 3.8" stroke="#F2C34C" stroke-width="1.1" stroke-linecap="round" opacity="0.8"/>
-      </svg><span class="brand-wordmark">Clavis</span></div>
+    <div class="brand"><img class="brand-badge" src="{{ url_for('static', filename='images/shield-icon.png') }}" alt="Clavis"><span class="brand-wordmark">Clavis</span></div>
     <div id="welcomeStepType">
       <h2>Karibu, welcome! 👋</h2>
       <p>First, tell us where you're studying so we can show you the right subjects.</p>
@@ -107,35 +62,7 @@
 <div class="layout">
   <nav class="main-nav" id="mainNav">
     <div class="nav-brand">
-      <svg class="brand-badge" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#112E23"/>
-            <stop offset="60%" stop-color="#22553C"/>
-            <stop offset="100%" stop-color="#3E825C"/>
-          </linearGradient>
-          <linearGradient id="shine" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#FFF7D7"/>
-            <stop offset="100%" stop-color="#F0C24A"/>
-          </linearGradient>
-          <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
-            <feGaussianBlur stdDeviation="0.9" result="blur"/>
-            <feMerge>
-              <feMergeNode in="blur"/>
-              <feMergeNode in="SourceGraphic"/>
-            </feMerge>
-          </filter>
-        </defs>
-        <circle cx="20" cy="20" r="16" fill="none" stroke="#F2C34C" stroke-opacity="0.28" stroke-width="1.2"/>
-        <circle cx="20" cy="20" r="13" fill="url(#g)"/>
-        <path d="M20 6.5l7.4 2.5v6.8c0 4.7-2.8 8.8-7.4 11.8-4.6-3-7.4-7.1-7.4-11.8V9L20 6.5z" fill="#F7F0DB" opacity="0.96"/>
-        <path d="M14 13.2h12v6.5c0 3.2-2.2 6.2-6 8.1-3.8-1.9-6-4.9-6-8.1v-6.5z" fill="none" stroke="#173B2B" stroke-width="1.1"/>
-        <path d="M15.4 13.8h9.2c1 0 1.8.8 1.8 1.8v4.4c0 2.3-1.3 4-3.3 5.2-2-1.2-3.3-2.9-3.3-5.2v-4.4c0-1-.8-1.8-1.8-1.8z" fill="url(#shine)"/>
-        <path d="M20 10.8l3.2-2.2 1 1.5-3.2 2.2-1-1.5z" fill="#FFF4C2"/>
-        <circle cx="25.2" cy="10" r="1.15" fill="#FFF4C2" filter="url(#glow)"/>
-        <path d="M12.5 24.4c3.3-1.9 6.5-2.5 8.8-2.5" stroke="#F0C24A" stroke-width="1.1" stroke-linecap="round" opacity="0.9"/>
-        <path d="M21.8 8.2c1.8 0.8 3.1 2.1 4.1 3.8" stroke="#F2C34C" stroke-width="1.1" stroke-linecap="round" opacity="0.8"/>
-      </svg>
+      <img class="brand-badge" src="{{ url_for('static', filename='images/shield-icon.png') }}" alt="Clavis">
       <span class="nav-brand-text">Clavis</span>
     </div>
     <button data-screen="homeScreen" class="active">
@@ -266,36 +193,8 @@
 
   <header class="top">
     <div class="brand-block">
-      <div class="brand"><svg class="brand-badge" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id="g-header" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#15352A"/>
-            <stop offset="60%" stop-color="#23553C"/>
-            <stop offset="100%" stop-color="#3E7F5B"/>
-          </linearGradient>
-          <linearGradient id="shine-header" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#FFF6C9"/>
-            <stop offset="100%" stop-color="#F2C34C"/>
-          </linearGradient>
-          <filter id="glow-header" x="-30%" y="-30%" width="160%" height="160%">
-            <feGaussianBlur stdDeviation="0.9" result="blur"/>
-            <feMerge>
-              <feMergeNode in="blur"/>
-              <feMergeNode in="SourceGraphic"/>
-            </feMerge>
-          </filter>
-        </defs>
-        <circle cx="20" cy="20" r="16" fill="none" stroke="#F2C34C" stroke-opacity="0.24" stroke-width="1.2"/>
-        <circle cx="20" cy="20" r="13" fill="url(#g-header)"/>
-        <path d="M20 6.5l7.4 2.5v6.8c0 4.7-2.8 8.8-7.4 11.8-4.6-3-7.4-7.1-7.4-11.8V9L20 6.5z" fill="#F7F0DB" opacity="0.96"/>
-        <path d="M14 13.2h12v6.5c0 3.2-2.2 6.2-6 8.1-3.8-1.9-6-4.9-6-8.1v-6.5z" fill="none" stroke="#173B2B" stroke-width="1.1"/>
-        <path d="M15.4 13.8h9.2c1 0 1.8.8 1.8 1.8v4.4c0 2.3-1.3 4-3.3 5.2-2-1.2-3.3-2.9-3.3-5.2v-4.4c0-1-.8-1.8-1.8-1.8z" fill="url(#shine-header)"/>
-        <path d="M20 10.8l3.2-2.2 1 1.5-3.2 2.2-1-1.5z" fill="#FFF4C2"/>
-        <circle cx="25.2" cy="10" r="1.15" fill="#FFF4C2" filter="url(#glow-header)"/>
-        <path d="M12.5 24.4c3.3-1.9 6.5-2.5 8.8-2.5" stroke="#F0C24A" stroke-width="1.1" stroke-linecap="round" opacity="0.9"/>
-        <path d="M21.8 8.2c1.8 0.8 3.1 2.1 4.1 3.8" stroke="#F2C34C" stroke-width="1.1" stroke-linecap="round" opacity="0.8"/>
-      </svg><span class="brand-wordmark">Clavis</span></div>
-      <div class="tagline">Study help — Maths, English &amp; more</div>
+      <div class="brand"><img class="brand-badge" src="{{ url_for('static', filename='images/shield-icon.png') }}" alt="Clavis"><span class="brand-wordmark">Clavis</span></div>
+      <div class="tagline">Learn with clarity — Maths, English &amp; more</div>
     </div>
   </header>
   <!-- ============ HOME SCREEN ============ -->
