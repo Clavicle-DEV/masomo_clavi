@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Clavis — {{ 'Sign Up' if mode == 'signup' else ('Reset Password' if mode in ('forgot', 'reset') else 'Log In') }}</title>
-<link rel="icon" type="image/png" href="/static/logo.png">
+<link rel="icon" href="/static/favicon.ico">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -37,24 +37,15 @@
     position: relative;
   }
 
-  /* ---------- Backdrop: night mountains + glow ---------- */
+  /* ---------- Backdrop: night gradient + glow ---------- */
   .backdrop {
     position: fixed;
     inset: 0;
     z-index: 0;
     background:
       radial-gradient(circle at 78% 12%, rgba(240,194,74,0.16) 0%, rgba(240,194,74,0) 34%),
+      radial-gradient(circle at 15% 85%, rgba(127,214,196,0.10) 0%, rgba(127,214,196,0) 40%),
       linear-gradient(180deg, #0b0e1c 0%, #12172c 42%, #1c1430 72%, #2a1a2a 100%);
-  }
-  .backdrop-mountains {
-    position: fixed;
-    inset: 0;
-    z-index: 1;
-    background-image: url('/static/wallpapers/mountains.svg');
-    background-size: cover;
-    background-position: center bottom;
-    opacity: 0.55;
-    mix-blend-mode: screen;
   }
   .backdrop-vignette {
     position: fixed;
@@ -344,7 +335,6 @@
 <body>
 
 <div class="backdrop"></div>
-<div class="backdrop-mountains"></div>
 <div class="backdrop-vignette"></div>
 <div class="glow-orb g1"></div>
 <div class="glow-orb g2"></div>
