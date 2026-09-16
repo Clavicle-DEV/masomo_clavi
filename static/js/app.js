@@ -177,35 +177,6 @@
     applyTheme(btn.dataset.theme);
   });
 
-  /* ---------------- Wallpaper ---------------- */
-  const appWallpaper = document.getElementById('appWallpaper');
-  const wallpaperGrid = document.getElementById('wallpaperGrid');
-  const WALLPAPER_CLASSES = ['wp-midnight', 'wp-savanna', 'wp-aurora', 'wp-emerald', 'wp-rosegold', 'wp-obsidian', 'wp-ocean', 'wp-ocean-sunset', 'wp-mountains', 'wp-hills', 'wp-classroom'];
-
-  function applyWallpaper(name) {
-    if (!appWallpaper) return;
-    WALLPAPER_CLASSES.forEach(c => appWallpaper.classList.remove(c));
-    appWallpaper.removeAttribute('data-animated');
-    if (name) {
-      appWallpaper.classList.add(name);
-      appWallpaper.setAttribute('data-animated', 'true');
-    }
-    if (wallpaperGrid) {
-      wallpaperGrid.querySelectorAll('.wallpaper-swatch').forEach(sw => {
-        sw.classList.toggle('active', sw.dataset.wallpaper === (name || ''));
-      });
-    }
-    localStorage.setItem('clavi_wallpaper', name || '');
-  }
-
-  if (wallpaperGrid) {
-    wallpaperGrid.addEventListener('click', (e) => {
-      const swatch = e.target.closest('.wallpaper-swatch');
-      if (!swatch) return;
-      applyWallpaper(swatch.dataset.wallpaper);
-    });
-  }
-
   function applyResponseStyle(style) {
     tutorResponseStyle = style;
     [...responseStyleToggle.children].forEach(b => b.classList.toggle('active', b.dataset.style === style));
@@ -441,7 +412,6 @@
   (function loadSettings() {
     const savedTheme = localStorage.getItem('clavi_theme') || 'light';
     applyTheme(savedTheme);
-    applyWallpaper(localStorage.getItem('clavi_wallpaper') || '');
     let savedLevel = localStorage.getItem('clavi_default_level') || (ACCOUNT_TRACK === 'campus' ? 'campus' : 'secondary');
     // The account's track is fixed server-side — never let a stale
     // localStorage value put someone in the wrong track's level.
@@ -1294,6 +1264,82 @@
       .replace(/\{([^{}]*)\}/g, '$1');
   }
 
+  /* Builds the text actually fed to the browser's read-aloud voice: strips
+     diagram blocks and markdown, converts LaTeX to real spoken words (not
+     just symbols — "×" reads fine on screen but a screen reader/TTS voice
+     either skips it or says "multiplication sign", so here it becomes the
+     word "times", etc.) so nothing like a stray backslash, caret, or brace
+     ever gets read aloud literally. */
+  function speechify(text) {
+    let out = (text || '')
+      .replace(/\[DIAGRAM\][\s\S]*?\[\/DIAGRAM\]/g, ' ');
+
+    // Run the same LaTeX-to-plain-text pass used for display, then go
+    // further: swap math symbols for the words a voice should actually say.
+    out = plainizeMath(out);
+
+    out = out
+      // Resolve square roots to plain words first so they don't leave stray
+      // parens behind that would confuse the fraction pattern below.
+      .replace(/√\(([^()]*)\)/g, ' square root of $1 ')
+      .replace(/√/g, ' square root of ')
+      // Fractions from plainizeMath come out as "(a)/(b)" — that reads as
+      // "open paren a close paren slash..." aloud, so spell it out instead.
+      .replace(/\(([^()]+)\)\/\(([^()]+)\)/g, '$1 divided by $2')
+      .replace(/([^\s/()]+)\/([^\s/()]+)/g, '$1 divided by $2')
+      // x^2 / x^3 -> "x squared" / "x cubed"; anything else -> "to the power of N"
+      .replace(/\^2\b/g, ' squared')
+      .replace(/\^3\b/g, ' cubed')
+      .replace(/\^(-?\d+)/g, ' to the power of $1')
+      .replace(/_(\w+)/g, ' sub $1')
+      .replace(/×/g, ' times ')
+      .replace(/÷/g, ' divided by ')
+      .replace(/±/g, ' plus or minus ')
+      .replace(/∓/g, ' minus or plus ')
+      .replace(/≤/g, ' less than or equal to ')
+      .replace(/≥/g, ' greater than or equal to ')
+      .replace(/≠/g, ' not equal to ')
+      .replace(/≈/g, ' approximately ')
+      .replace(/≡/g, ' is equivalent to ')
+      .replace(/°/g, ' degrees')
+      .replace(/·/g, ' times ')
+      .replace(/π/g, ' pi ')
+      .replace(/θ/g, ' theta ')
+      .replace(/α/g, ' alpha ')
+      .replace(/β/g, ' beta ')
+      .replace(/γ/g, ' gamma ')
+      .replace(/δ/g, ' delta ')
+      .replace(/μ/g, ' mu ')
+      .replace(/λ/g, ' lambda ')
+      .replace(/σ/g, ' sigma ')
+      .replace(/∞/g, ' infinity ')
+      .replace(/∈/g, ' is an element of ')
+      .replace(/∉/g, ' is not an element of ')
+      .replace(/⊂/g, ' is a subset of ')
+      .replace(/∪/g, ' union ')
+      .replace(/∩/g, ' intersect ')
+      .replace(/∀/g, ' for all ')
+      .replace(/∃/g, ' there exists ')
+      .replace(/∠/g, ' angle ')
+      .replace(/△/g, ' triangle ')
+      .replace(/∥/g, ' is parallel to ')
+      .replace(/⊥/g, ' is perpendicular to ')
+      .replace(/→/g, ' leads to ')
+      .replace(/⇒/g, ' implies ')
+      .replace(/↔/g, ' if and only if ')
+      .replace(/…/g, '...')
+      // markdown leftovers, matching cleanTutorText's cleanup
+      .replace(/\*\*(.*?)\*\*/g, '$1')
+      .replace(/\*(.*?)\*/g, '$1')
+      .replace(/\*/g, '')
+      .replace(/#{1,6}\s*/g, '')
+      .replace(/[{}]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    return out;
+  }
+
   function applyMathFallback(container) {
     if (!/\\\S/.test(container.textContent || '')) return;
     const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
@@ -1347,7 +1393,7 @@
     if (role === 'tutor') {
       const speakBtn = SPEECH_SUPPORTED ? '<button type="button" class="speak-btn" aria-label="Read aloud">🔊</button>' : '';
       div.innerHTML = '<div class="msg-header"><span class="label">Tutor</span>' + speakBtn + '</div><span class="msg-content"></span>';
-      div.dataset.speakText = (text || '').replace(/\[DIAGRAM\][\s\S]*?\[\/DIAGRAM\]/g, ' ').replace(/\s+/g, ' ').trim();
+      div.dataset.speakText = speechify(text);
       renderTutorContent(div.querySelector('.msg-content'), text);
     } else {
       if (attachment && attachment.data) {
