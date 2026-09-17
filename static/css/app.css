@@ -302,6 +302,13 @@
   }
   .app-splash.fade-out { opacity: 0; pointer-events: none; }
   .app-splash-badge { width: 64px; height: 64px; margin-bottom: 14px; }
+
+  /* Light mode shows the bold badge version of the logo (solid background,
+     pops against a light page); dark mode shows the transparent version
+     (blends into the dark background instead of showing as a boxed sticker). */
+  .theme-logo-dark { display: none; }
+  [data-theme="dark"] .theme-logo-light { display: none; }
+  [data-theme="dark"] .theme-logo-dark { display: inline-block; }
   .app-splash-name { font-family: 'Fraunces', serif; font-weight: 700; font-size: 30px; color: var(--chalk); letter-spacing: .5px; }
   [data-theme="dark"] .app-splash-name { color: var(--ink); }
   .app-splash-tagline { font-size: 13px; color: var(--muted); margin-top: 6px; letter-spacing: .3px; }
