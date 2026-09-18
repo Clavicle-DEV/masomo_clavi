@@ -19,20 +19,20 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+<link rel="stylesheet" href="{{ static_versioned('css/app.css') }}">
 </head>
 <body>
 
 <div class="app-splash" id="appSplash">
-  <img class="app-splash-badge theme-logo-light" src="{{ url_for('static', filename='images/shield-icon-light.png') }}" alt="Clavis">
-  <img class="app-splash-badge theme-logo-dark" src="{{ url_for('static', filename='images/shield-icon-dark.png') }}" alt="Clavis">
+  <img class="app-splash-badge theme-logo-light" src="{{ static_versioned('images/shield-icon-light.png') }}" alt="Clavis">
+  <img class="app-splash-badge theme-logo-dark" src="{{ static_versioned('images/shield-icon-dark.png') }}" alt="Clavis">
   <div class="app-splash-name">Clavis</div>
   <div class="app-splash-tagline">Learn with clarity</div>
 </div>
 
 <div class="welcome-overlay" id="welcomeOverlay" style="display:none;">
   <div class="welcome-card">
-    <div class="brand"><img class="brand-badge theme-logo-light" src="{{ url_for('static', filename='images/shield-icon-light.png') }}" alt="Clavis"><img class="brand-badge theme-logo-dark" src="{{ url_for('static', filename='images/shield-icon-dark.png') }}" alt="Clavis"><span class="brand-wordmark">Clavis</span></div>
+    <div class="brand"><img class="brand-badge theme-logo-light" src="{{ static_versioned('images/shield-icon-light.png') }}" alt="Clavis"><img class="brand-badge theme-logo-dark" src="{{ static_versioned('images/shield-icon-dark.png') }}" alt="Clavis"><span class="brand-wordmark">Clavis</span></div>
     <div id="welcomeStepType">
       <h2>Karibu, welcome! 👋</h2>
       <p>First, tell us where you're studying so we can show you the right subjects.</p>
@@ -63,7 +63,7 @@
 <div class="layout">
   <nav class="main-nav" id="mainNav">
     <div class="nav-brand">
-      <img class="brand-badge theme-logo-light" src="{{ url_for('static', filename='images/shield-icon-light.png') }}" alt="Clavis"><img class="brand-badge theme-logo-dark" src="{{ url_for('static', filename='images/shield-icon-dark.png') }}" alt="Clavis">
+      <img class="brand-badge theme-logo-light" src="{{ static_versioned('images/shield-icon-light.png') }}" alt="Clavis"><img class="brand-badge theme-logo-dark" src="{{ static_versioned('images/shield-icon-dark.png') }}" alt="Clavis">
       <span class="nav-brand-text">Clavis</span>
     </div>
     <button data-screen="homeScreen" class="active">
@@ -194,7 +194,7 @@
 
   <header class="top">
     <div class="brand-block">
-      <div class="brand"><img class="brand-badge theme-logo-light" src="{{ url_for('static', filename='images/shield-icon-light.png') }}" alt="Clavis"><img class="brand-badge theme-logo-dark" src="{{ url_for('static', filename='images/shield-icon-dark.png') }}" alt="Clavis"><span class="brand-wordmark">Clavis</span></div>
+      <div class="brand"><img class="brand-badge theme-logo-light" src="{{ static_versioned('images/shield-icon-light.png') }}" alt="Clavis"><img class="brand-badge theme-logo-dark" src="{{ static_versioned('images/shield-icon-dark.png') }}" alt="Clavis"><span class="brand-wordmark">Clavis</span></div>
       <div class="tagline">Learn with clarity — Maths, English &amp; more</div>
     </div>
   </header>
@@ -1193,6 +1193,6 @@
     setTimeout(hide, MIN_SHOW_MS);
   })();
 </script>
-<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script src="{{ static_versioned('js/app.js') }}"></script>
 </body>
 </html>

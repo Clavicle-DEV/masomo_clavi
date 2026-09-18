@@ -32,6 +32,35 @@ PROJECT_ROOT = load_environment()
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'dev-key-change-me')
 
+
+_static_version_cache = {}
+
+def static_versioned(filename):
+    """Returns the normal /static/<filename> URL with a ?v=<hash> query string
+    based on the file's actual current content, so browsers are forced to
+    fetch a fresh copy the instant the file changes on deploy — instead of
+    silently serving a stale cached CSS/JS file forever, which is exactly
+    what happened before this existed."""
+    full_path = os.path.join(app.static_folder, filename)
+    try:
+        mtime = os.path.getmtime(full_path)
+    except OSError:
+        return url_for('static', filename=filename)
+    cached = _static_version_cache.get(filename)
+    if cached and cached[0] == mtime:
+        version = cached[1]
+    else:
+        import hashlib
+        with open(full_path, 'rb') as f:
+            version = hashlib.md5(f.read()).hexdigest()[:10]
+        _static_version_cache[filename] = (mtime, version)
+    return f"{url_for('static', filename=filename)}?v={version}"
+
+
+@app.context_processor
+def inject_static_versioned():
+    return {'static_versioned': static_versioned}
+
 _database_url = os.environ.get('DATABASE_URL', 'sqlite:///clavi.db')
 if _database_url.startswith('postgres://'):
     _database_url = _database_url.replace('postgres://', 'postgresql://', 1)
