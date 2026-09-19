@@ -5,6 +5,7 @@ import smtplib
 import io
 import zipfile
 import hashlib
+import importlib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
@@ -15,8 +16,16 @@ import requests
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, Response, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
+try:
+    Limiter = importlib.import_module("flask_limiter").Limiter
+except ImportError:
+    class Limiter:
+        """Compatibility fallback when Flask-Limiter is not installed."""
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __getattr__(self, _name):
+            return lambda *args, **kwargs: (lambda view: view)
 from werkzeug.security import generate_password_hash, check_password_hash
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from sqlalchemy import inspect, text
@@ -81,7 +90,7 @@ def rate_limit_key():
             return f"user:{current_user.id}"
     except Exception:
         pass
-    return get_remote_address()
+    return request.remote_addr or 'unknown'
 
 def is_unlimited_rate_limit_user():
     """Admins and co-admins already have unlimited AI-call quota

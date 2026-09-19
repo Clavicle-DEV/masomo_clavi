@@ -1601,19 +1601,19 @@
   body {
     position: relative;
     background:
-      radial-gradient(ellipse 60% 50% at 85% -10%, rgba(198, 146, 42, 0.22), transparent 60%),
-      radial-gradient(ellipse 55% 45% at -10% 15%, rgba(72, 181, 131, 0.16), transparent 60%),
-      radial-gradient(ellipse 50% 40% at 100% 85%, rgba(72, 181, 131, 0.12), transparent 55%),
-      radial-gradient(ellipse 45% 50% at 5% 100%, rgba(198, 146, 42, 0.10), transparent 55%),
+      radial-gradient(ellipse 70% 60% at 88% -12%, rgba(198, 146, 42, 0.38), transparent 62%),
+      radial-gradient(ellipse 65% 55% at -12% 12%, rgba(72, 181, 131, 0.30), transparent 62%),
+      radial-gradient(ellipse 60% 50% at 105% 88%, rgba(72, 181, 131, 0.24), transparent 58%),
+      radial-gradient(ellipse 55% 60% at 0% 105%, rgba(198, 146, 42, 0.20), transparent 58%),
       var(--bg);
     background-attachment: fixed;
   }
   [data-theme="dark"] body {
     background:
-      radial-gradient(ellipse 60% 50% at 85% -10%, rgba(232, 190, 85, 0.16), transparent 60%),
-      radial-gradient(ellipse 55% 45% at -10% 15%, rgba(72, 181, 131, 0.14), transparent 60%),
-      radial-gradient(ellipse 50% 40% at 100% 85%, rgba(72, 181, 131, 0.10), transparent 55%),
-      radial-gradient(ellipse 45% 50% at 5% 100%, rgba(232, 190, 85, 0.08), transparent 55%),
+      radial-gradient(ellipse 70% 60% at 88% -12%, rgba(232, 190, 85, 0.34), transparent 62%),
+      radial-gradient(ellipse 65% 55% at -12% 12%, rgba(72, 181, 131, 0.28), transparent 62%),
+      radial-gradient(ellipse 60% 50% at 105% 88%, rgba(72, 181, 131, 0.22), transparent 58%),
+      radial-gradient(ellipse 55% 60% at 0% 105%, rgba(232, 190, 85, 0.18), transparent 58%),
       var(--bg);
     background-attachment: fixed;
   }
@@ -1627,9 +1627,9 @@
     inset: 0;
     z-index: 0;
     pointer-events: none;
-    opacity: 0.5;
+    opacity: 0.7;
     mix-blend-mode: overlay;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.05'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.09'/%3E%3C/svg%3E");
   }
 
   /* Two softly drifting glow orbs — motion via `transform` only, which is
@@ -1640,21 +1640,21 @@
   body::after {
     content: '';
     position: fixed;
-    top: -10%;
-    right: -8%;
-    width: 46vw;
-    height: 46vw;
-    max-width: 620px;
-    max-height: 620px;
+    top: -14%;
+    right: -12%;
+    width: 58vw;
+    height: 58vw;
+    max-width: 760px;
+    max-height: 760px;
     z-index: 0;
     pointer-events: none;
     border-radius: 50%;
-    background: radial-gradient(circle, rgba(198, 146, 42, 0.16), transparent 70%);
-    filter: blur(10px);
+    background: radial-gradient(circle, rgba(198, 146, 42, 0.30), transparent 70%);
+    filter: blur(6px);
     animation: orbDrift1 22s ease-in-out infinite alternate;
   }
   [data-theme="dark"] body::after {
-    background: radial-gradient(circle, rgba(232, 190, 85, 0.13), transparent 70%);
+    background: radial-gradient(circle, rgba(232, 190, 85, 0.26), transparent 70%);
   }
   @keyframes orbDrift1 {
     0%   { transform: translate(0, 0) scale(1); }
