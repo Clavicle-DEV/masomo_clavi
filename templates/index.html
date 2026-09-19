@@ -23,6 +23,9 @@
 </head>
 <body>
 
+<div class="app-glow-2"></div>
+<div class="app-vignette"></div>
+
 <div class="app-splash" id="appSplash">
   <img class="app-splash-badge theme-logo-light" src="{{ static_versioned('images/shield-icon-light.png') }}" alt="Clavis">
   <img class="app-splash-badge theme-logo-dark" src="{{ static_versioned('images/shield-icon-dark.png') }}" alt="Clavis">
@@ -903,7 +906,7 @@
           <button data-track="campus">🎓 Campus</button>
         </div>
       </div>
-      <div class="settings-row-sub" id="trackLockedNote" style="margin-top:6px;"{% if not student_track_locked %} hidden{% endif %}>🔒 Locked in for your account — contact support if this needs to change.</div>
+      <div class="settings-row-sub" id="trackLockedNote" style="{{ '' if student_track_locked else 'display:none;' }} margin-top:6px;">🔒 Locked in for your account — contact support if this needs to change.</div>
     </div>
 
     <div class="settings-group">
@@ -1177,7 +1180,7 @@
 
 <script>
   const ACCOUNT_TRACK = "{{ student_track }}" === 'campus' ? 'campus' : 'highschool';
-  const REFERRAL_LINK = document.getElementById('referralLinkData')?.content || '';
+  const REFERRAL_LINK = {{ (referral_link if referral_link else '')|tojson }};
 
   /* Splash hide lives here, independent of app.js, so a slow network or an
      error anywhere in that much larger file can never leave the splash
