@@ -765,6 +765,7 @@
     </div>
 
     <div id="topicsLoading" class="loading-block" style="display:none;">Loading topics...</div>
+    <div id="topicProgressSyncNotice" class="topics-disclaimer" style="display:none;" role="status"></div>
     <div class="topic-list" id="topicList"></div>
 
     <div class="final-exam-card" id="finalExamCard">
@@ -1181,6 +1182,7 @@
 <script>
   const ACCOUNT_TRACK = "{{ student_track }}" === 'campus' ? 'campus' : 'highschool';
   const ACCOUNT_GRADE = {{ learning_level|default('', true)|tojson }};
+  const ACCOUNT_USER_ID = {{ user.id|tojson }};
   const REFERRAL_LINK = JSON.parse(document.getElementById('referralLinkConfig').textContent);
 
   /* Splash hide lives here, independent of app.js, so a slow network or an

@@ -490,6 +490,27 @@ class ExamResult(db.Model):
     created_at = db.Column(db.DateTime)
 
 
+class TopicProgress(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    subject = db.Column(db.String(100), nullable=False)
+    level = db.Column(db.String(50), nullable=False)
+    grade_form = db.Column(db.String(50), nullable=False)
+    topic = db.Column(db.String(100), nullable=False)
+    taught = db.Column(db.Boolean, default=False, nullable=False)
+    passed = db.Column(db.Boolean, default=False, nullable=False)
+    score = db.Column(db.Integer, nullable=True)
+    total_marks = db.Column(db.Integer, nullable=True)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            'user_id', 'subject', 'level', 'grade_form', 'topic',
+            name='uq_topic_progress_scope',
+        ),
+    )
+
+
 REFERRAL_BONUS_DAYS = 3
 
 
@@ -1559,6 +1580,93 @@ def api_sync_stats():
         "lastActiveDate": row.last_active_date,
         "streak": row.streak or 0,
         "freezesAvailable": row.freezes_available if row.freezes_available is not None else 1,
+    })
+
+
+@app.route('/api/topic-progress', methods=['GET', 'POST'])
+@login_required
+def api_topic_progress():
+    data = request.args if request.method == 'GET' else (request.get_json(silent=True) or {})
+    subject = data.get('subject')
+    level = data.get('level')
+    grade_form = data.get('gradeForm')
+
+    if not all(isinstance(value, str) for value in (subject, level, grade_form)):
+        return jsonify({"error": "subject, level, and gradeForm are required"}), 400
+
+    subject = subject.strip()
+    level = level.strip()
+    grade_form = grade_form.strip()
+    if not subject or not level or not grade_form:
+        return jsonify({"error": "subject, level, and gradeForm are required"}), 400
+    if len(subject) > 100 or len(level) > 50 or len(grade_form) > 50:
+        return jsonify({"error": "The selected subject or level is too long"}), 400
+
+    scope = {
+        "user_id": current_user.id,
+        "subject": subject,
+        "level": level,
+        "grade_form": grade_form,
+    }
+
+    if request.method == 'GET':
+        rows = TopicProgress.query.filter_by(**scope).all()
+        return jsonify({
+            row.topic: {
+                "taught": bool(row.taught),
+                "done": bool(row.passed),
+                "score": (
+                    f"{row.score}/{row.total_marks}"
+                    if row.score is not None and row.total_marks
+                    else None
+                ),
+            }
+            for row in rows
+        })
+
+    topic = data.get('topic')
+    if not isinstance(topic, str) or not topic.strip() or len(topic.strip()) > 100:
+        return jsonify({"error": "A valid topic is required"}), 400
+    taught = data.get('taught')
+    if taught is not None and not isinstance(taught, bool):
+        return jsonify({"error": "taught must be true or false"}), 400
+
+    has_score = 'score' in data or 'total' in data
+    score = data.get('score')
+    total = data.get('total')
+    if has_score and (
+        type(score) is not int
+        or type(total) is not int
+        or total <= 0
+        or score < 0
+        or score > total
+    ):
+        return jsonify({"error": "score and total must be valid marks"}), 400
+    if taught is None and not has_score:
+        return jsonify({"error": "Provide taught status or a test score"}), 400
+
+    row = TopicProgress.query.filter_by(**scope, topic=topic.strip()).first()
+    if row is None:
+        row = TopicProgress(**scope, topic=topic.strip())
+        db.session.add(row)
+
+    if taught:
+        row.taught = True
+    if has_score:
+        if (
+            row.score is None
+            or row.total_marks is None
+            or score / total >= row.score / row.total_marks
+        ):
+            row.score = score
+            row.total_marks = total
+        row.passed = bool(row.passed) or score / total >= 0.7
+    row.updated_at = datetime.now()
+    db.session.commit()
+    return jsonify({
+        "taught": bool(row.taught),
+        "done": bool(row.passed),
+        "score": f"{row.score}/{row.total_marks}" if row.score is not None else None,
     })
 
 

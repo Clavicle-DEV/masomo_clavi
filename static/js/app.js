@@ -1516,7 +1516,7 @@
       recordQuestion(currentSubject, (teachState && result.topicComplete) ? 3 : 1);
       showExplainDifferentlyButton();
       if (teachState && result.topicComplete) {
-        markTopicTaught(currentSubject, currentLevel, currentGradeForm, currentTeachTopic());
+        await markTopicTaught(currentSubject, currentLevel, currentGradeForm, currentTeachTopic());
         if (teachState.topicIndex < teachState.topics.length - 1) {
           teachState.topicIndex += 1;
           teachState.pendingTopicStart = true;
@@ -1853,6 +1853,7 @@
   const examBackBtn = document.getElementById('examBackBtn');
   const topicList = document.getElementById('topicList');
   const topicsLoading = document.getElementById('topicsLoading');
+  const topicProgressSyncNotice = document.getElementById('topicProgressSyncNotice');
   const topicsSubjectLabel = document.getElementById('topicsSubjectLabel');
   const topicsLevelLabel = document.getElementById('topicsLevelLabel');
   const finalExamProgress = document.getElementById('finalExamProgress');
@@ -1882,7 +1883,15 @@
   }
 
   function progressKey() {
+    return `${ACCOUNT_USER_ID}|${currentSubject}|${currentLevel}|${currentGradeForm}`;
+  }
+
+  function legacyProgressKey() {
     return `${currentSubject}|${currentLevel}|${currentGradeForm}`;
+  }
+
+  function topicCacheKey() {
+    return legacyProgressKey();
   }
 
   function getAllProgress() {
@@ -1890,14 +1899,152 @@
     return raw ? JSON.parse(raw) : {};
   }
 
+  function getCurrentTopicProgress() {
+    const all = getAllProgress();
+    return {
+      ...(all[legacyProgressKey()] || {}),
+      ...(all[progressKey()] || {}),
+    };
+  }
+
   function saveTopicResult(topicName, totalMarks, maxMarks) {
     const all = getAllProgress();
     const key = progressKey();
     if (!all[key]) all[key] = {};
     const passed = (totalMarks / maxMarks) >= 0.7;
-    all[key][topicName] = { done: passed, score: `${totalMarks}/${maxMarks}` };
+    const previous = all[key][topicName] || {};
+    const previousScore = typeof previous.score === 'string'
+      ? previous.score.match(/^(\d+)\/(\d+)$/)
+      : null;
+    const hasBetterPreviousScore = previousScore
+      && Number(previousScore[1]) / Number(previousScore[2]) >= totalMarks / maxMarks;
+    const bestScore = hasBetterPreviousScore ? Number(previousScore[1]) : totalMarks;
+    const bestTotal = hasBetterPreviousScore ? Number(previousScore[2]) : maxMarks;
+    all[key][topicName] = {
+      ...previous,
+      done: !!previous.done || passed,
+      score: `${bestScore}/${bestTotal}`,
+    };
     localStorage.setItem('clavi_topic_progress', JSON.stringify(all));
-    return passed;
+    return syncTopicProgress(topicName, { score: bestScore, total: bestTotal });
+  }
+
+  async function syncTopicProgress(topicName, progress) {
+    try {
+      const response = await fetch('/api/topic-progress', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subject: currentSubject,
+          level: currentLevel,
+          gradeForm: currentGradeForm,
+          topic: topicName,
+          ...progress,
+        }),
+      });
+      if (!response.ok) {
+        let message = 'Could not sync topic progress.';
+        try {
+          const data = await response.json();
+          if (data.error) message = data.error;
+        } catch (_) {}
+        throw new Error(message);
+      }
+      topicProgressSyncNotice.style.display = 'none';
+      return true;
+    } catch (error) {
+      topicProgressSyncNotice.textContent =
+        'Progress is saved on this device, but could not sync to your account. Check your connection and reopen Topics & Tests to try again.';
+      topicProgressSyncNotice.style.display = 'block';
+      console.error('Could not sync topic progress:', error);
+      return false;
+    }
+  }
+
+  async function loadTopicProgress() {
+    try {
+      const params = new URLSearchParams({
+        subject: currentSubject,
+        level: currentLevel,
+        gradeForm: currentGradeForm,
+      });
+      const response = await fetch(`/api/topic-progress?${params}`);
+      if (!response.ok) throw new Error('Could not load account progress.');
+      const remote = await response.json();
+      const all = getAllProgress();
+      const key = progressKey();
+      const local = all[key] || {};
+      const localProgressToSync = [];
+
+      for (const [topic, entry] of Object.entries(local)) {
+        const scoreMatch = typeof entry.score === 'string'
+          ? entry.score.match(/^(\d+)\/(\d+)$/)
+          : null;
+        const localPassed = !!entry.done && scoreMatch
+          && Number(scoreMatch[1]) / Number(scoreMatch[2]) >= 0.7;
+        const needsSync = !remote[topic]
+          || (entry.taught && !remote[topic].taught)
+          || (localPassed && !remote[topic].done)
+          || (scoreMatch && entry.score !== remote[topic].score);
+        if (!needsSync || (!entry.taught && !scoreMatch)) continue;
+
+        const payload = { taught: !!entry.taught };
+        if (scoreMatch) {
+          payload.score = Number(scoreMatch[1]);
+          payload.total = Number(scoreMatch[2]);
+        }
+        const syncResponse = await fetch('/api/topic-progress', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            subject: currentSubject,
+            level: currentLevel,
+            gradeForm: currentGradeForm,
+            topic,
+            ...payload,
+          }),
+        });
+        if (!syncResponse.ok) throw new Error('Could not retry account progress sync.');
+        localProgressToSync.push(topic);
+      }
+
+      const refreshedResponse = localProgressToSync.length
+        ? await fetch(`/api/topic-progress?${params}`)
+        : null;
+      if (refreshedResponse && !refreshedResponse.ok) {
+        throw new Error('Could not refresh account progress.');
+      }
+      const savedRemote = refreshedResponse ? await refreshedResponse.json() : remote;
+
+      for (const [topic, entry] of Object.entries(savedRemote)) {
+        const previous = local[topic] || {};
+        const localScore = typeof previous.score === 'string'
+          ? previous.score.match(/^(\d+)\/(\d+)$/)
+          : null;
+        const remoteScore = typeof entry.score === 'string'
+          ? entry.score.match(/^(\d+)\/(\d+)$/)
+          : null;
+        const localHasBetterScore = localScore
+          && (!remoteScore
+            || Number(localScore[1]) / Number(localScore[2])
+              > Number(remoteScore[1]) / Number(remoteScore[2]));
+        local[topic] = {
+          ...previous,
+          ...entry,
+          score: localHasBetterScore ? previous.score : entry.score,
+          done: !!entry.done || !!previous.done,
+          taught: !!entry.taught || !!previous.taught,
+        };
+      }
+      all[key] = local;
+      localStorage.setItem('clavi_topic_progress', JSON.stringify(all));
+      topicProgressSyncNotice.style.display = 'none';
+    } catch (error) {
+      topicProgressSyncNotice.textContent =
+        'Showing progress saved on this device. Account sync is temporarily unavailable.';
+      topicProgressSyncNotice.style.display = 'block';
+      console.error('Could not load topic progress:', error);
+    }
   }
 
   function getTopicsCache() {
@@ -1907,7 +2054,7 @@
 
   function saveTopicsCache(topics) {
     const cache = getTopicsCache();
-    cache[progressKey()] = topics;
+    cache[topicCacheKey()] = topics;
     localStorage.setItem('clavi_topics_cache', JSON.stringify(cache));
   }
 
@@ -1923,14 +2070,16 @@
     showScreen('topicsScreen');
 
     if (teachPickerMode) {
+      await loadTopicProgress();
       renderTopicList();
       return;
     }
 
     const cache = getTopicsCache();
-    const cached = cache[progressKey()];
+    const cached = cache[topicCacheKey()];
     if (cached) {
       currentTopics = cached;
+      await loadTopicProgress();
       renderTopicList();
       return;
     }
@@ -1952,6 +2101,7 @@
       const data = await res.json();
       currentTopics = data.topics || [];
       saveTopicsCache(currentTopics);
+      await loadTopicProgress();
       renderTopicList();
     } catch (err) {
       topicList.innerHTML = `<div class="empty-dash">${err.message || 'Could not load topics right now. Please try again.'}</div>`;
@@ -1966,8 +2116,7 @@
       renderTeachPickerList();
       return;
     }
-    const all = getAllProgress();
-    const progress = all[progressKey()] || {};
+    const progress = getCurrentTopicProgress();
 
     topicList.innerHTML = currentTopics.map(topic => {
       const entry = progress[topic];
@@ -1978,7 +2127,7 @@
             <div class="topic-badge ${done ? 'done' : ''}">${done ? '✓' : ''}</div>
             <div>
               <div class="topic-name">${topic}${entry && entry.taught ? ' 📖' : ''}</div>
-              ${entry ? `<div class="topic-score">Last score: ${entry.score}</div>` : ''}
+              ${entry ? `<div class="topic-score">Best score: ${entry.score}</div>` : ''}
             </div>
           </div>
           <button class="topic-test-btn" data-topic="${topic}">${entry ? 'Retake test' : 'Take test'}</button>
@@ -1996,8 +2145,7 @@
   }
 
   function renderTeachPickerList() {
-    const all = getAllProgress();
-    const progress = all[progressKey()] || {};
+    const progress = getCurrentTopicProgress();
     const startBtn = `<button type="button" class="teach-pick-btn" id="teachPickBeginning">▶ Start from the beginning</button>`;
     const rows = currentTopics.map((topic, idx) => {
       const entry = progress[topic];
@@ -2193,7 +2341,7 @@
 
     selfMarkInputs.forEach(inp => inp.addEventListener('input', recalcTotal));
 
-    document.getElementById('finishExamBtn').onclick = () => {
+    document.getElementById('finishExamBtn').onclick = async () => {
       const finalTotal = recalcTotal();
       const percent = Math.round((finalTotal / test.total_marks) * 100);
       const verdictEl = document.getElementById('resultVerdict');
@@ -2201,12 +2349,18 @@
       verdictEl.textContent = passed ? 'PASS ✓' : 'Below 70% — consider revising and retaking';
       verdictEl.className = 'result-verdict ' + (passed ? 'pass' : 'retry');
 
+      let synced = true;
       if (!currentExamIsFinal) {
-        saveTopicResult(currentExamTopic, finalTotal, test.total_marks);
+        synced = await saveTopicResult(currentExamTopic, finalTotal, test.total_marks);
+        if (!synced) {
+          verdictEl.textContent += ' Progress is saved on this device, but account sync failed.';
+        }
       }
       recordQuestion(currentSubject, 3);
 
-      document.getElementById('finishExamBtn').textContent = 'Saved ✓ — Back to Topics';
+      document.getElementById('finishExamBtn').textContent = synced
+        ? 'Saved ✓ — Back to Topics'
+        : 'Saved on this device — Back to Topics';
       document.getElementById('finishExamBtn').onclick = () => {
         renderTopicList();
         showScreen('topicsScreen');
@@ -2779,15 +2933,14 @@
     }
   }
 
-  function markTopicTaught(subject, level, gradeForm, topic) {
-    try {
-      const raw = localStorage.getItem('clavi_topic_progress');
-      const all = raw ? JSON.parse(raw) : {};
-      const key = `${subject}|${level}|${gradeForm}`;
-      all[key] = all[key] || {};
-      all[key][topic] = Object.assign({}, all[key][topic], { taught: true });
-      localStorage.setItem('clavi_topic_progress', JSON.stringify(all));
-    } catch (_) {}
+  async function markTopicTaught(subject, level, gradeForm, topic) {
+    const raw = localStorage.getItem('clavi_topic_progress');
+    const all = raw ? JSON.parse(raw) : {};
+    const key = `${ACCOUNT_USER_ID}|${subject}|${level}|${gradeForm}`;
+    all[key] = all[key] || {};
+    all[key][topic] = Object.assign({}, all[key][topic], { taught: true });
+    localStorage.setItem('clavi_topic_progress', JSON.stringify(all));
+    return syncTopicProgress(topic, { taught: true });
   }
 
   function currentTeachTopic() {
@@ -2827,7 +2980,7 @@
       typingLabel.textContent = 'Got it!';
       playAvatarState('yes', false);
       if (result.topicComplete) {
-        markTopicTaught(currentSubject, currentLevel, currentGradeForm, currentTeachTopic());
+        await markTopicTaught(currentSubject, currentLevel, currentGradeForm, currentTeachTopic());
         if (teachState.topicIndex < teachState.topics.length - 1) {
           teachState.topicIndex += 1;
           teachState.pendingTopicStart = true;
