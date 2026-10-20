@@ -1,5 +1,15 @@
-  let currentLevel = ACCOUNT_TRACK === 'campus' ? 'campus' : 'secondary';
-  let currentGradeForm = ACCOUNT_TRACK === 'campus' ? 'Year 1' : 'Form 1';
+  const ACCOUNT_GRADE_NUMBER = Number((ACCOUNT_GRADE.match(/\d+/) || [])[0] || 0);
+  const ACCOUNT_LEVEL = ACCOUNT_TRACK === 'campus'
+    ? 'campus'
+    : ACCOUNT_GRADE_NUMBER >= 10
+      ? 'senior_school'
+      : ACCOUNT_GRADE_NUMBER >= 7
+        ? 'junior_school'
+        : ACCOUNT_GRADE_NUMBER >= 3
+          ? 'upper_primary'
+          : 'secondary';
+  let currentLevel = ACCOUNT_LEVEL;
+  let currentGradeForm = ACCOUNT_GRADE || (ACCOUNT_TRACK === 'campus' ? 'Year 1' : 'Form 1');
   let currentSubject = null;
   let teachState = null; // { topics: [...], topicIndex: 0, pendingTopicStart: bool }
   let teachPickerMode = false;
@@ -8,7 +18,7 @@
   /* Permanently remove the level-toggle buttons that don't belong to this
      account's track, so switching between school-grade levels and Campus
      is never possible from within the app — the choice is made once, at
-     signup. Uses getElementById directly (not the consts below) so it's
+     onboarding. Uses getElementById directly (not the consts below) so it's
      safe to call before every toggle's const has been declared yet. */
   function pruneLevelTogglesForTrack() {
     ['levelToggle', 'defaultLevelToggle', 'papersLevelToggle'].forEach(id => {
@@ -100,7 +110,7 @@
   };
 
   function levelDisplayName(level) {
-    return ({ cbc: 'CBC', upper_primary: 'Upper Primary', junior_school: 'Junior School', secondary: 'Secondary (KCSE)', senior_school: 'Senior School', campus: 'Campus' })[level] || 'Your level';
+    return ({ cbc: 'CBC', upper_primary: 'Lower Classes', junior_school: 'Junior School', secondary: 'Secondary (KCSE)', senior_school: 'Senior School', campus: 'Campus' })[level] || 'Your level';
   }
 
   function getVisibleSubjects() {
@@ -212,7 +222,7 @@
 
   /* ---------------- CBC grade / Secondary form options ---------------- */
   const CBC_GRADES = ['Grade 3', 'Grade 4', 'Grade 5', 'Grade 6', 'Grade 7', 'Grade 8', 'Grade 9'];
-  const UPPER_PRIMARY_GRADES = ['Grade 4', 'Grade 5', 'Grade 6'];
+  const UPPER_PRIMARY_GRADES = ['Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'];
   const JUNIOR_SCHOOL_GRADES = ['Grade 7', 'Grade 8', 'Grade 9'];
   const SECONDARY_FORMS = ['Form 1', 'Form 2', 'Form 3', 'Form 4'];
   const SENIOR_SCHOOL_GRADES = ['Grade 10', 'Grade 11', 'Grade 12'];
@@ -308,7 +318,7 @@
       if (trackLocked) return;
       const btn = e.target.closest('button');
       if (!btn || btn.dataset.track === ACCOUNT_TRACK) return;
-      const label = btn.dataset.track === 'campus' ? 'Campus' : 'High school';
+      const label = btn.dataset.track === 'campus' ? 'Campus' : 'Elementary';
       if (!confirm(`Switch to ${label}? This changes your whole subject list and reloads the app.`)) return;
       localStorage.setItem('clavi_student_type', btn.dataset.track);
       fetch('/api/profile', {
@@ -412,12 +422,12 @@
   (function loadSettings() {
     const savedTheme = localStorage.getItem('clavi_theme') || 'light';
     applyTheme(savedTheme);
-    let savedLevel = localStorage.getItem('clavi_default_level') || (ACCOUNT_TRACK === 'campus' ? 'campus' : 'secondary');
+    let savedLevel = localStorage.getItem('clavi_default_level') || ACCOUNT_LEVEL;
     // The account's track is fixed server-side — never let a stale
     // localStorage value put someone in the wrong track's level.
-    if (ACCOUNT_TRACK === 'campus') savedLevel = 'campus';
-    if (ACCOUNT_TRACK === 'highschool' && savedLevel === 'campus') savedLevel = 'secondary';
-    const savedGradeForm = localStorage.getItem('clavi_default_grade_form') || null;
+    if (ACCOUNT_TRACK === 'campus' || ACCOUNT_GRADE) savedLevel = ACCOUNT_LEVEL;
+    if (ACCOUNT_TRACK === 'highschool' && savedLevel === 'campus') savedLevel = ACCOUNT_LEVEL;
+    const savedGradeForm = ACCOUNT_GRADE || localStorage.getItem('clavi_default_grade_form') || null;
     applyDefaultLevel(savedLevel, savedGradeForm);
     applyResponseStyle(localStorage.getItem('clavi_response_style') || 'detailed');
     applyLanguage(localStorage.getItem('clavi_language') || 'en');
@@ -2222,8 +2232,8 @@
     return KCSE_PAPER_COUNTS[subject] || 1;
   }
 
-  let papersLevel = ACCOUNT_TRACK === 'campus' ? 'campus' : 'secondary';
-  let papersGradeForm = ACCOUNT_TRACK === 'campus' ? 'Year 1' : 'Form 1';
+  let papersLevel = ACCOUNT_LEVEL;
+  let papersGradeForm = ACCOUNT_GRADE || (ACCOUNT_TRACK === 'campus' ? 'Year 1' : 'Form 1');
   let papersSubject = null;
   let papersPaperNum = null;
   let papersPaperCount = null;
@@ -2604,7 +2614,12 @@
   // Initialize the papers screen's grade dropdown + subject grid once the page loads.
   const papersSubLevelLabelInit = document.getElementById('papersSubLevelLabel');
   if (papersSubLevelLabelInit) papersSubLevelLabelInit.textContent = subLevelLabelFor(papersLevel);
-  populateGradeFormSelect(papersGradeFormSelect, papersLevel, null);
+  if (papersLevelToggle) {
+    [...papersLevelToggle.children].forEach(button => {
+      button.classList.toggle('active', button.dataset.level === papersLevel);
+    });
+  }
+  populateGradeFormSelect(papersGradeFormSelect, papersLevel, ACCOUNT_GRADE || null);
   papersGradeForm = papersGradeFormSelect.value;
   renderPapersSubjectGrid();
 

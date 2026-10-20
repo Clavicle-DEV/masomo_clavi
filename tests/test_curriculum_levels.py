@@ -2,7 +2,15 @@ import os
 import unittest
 from unittest.mock import patch
 
-from app import describe_level, app as flask_app, has_unlimited_access
+from app import (
+    CAMPUS_YEARS,
+    DAILY_CHALLENGE_SUBJECTS,
+    ELEMENTARY_GRADES,
+    app as flask_app,
+    describe_level,
+    elementary_stage_for_grade,
+    has_unlimited_access,
+)
 
 
 class CurriculumLevelTests(unittest.TestCase):
@@ -14,6 +22,24 @@ class CurriculumLevelTests(unittest.TestCase):
 
     def test_senior_school_label(self):
         self.assertIn("Senior School", describe_level("senior_school", "Grade 10"))
+
+    def test_elementary_onboarding_grade_stages(self):
+        self.assertEqual(elementary_stage_for_grade("Grade 3"), "Lower classes")
+        self.assertEqual(elementary_stage_for_grade("Grade 6"), "Lower classes")
+        self.assertEqual(elementary_stage_for_grade("Grade 7"), "Junior School")
+        self.assertEqual(elementary_stage_for_grade("Grade 9"), "Junior School")
+        self.assertEqual(elementary_stage_for_grade("Grade 10"), "Senior School")
+        self.assertEqual(elementary_stage_for_grade("Grade 12"), "Senior School")
+        self.assertIsNone(elementary_stage_for_grade("Form 4"))
+        self.assertEqual(
+            sum(len(grades) for grades in ELEMENTARY_GRADES.values()),
+            10,
+        )
+
+    def test_campus_onboarding_uses_existing_subjects_and_years(self):
+        self.assertIn("Accounting", DAILY_CHALLENGE_SUBJECTS["campus"])
+        self.assertIn("Computer Science", DAILY_CHALLENGE_SUBJECTS["campus"])
+        self.assertEqual(CAMPUS_YEARS, ["Year 1", "Year 2", "Year 3", "Year 4", "Year 5"])
 
     def test_mpesa_tier_prices_are_day_and_month_only(self):
         from app import MPESA_TIER_PRICES

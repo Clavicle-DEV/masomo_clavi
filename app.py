@@ -389,6 +389,15 @@ class User(UserMixin, db.Model):
     leaderboard_opt_in = db.Column(db.Boolean, default=True)
     phone_number = db.Column(db.String(20), nullable=True)
     student_track = db.Column(db.String(20), nullable=True)  # 'campus' or 'highschool'
+    elementary_grade = db.Column(db.String(12), nullable=True)
+    campus_course = db.Column(db.String(100), nullable=True)
+    campus_year = db.Column(db.String(12), nullable=True)
+    favorite_subject = db.Column(db.String(100), nullable=True)
+    challenging_subject = db.Column(db.String(100), nullable=True)
+    study_schedule_json = db.Column(db.Text, nullable=True)
+    daily_goal_minutes = db.Column(db.Integer, nullable=True)
+    starting_topic = db.Column(db.String(100), nullable=True)
+    onboarding_completed = db.Column(db.Boolean, default=True, nullable=False)
     failed_login_attempts = db.Column(db.Integer, default=0)
     lockout_until = db.Column(db.DateTime, nullable=True)
     daily_challenge_date = db.Column(db.String(10), nullable=True)  # date the cached question is for
@@ -656,10 +665,6 @@ def signup():
         email = request.form.get('email', '').strip().lower()
         password = request.form.get('password', '')
         ref_code = (request.form.get('ref') or '').strip().upper()
-        student_track = (request.form.get('track') or '').strip().lower()
-        if student_track not in ('campus', 'highschool'):
-            student_track = None
-
         if not email or not password:
             flash('Email and password are required.', 'danger')
             return redirect(url_for('signup'))
@@ -691,8 +696,9 @@ def signup():
             referral_code=generate_referral_code(),
             referred_by_id=referrer.id if referrer else None,
             email_verified=gets_free_unlimited,
-            display_name=default_display_name(email),
-            student_track=student_track,
+            display_name=None,
+            student_track=None,
+            onboarding_completed=False,
         )
         new_user.set_password(password)
         db.session.add(new_user)
@@ -714,7 +720,7 @@ def signup():
                 app.logger.error(f"Failed to send verification email to {email}: {e}")
 
         login_user(new_user, remember=True)
-        return redirect(url_for('home'))
+        return redirect(url_for('onboarding', step='name'))
 
     return render_template('auth.html', mode='signup', ref_code=request.args.get('ref', ''), student_track=request.args.get('type', ''))
 
@@ -750,7 +756,7 @@ def login():
                 user.student_track = student_track
             db.session.commit()
             login_user(user, remember=True)
-            return redirect(url_for('home'))
+            return redirect(url_for('onboarding', step='name') if not user.onboarding_completed else url_for('home'))
 
         if user:
             user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
@@ -764,6 +770,207 @@ def login():
         flash('Invalid credentials!', 'danger')
 
     return render_template('auth.html', mode='login', student_track=request.args.get('type', ''))
+
+
+ELEMENTARY_GRADES = {
+    'Lower classes': [f'Grade {grade}' for grade in range(3, 7)],
+    'Junior School': [f'Grade {grade}' for grade in range(7, 10)],
+    'Senior School': [f'Grade {grade}' for grade in range(10, 13)],
+}
+
+ELEMENTARY_SUBJECTS = {
+    'Lower classes': [
+        'Mathematics', 'English', 'Kiswahili', 'Science and Technology',
+        'Social Studies', 'Creative Arts', 'Agriculture',
+    ],
+    'Junior School': [
+        'Mathematics', 'English', 'Kiswahili', 'Science and Technology',
+        'Social Studies', 'Pre-Technical Studies', 'Agriculture', 'Creative Arts',
+        'ICT', 'Business Studies',
+    ],
+    'Senior School': [
+        'Mathematics', 'English', 'Physics', 'Chemistry', 'Agriculture',
+        'Home Science', 'Creative Arts', 'Biology', 'Kiswahili', 'Geography',
+        'Religious Education', 'Business Studies', 'History', 'Computer Studies',
+    ],
+}
+
+ONBOARDING_STEPS = ('name', 'path', 'level', 'subjects', 'schedule', 'goals')
+ONBOARDING_DAYS = ('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')
+CAMPUS_YEARS = [f'Year {year}' for year in range(1, 6)]
+
+
+def elementary_stage_for_grade(grade):
+    for stage, grades in ELEMENTARY_GRADES.items():
+        if grade in grades:
+            return stage
+    return None
+
+
+def onboarding_subject_choices(user):
+    if user.student_track == 'campus':
+        return DAILY_CHALLENGE_SUBJECTS['campus']
+    return ELEMENTARY_SUBJECTS.get(elementary_stage_for_grade(user.elementary_grade), [])
+
+
+def default_study_schedule(user):
+    subjects = [user.favorite_subject, user.challenging_subject]
+    subjects = [subject for subject in subjects if subject]
+    if not subjects:
+        subjects = onboarding_subject_choices(user)[:2]
+    if not subjects:
+        return {}
+    return {
+        day: subjects[index % len(subjects)]
+        for index, day in enumerate(ONBOARDING_DAYS)
+    }
+
+
+@app.route('/onboarding/<step>', methods=['GET', 'POST'])
+@login_required
+def onboarding(step):
+    if step not in ONBOARDING_STEPS:
+        return redirect(url_for('onboarding', step='name'))
+    if current_user.onboarding_completed:
+        return redirect(url_for('home'))
+
+    prerequisites = {
+        'name': bool((current_user.display_name or '').strip()),
+        'path': current_user.student_track in ('campus', 'highschool'),
+        'level': bool(
+            current_user.student_track == 'campus'
+            and current_user.campus_course
+            and current_user.campus_year
+            or current_user.student_track != 'campus'
+            and current_user.elementary_grade
+        ),
+        'subjects': bool(
+            current_user.favorite_subject
+            and current_user.challenging_subject
+            and current_user.favorite_subject in onboarding_subject_choices(current_user)
+            and current_user.challenging_subject in onboarding_subject_choices(current_user)
+        ),
+        'schedule': bool(current_user.study_schedule_json),
+    }
+    for required_step in ONBOARDING_STEPS[:ONBOARDING_STEPS.index(step)]:
+        if not prerequisites.get(required_step, False):
+            return redirect(url_for('onboarding', step=required_step))
+
+    choices = onboarding_subject_choices(current_user)
+    if request.method == 'POST':
+        if step == 'name':
+            name = ''.join(
+                character for character in request.form.get('display_name', '').strip()
+                if character.isalnum() or character in ' -_'
+            )[:40].strip()
+            if not name:
+                flash('Please enter the name you want Clavis to use.', 'danger')
+                return redirect(url_for('onboarding', step=step))
+            current_user.display_name = name
+
+        elif step == 'path':
+            track = request.form.get('student_track', '').strip().lower()
+            if track not in ('elementary', 'campus'):
+                flash('Choose Elementary or Campus to continue.', 'danger')
+                return redirect(url_for('onboarding', step=step))
+            if current_user.student_track and not is_full_admin(current_user):
+                flash('Your learning path is already locked for this account.', 'danger')
+                return redirect(url_for('onboarding', step='level'))
+            current_user.student_track = 'campus' if track == 'campus' else 'highschool'
+
+        elif step == 'level':
+            if current_user.student_track == 'campus':
+                course = request.form.get('campus_course', '').strip()
+                year = request.form.get('campus_year', '').strip()
+                if course not in DAILY_CHALLENGE_SUBJECTS['campus'] or year not in CAMPUS_YEARS:
+                    flash('Choose a Campus subject/course and year from the available options.', 'danger')
+                    return redirect(url_for('onboarding', step=step))
+                if current_user.campus_course and not is_full_admin(current_user):
+                    course, year = current_user.campus_course, current_user.campus_year
+                current_user.campus_course = course
+                current_user.campus_year = year
+                current_user.elementary_grade = None
+            else:
+                grade = request.form.get('elementary_grade', '').strip()
+                if not elementary_stage_for_grade(grade):
+                    flash('Choose a valid grade from 3 to 12.', 'danger')
+                    return redirect(url_for('onboarding', step=step))
+                if current_user.elementary_grade and not (is_full_admin(current_user) or is_co_admin(current_user)):
+                    grade = current_user.elementary_grade
+                current_user.elementary_grade = grade
+                current_user.campus_course = None
+                current_user.campus_year = None
+
+        elif step == 'subjects':
+            choices = onboarding_subject_choices(current_user)
+            favorite = request.form.get('favorite_subject', '').strip()
+            challenging = request.form.get('challenging_subject', '').strip()
+            if favorite not in choices or challenging not in choices:
+                flash('Choose both subjects from the list for your learning path.', 'danger')
+                return redirect(url_for('onboarding', step=step))
+            current_user.favorite_subject = favorite
+            current_user.challenging_subject = challenging
+
+        elif step == 'schedule':
+            schedule = {}
+            for day in ONBOARDING_DAYS:
+                subject = request.form.get(f'schedule_{day}', '').strip()
+                if subject not in choices:
+                    flash('Choose a valid subject for each day in your timetable.', 'danger')
+                    return redirect(url_for('onboarding', step=step))
+                schedule[day] = subject
+            current_user.study_schedule_json = json.dumps(schedule)
+
+        elif step == 'goals':
+            try:
+                goal = int(request.form.get('daily_goal_minutes', ''))
+            except ValueError:
+                goal = 0
+            if goal not in (15, 30, 45, 60):
+                flash('Choose a daily study goal of 15, 30, 45, or 60 minutes.', 'danger')
+                return redirect(url_for('onboarding', step=step))
+            starting_topic = request.form.get('starting_topic', '').strip()
+            if starting_topic == 'continue':
+                starting_topic = request.form.get('continue_topic', '').strip()
+                if not starting_topic:
+                    flash('Enter the topic you want to continue from.', 'danger')
+                    return redirect(url_for('onboarding', step=step))
+            if starting_topic not in ('topic_1', 'continue') and not re.fullmatch(r'[\w -]{1,100}', starting_topic):
+                flash('Enter a valid topic to continue from, or choose Topic 1.', 'danger')
+                return redirect(url_for('onboarding', step=step))
+            current_user.daily_goal_minutes = goal
+            current_user.starting_topic = starting_topic or 'topic_1'
+            current_user.onboarding_completed = True
+
+        db.session.commit()
+        if step == 'goals':
+            return redirect(url_for('home'))
+        next_step = ONBOARDING_STEPS[ONBOARDING_STEPS.index(step) + 1]
+        return redirect(url_for('onboarding', step=next_step))
+
+    schedule = {}
+    if step == 'schedule':
+        try:
+            schedule = json.loads(current_user.study_schedule_json or '{}')
+        except json.JSONDecodeError:
+            app.logger.warning("Invalid saved onboarding schedule for user %s", current_user.id)
+            schedule = {}
+        if not schedule:
+            schedule = default_study_schedule(current_user)
+    return render_template(
+        'onboarding.html',
+        step=step,
+        step_number=ONBOARDING_STEPS.index(step) + 1,
+        step_count=len(ONBOARDING_STEPS),
+        elementary_grades=ELEMENTARY_GRADES,
+        campus_courses=DAILY_CHALLENGE_SUBJECTS['campus'],
+        campus_years=CAMPUS_YEARS,
+        subjects=choices,
+        days=ONBOARDING_DAYS,
+        schedule=schedule,
+        stage=elementary_stage_for_grade(current_user.elementary_grade),
+        user=current_user,
+    )
 
 
 @app.route('/logout')
@@ -871,6 +1078,8 @@ def resend_verification():
 @app.route('/')
 def home():
     if current_user.is_authenticated:
+        if not current_user.onboarding_completed:
+            return redirect(url_for('onboarding', step='name'))
         if not current_user.referral_code:
             current_user.referral_code = generate_referral_code()
             db.session.commit()
@@ -886,6 +1095,10 @@ def home():
             referral_bonus_days=REFERRAL_BONUS_DAYS,
             email_verified=current_user.email_verified,
             student_track=current_user.student_track or 'highschool',
+            learning_level=(
+                current_user.campus_year if current_user.student_track == 'campus'
+                else current_user.elementary_grade or ''
+            ),
             student_track_locked=(not is_full_admin(current_user)) and current_user.student_track is not None,
         )
 
@@ -1458,8 +1671,10 @@ DAILY_CHALLENGE_SUBJECTS = {
 
 
 def pick_daily_subject(user):
-    track = user.student_track or 'highschool'
-    subjects = DAILY_CHALLENGE_SUBJECTS.get(track, DAILY_CHALLENGE_SUBJECTS['highschool'])
+    subjects = onboarding_subject_choices(user)
+    if not subjects:
+        track = user.student_track or 'highschool'
+        subjects = DAILY_CHALLENGE_SUBJECTS.get(track, DAILY_CHALLENGE_SUBJECTS['highschool'])
     seed = f"{user.id}-{datetime.now().strftime('%Y-%m-%d')}"
     idx = int(hashlib.sha256(seed.encode()).hexdigest(), 16) % len(subjects)
     return subjects[idx]
@@ -1468,7 +1683,13 @@ def pick_daily_subject(user):
 def generate_daily_challenge(user):
     subject = pick_daily_subject(user)
     track = user.student_track or 'highschool'
-    level_desc = "a university/campus student in Kenya" if track == 'campus' else "a Kenyan secondary school (KCSE) student"
+    if track == 'campus':
+        level_desc = "a university/campus student in Kenya"
+    elif user.elementary_grade:
+        stage = elementary_stage_for_grade(user.elementary_grade)
+        level_desc = f"a Kenyan {stage} student in {user.elementary_grade} following CBC"
+    else:
+        level_desc = "a Kenyan school student following CBC"
 
     prompt = (
         f"Create ONE bite-sized multiple-choice quiz question in {subject}, suitable for {level_desc}. "
@@ -1592,11 +1813,11 @@ def api_profile():
                 current_user.phone_number = normalized
         if 'studentTrack' in data:
             track = (data.get('studentTrack') or '').strip().lower()
-            if track in ('campus', 'highschool'):
+            if track in ('campus', 'highschool', 'elementary'):
                 # Same rule as login: locked in after the first choice for
                 # everyone except the site owner's own account.
                 if is_full_admin(current_user) or current_user.student_track is None:
-                    current_user.student_track = track
+                    current_user.student_track = 'highschool' if track == 'elementary' else track
                 else:
                     return jsonify({"error": "Your study track is locked in and can't be changed here. Contact support if this needs to change."}), 403
         db.session.commit()
@@ -1896,6 +2117,23 @@ def ensure_database_schema():
                 if 'student_track' not in columns:
                     db.session.execute(text('ALTER TABLE "user" ADD COLUMN "student_track" VARCHAR(20)'))
                     db.session.commit()
+                onboarding_columns = {
+                    'elementary_grade': 'VARCHAR(12)',
+                    'campus_course': 'VARCHAR(100)',
+                    'campus_year': 'VARCHAR(12)',
+                    'favorite_subject': 'VARCHAR(100)',
+                    'challenging_subject': 'VARCHAR(100)',
+                    'study_schedule_json': 'TEXT',
+                    'daily_goal_minutes': 'INTEGER',
+                    'starting_topic': 'VARCHAR(100)',
+                    'onboarding_completed': 'BOOLEAN DEFAULT TRUE NOT NULL',
+                }
+                for column, column_type in onboarding_columns.items():
+                    if column not in columns:
+                        db.session.execute(text(
+                            f'ALTER TABLE "user" ADD COLUMN "{column}" {column_type}'
+                        ))
+                db.session.commit()
                 if 'failed_login_attempts' not in columns:
                     db.session.execute(text('ALTER TABLE "user" ADD COLUMN "failed_login_attempts" INTEGER DEFAULT 0'))
                     db.session.execute(text('ALTER TABLE "user" ADD COLUMN "lockout_until" TIMESTAMP'))

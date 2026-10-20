@@ -41,7 +41,7 @@
       <div style="display:flex; gap:10px; margin-bottom:6px;">
         <button type="button" id="welcomeTypeHighschool" class="welcome-type-btn" style="flex:1; padding:18px 12px; border-radius:14px; border:1px solid var(--line); background:var(--paper); cursor:pointer; text-align:center; font-family:'Inter',sans-serif;">
           <div style="font-size:26px; margin-bottom:6px;">🏫</div>
-          <div style="font-weight:700; font-size:14px; color:var(--ink);">High school</div>
+          <div style="font-weight:700; font-size:14px; color:var(--ink);">Elementary</div>
           <div style="font-size:12px; color:var(--muted); margin-top:2px;">CBC, Primary, Secondary</div>
         </button>
         <button type="button" id="welcomeTypeCampus" class="welcome-type-btn" style="flex:1; padding:18px 12px; border-radius:14px; border:1px solid var(--line); background:var(--paper); cursor:pointer; text-align:center; font-family:'Inter',sans-serif;">
@@ -901,7 +901,7 @@
           <div class="settings-row-sub">Switches your whole subject list and tutor style — takes a moment to reload.</div>
         </div>
         <div class="level-toggle" id="accountTrackToggle" data-locked="{{ 'true' if student_track_locked else 'false' }}">
-          <button data-track="highschool">🏫 High school</button>
+          <button data-track="highschool">🏫 Elementary</button>
           <button data-track="campus">🎓 Campus</button>
         </div>
       </div>
@@ -1180,6 +1180,7 @@
 <script type="application/json" id="referralLinkConfig">{{ referral_link|default('', true)|tojson|safe }}</script>
 <script>
   const ACCOUNT_TRACK = "{{ student_track }}" === 'campus' ? 'campus' : 'highschool';
+  const ACCOUNT_GRADE = {{ learning_level|default('', true)|tojson }};
   const REFERRAL_LINK = JSON.parse(document.getElementById('referralLinkConfig').textContent);
 
   /* Splash hide lives here, independent of app.js, so a slow network or an

@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Set up your learning path · Clavis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    :root { color-scheme: light; --ink:#173b2b; --muted:#65756b; --paper:#fffdf8; --line:#dfe7d7; --lime:#d9ff63; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:radial-gradient(circle at 85% 5%,#e8f5c5,transparent 32%),#f5f3eb; color:var(--ink); font-family:'DM Sans',sans-serif; padding:24px; display:grid; place-items:center; }
+    .shell { width:min(100%,650px); }
+    .brand { font-weight:700; font-size:21px; letter-spacing:-.04em; margin:0 auto 18px; width:min(100%,560px); }
+    .card { width:min(100%,560px); margin:auto; background:var(--paper); border:1px solid var(--line); border-radius:22px; padding:clamp(24px,6vw,44px); box-shadow:0 24px 65px rgba(23,59,43,.09); }
+    .progress-label { display:flex; justify-content:space-between; color:var(--muted); font-size:12px; font-weight:600; margin-bottom:9px; }
+    .progress { height:6px; background:#e9eee2; border-radius:8px; overflow:hidden; margin-bottom:30px; }
+    .progress span { display:block; height:100%; width:{{ (step_number / step_count * 100)|int }}%; background:#79a83a; border-radius:inherit; }
+    h1 { font:700 clamp(29px,7vw,40px)/1.08 'Playfair Display',serif; letter-spacing:-.04em; margin:0 0 10px; }
+    .intro { color:var(--muted); line-height:1.6; margin:0 0 25px; }
+    .flash { background:#fff0e9; color:#8a351d; border:1px solid #f4c7b5; padding:11px 13px; border-radius:10px; margin-bottom:16px; font-size:14px; }
+    label { display:block; font-size:13px; font-weight:700; margin:17px 0 7px; }
+    input, select { width:100%; min-height:48px; border:1px solid #cad6c8; border-radius:10px; padding:11px 13px; color:var(--ink); background:white; font:inherit; }
+    input:focus, select:focus { outline:3px solid rgba(121,168,58,.2); border-color:#79a83a; }
+    .choice-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+    .choice { border:1px solid var(--line); background:white; padding:16px; border-radius:13px; cursor:pointer; text-align:left; color:var(--ink); font:inherit; }
+    .choice:has(input:checked) { border-color:#79a83a; background:#f4f9e8; box-shadow:inset 0 0 0 1px #79a83a; }
+    .choice input { width:auto; min-height:0; margin:0 7px 0 0; accent-color:#5a8a31; }
+    .choice strong { display:block; margin-bottom:4px; }
+    .choice small, .hint { display:block; color:var(--muted); font-size:12px; line-height:1.45; }
+    .day-row { display:grid; grid-template-columns:110px 1fr; gap:12px; align-items:center; }
+    .day-row label { margin:10px 0; }
+    .goal-note { padding:15px; border-radius:12px; background:#f1f7e6; margin:17px 0; color:var(--ink); line-height:1.5; }
+    .submit { width:100%; border:0; border-radius:11px; min-height:50px; padding:13px 18px; margin-top:24px; background:var(--ink); color:white; font:700 15px 'DM Sans',sans-serif; cursor:pointer; }
+    .submit:hover { background:#24543c; }
+    .logout { display:block; text-align:center; margin-top:17px; color:var(--muted); font-size:13px; text-decoration:none; }
+    @media(max-width:480px) { body { padding:14px; }.choice-grid { grid-template-columns:1fr; }.day-row { grid-template-columns:85px 1fr; gap:8px; }.card { border-radius:16px; } }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="brand">Clavis<span style="color:#79a83a">.</span></div>
+    <section class="card">
+      <div class="progress-label"><span>Your learning setup</span><span>Step {{ step_number }} of {{ step_count }}</span></div>
+      <div class="progress" aria-label="Step {{ step_number }} of {{ step_count }}"><span></span></div>
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}<div class="flash" role="alert">{{ message }}</div>{% endfor %}
+      {% endwith %}
+
+      {% if step == 'name' %}
+        <h1>What should Clavis call you?</h1>
+        <p class="intro">Let’s make this learning space feel like yours. You can change your display name later.</p>
+        <form method="post">
+          <label for="display_name">Your name</label>
+          <input id="display_name" name="display_name" maxlength="40" autocomplete="given-name" value="{{ user.display_name or '' }}" placeholder="e.g. Amina" required autofocus>
+          <button class="submit" type="submit">Continue →</button>
+        </form>
+
+      {% elif step == 'path' %}
+        <h1>Where are you learning?</h1>
+        <p class="intro">Choose a path so Clavis can set up the right subjects and learning journey for you.</p>
+        <form method="post">
+          <div class="choice-grid">
+            <label class="choice"><input type="radio" name="student_track" value="elementary" required><strong>Elementary</strong><small>Lower, Junior, and Senior School · Grades 3–12</small></label>
+            <label class="choice"><input type="radio" name="student_track" value="campus" required><strong>Campus</strong><small>University and college subjects</small></label>
+          </div>
+          <button class="submit" type="submit">Choose my path →</button>
+        </form>
+
+      {% elif step == 'level' %}
+        {% if user.student_track == 'campus' %}
+          <h1>Choose your Campus course</h1>
+          <p class="intro">Choose the subject or course you’re studying and your current year.</p>
+          <form method="post">
+            <label for="campus_course">Course or subject</label>
+            <select id="campus_course" name="campus_course" required>
+              <option value="">Choose a course</option>
+              {% for course in campus_courses %}<option value="{{ course }}" {% if user.campus_course == course %}selected{% endif %}>{{ course }}</option>{% endfor %}
+            </select>
+            <label for="campus_year">Current year</label>
+            <select id="campus_year" name="campus_year" required>
+              {% for year in campus_years %}<option value="{{ year }}" {% if user.campus_year == year %}selected{% endif %}>{{ year }}</option>{% endfor %}
+            </select>
+            <button class="submit" type="submit">Continue →</button>
+          </form>
+        {% else %}
+          <h1>Which grade are you in?</h1>
+          <p class="intro">Elementary includes Lower Classes (Grades 3–6), Junior School (Grades 7–9), and Senior School (Grades 10–12).</p>
+          <form method="post">
+            <label for="elementary_grade">Choose your grade</label>
+            <select id="elementary_grade" name="elementary_grade" required>
+              <option value="">Choose a grade</option>
+              {% for stage_name, grades in elementary_grades.items() %}
+                <optgroup label="{{ stage_name }}">
+                  {% for grade in grades %}<option value="{{ grade }}" {% if user.elementary_grade == grade %}selected{% endif %}>{{ grade }}</option>{% endfor %}
+                </optgroup>
+              {% endfor %}
+            </select>
+            <button class="submit" type="submit">Continue →</button>
+          </form>
+        {% endif %}
+
+      {% elif step == 'subjects' %}
+        <h1>Pick your focus</h1>
+        <p class="intro">Choose a favourite subject and one that feels challenging. Clavis will use these to shape your study plan.</p>
+        {% if user.student_track == 'campus' %}<p class="hint">Your selected course: {{ user.campus_course }} · {{ user.campus_year }}</p>{% else %}<p class="hint">{{ stage }} · {{ user.elementary_grade }}</p>{% endif %}
+        <form method="post">
+          <label for="favorite_subject">Your favourite subject</label>
+          <select id="favorite_subject" name="favorite_subject" required>
+            <option value="">Choose a subject</option>
+            {% for subject in subjects %}<option value="{{ subject }}" {% if user.favorite_subject == subject %}selected{% endif %}>{{ subject }}</option>{% endfor %}
+          </select>
+          <label for="challenging_subject">The subject that feels heavy</label>
+          <select id="challenging_subject" name="challenging_subject" required>
+            <option value="">Choose a subject</option>
+            {% for subject in subjects %}<option value="{{ subject }}" {% if user.challenging_subject == subject %}selected{% endif %}>{{ subject }}</option>{% endfor %}
+          </select>
+          <button class="submit" type="submit">Build my timetable →</button>
+        </form>
+
+      {% elif step == 'schedule' %}
+        <h1>Your first study timetable</h1>
+        <p class="intro">We’ve made a starter schedule around your subjects. Keep it or adjust any day to make it yours.</p>
+        <form method="post">
+          {% for day in days %}
+            <div class="day-row">
+              <label for="schedule_{{ day }}">{{ day }}</label>
+              <select id="schedule_{{ day }}" name="schedule_{{ day }}" required>
+                {% for subject in subjects %}<option value="{{ subject }}" {% if schedule.get(day) == subject %}selected{% endif %}>{{ subject }}</option>{% endfor %}
+              </select>
+            </div>
+          {% endfor %}
+          <button class="submit" type="submit">Save my timetable →</button>
+        </form>
+
+      {% elif step == 'goals' %}
+        <h1>Set a goal and get started</h1>
+        <p class="intro">Small, steady sessions add up. Choose a daily goal that feels realistic for you.</p>
+        <div class="goal-note">🔥 Your current daily challenge streak: <strong>{{ user.daily_challenge_streak or 0 }} days</strong></div>
+        <form method="post">
+          <label for="daily_goal_minutes">Daily study goal</label>
+          <select id="daily_goal_minutes" name="daily_goal_minutes" required>
+            {% for minutes in (15, 30, 45, 60) %}<option value="{{ minutes }}" {% if user.daily_goal_minutes == minutes %}selected{% endif %}>{{ minutes }} minutes a day</option>{% endfor %}
+          </select>
+          <label for="starting_topic">Where would you like to begin?</label>
+          <select id="starting_topic" name="starting_topic" required>
+            <option value="topic_1" {% if user.starting_topic == 'topic_1' %}selected{% endif %}>Start from Topic 1</option>
+            <option value="continue" {% if user.starting_topic and user.starting_topic != 'topic_1' %}selected{% endif %}>Continue from a specific topic</option>
+          </select>
+          <label for="continue_topic">Topic to continue from (optional)</label>
+          <input id="continue_topic" name="continue_topic" maxlength="100" placeholder="Enter the topic name">
+          <span class="hint">You can change this after setup. Topic progress will be added in the next learning-path phase.</span>
+          <button class="submit" type="submit">Finish setup and start learning →</button>
+        </form>
+      {% endif %}
+    </section>
+    <a class="logout" href="{{ url_for('logout') }}">Sign out</a>
+  </main>
+</body>
+</html>
