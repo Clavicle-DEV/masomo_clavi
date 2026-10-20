@@ -2,50 +2,339 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{{ title or 'Clavis — Your personal learning studio' }}</title>
-  <meta name="description" content="Clavis is a beautifully simple AI learning studio for Kenyan students.">
-  <link rel="icon" type="image/png" href="{{ url_for('serve_logo') }}">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title or 'Clavis — Learning that moves with you' }}</title>
+  <meta name="description" content="A personal study space for curious learners. Get clear explanations, practise with purpose, and build confidence with Clavis.">
+  <meta name="theme-color" content="#14251b">
+  <link rel="icon" type="image/png" href="{{ static_versioned('images/icon-192.png') }}">
   <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
-  <meta name="theme-color" content="#173B2B">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Mono&family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    :root { --ink:#10251f; --cream:#f7f3eb; --paper:#fffdf9; --lime:#d9ff63; --gold:#e8b847; --muted:#66736c; --line:rgba(16,37,31,.12); }
-    * { box-sizing:border-box; } body { margin:0; font-family:'DM Sans',sans-serif; color:var(--ink); background:var(--cream); overflow-x:hidden; }
-    .grain { position:fixed; inset:0; opacity:.28; pointer-events:none; z-index:3; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.1'/%3E%3C/svg%3E"); }
-    .hero-wrap { min-height:760px; padding:24px clamp(20px,5vw,76px) 58px; background:radial-gradient(circle at 82% 14%,#dfff8b 0,rgba(223,255,139,0) 23%),radial-gradient(circle at 13% 95%,#efd89b 0,rgba(239,216,155,0) 26%),var(--cream); position:relative; overflow:hidden; }
-    nav { max-width:1240px; margin:auto; display:flex; justify-content:space-between; align-items:center; position:relative; z-index:4; }
-    .logo { display:flex; align-items:center; gap:10px; font-weight:700; letter-spacing:-.07em; font-size:28px; text-decoration:none; color:var(--ink); } .logo img{width:35px;height:35px;object-fit:contain}.logo b{color:#7fa725;font-weight:700}
-    .nav-right { display:flex; align-items:center; gap:22px; } .login { color:var(--ink); text-decoration:none; font-size:14px; font-weight:600; } .nav-cta,.cta { background:var(--ink); color:white; border:0; border-radius:99px; padding:13px 20px; text-decoration:none; font-weight:700; font-size:14px; box-shadow:0 8px 20px rgba(16,37,31,.16); transition:.2s transform,.2s box-shadow; } .nav-cta:hover,.cta:hover{transform:translateY(-2px);box-shadow:0 12px 26px rgba(16,37,31,.24)}
-    .hero { max-width:1240px; margin:95px auto 0; position:relative; z-index:2; display:grid; grid-template-columns:1.08fr .92fr; gap:55px; align-items:center; }.eyebrow{font-family:'DM Mono',monospace; font-size:11px; letter-spacing:.11em; text-transform:uppercase; color:#567064; display:flex;gap:8px;align-items:center}.eyebrow:before{content:'';width:28px;height:1px;background:currentColor} h1{font-family:'Playfair Display',serif;font-size:clamp(48px,6.4vw,88px);line-height:.96;letter-spacing:-.065em;margin:20px 0 24px;max-width:710px}.accent{font-style:italic;color:#5c8d36} .hero-copy{font-size:18px;line-height:1.65;max-width:510px;color:var(--muted);margin-bottom:30px}.hero-actions{display:flex;gap:12px;align-items:center}.ghost-link{font-weight:700;color:var(--ink);font-size:14px;text-decoration:none;padding:12px}.trust{font-size:12px;color:var(--muted);margin-top:25px;display:flex;align-items:center;gap:9px}.avatars{display:flex}.avatars i{width:23px;height:23px;border:2px solid var(--cream);border-radius:50%;background:#efb187;margin-left:-6px}.avatars i:first-child{margin-left:0;background:#6d8c80}.avatars i:nth-child(2){background:#d4955d}.avatars i:nth-child(3){background:#514b76}
-    .studio { height:445px; position:relative; }.orb { width:345px;height:345px;border-radius:50%;background:linear-gradient(145deg,#b8eb68,#e8f4b7);position:absolute;right:36px;top:24px;box-shadow:inset -20px -28px 45px rgba(67,103,37,.12),0 38px 70px rgba(55,85,33,.14)}.window{position:absolute;width:min(100%,440px);right:0;bottom:0;background:rgba(255,253,249,.86);backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.8);border-radius:20px;padding:18px;box-shadow:0 26px 50px rgba(16,37,31,.16);transform:rotate(2deg)}.window-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}.dots{display:flex;gap:5px}.dots span{width:7px;height:7px;border-radius:50%;background:#d8d1c3}.dots span:first-child{background:#e9a28d}.course-pill{font-family:'DM Mono';font-size:10px;padding:6px 8px;background:#ecf7d1;border-radius:5px}.lesson{background:#143b2e;color:#f7f3eb;border-radius:14px;padding:20px}.lesson small{font-family:'DM Mono';color:#b4d997;font-size:10px;letter-spacing:.08em}.lesson h3{font-family:'Playfair Display';font-size:25px;letter-spacing:-.04em;margin:12px 0 18px}.progress-label{display:flex;justify-content:space-between;font-size:11px;color:#c4d2c7}.progress{height:5px;background:rgba(255,255,255,.18);border-radius:9px;margin-top:8px;overflow:hidden}.progress i{display:block;width:72%;height:100%;background:var(--lime);border-radius:inherit}.floating-note{position:absolute;left:-12px;top:65px;background:#f1ca64;padding:14px 16px;border-radius:13px;box-shadow:0 12px 26px rgba(119,83,14,.16);transform:rotate(-8deg);font-family:'Playfair Display';font-size:17px}.floating-note:after{content:'✦';margin-left:8px;font-family:sans-serif;font-size:13px}
-    .ticker{position:absolute;bottom:0;left:0;right:0;background:var(--ink);color:#e7efd6;padding:15px 0;overflow:hidden;white-space:nowrap;font-family:'DM Mono';font-size:11px;letter-spacing:.08em;text-transform:uppercase}.ticker span{display:inline-block;animation:scroll 25s linear infinite}@keyframes scroll{to{transform:translateX(-45%)}}
-    .section { max-width:1240px;margin:0 auto;padding:108px clamp(20px,5vw,76px); }.mini{font-family:'DM Mono';font-size:11px;color:#6e8275;letter-spacing:.1em;text-transform:uppercase}.section h2{font-family:'Playfair Display';font-size:clamp(36px,4.5vw,60px);line-height:1;letter-spacing:-.055em;max-width:650px;margin:15px 0 45px}.feature-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.feature{border:1px solid var(--line);border-radius:18px;padding:28px;min-height:235px;background:var(--paper);transition:.2s transform,.2s box-shadow}.feature:hover{transform:translateY(-5px);box-shadow:0 18px 35px rgba(16,37,31,.1)}.feature-icon{width:44px;height:44px;border-radius:13px;display:grid;place-items:center;font-size:20px;background:#edf6d4;margin-bottom:35px}.feature:nth-child(2) .feature-icon{background:#fae8c4}.feature:nth-child(3) .feature-icon{background:#dcebe7}.feature h3{font-family:'Playfair Display';letter-spacing:-.035em;font-size:24px;margin:0 0 8px}.feature p{color:var(--muted);font-size:14px;line-height:1.6;margin:0}.statement{background:var(--ink);color:var(--cream);padding:90px clamp(20px,7vw,130px);text-align:center}.statement p{font-family:'Playfair Display';font-size:clamp(34px,5vw,64px);line-height:1.06;letter-spacing:-.055em;max-width:900px;margin:0 auto 29px}.statement p em{color:var(--lime)}.statement .cta{background:var(--lime);color:var(--ink);display:inline-block}.footer{max-width:1240px;margin:auto;padding:25px clamp(20px,5vw,76px);display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
-    @media(max-width:760px){.hero-wrap{min-height:auto;padding-bottom:76px}.nav-cta{padding:11px 14px}.login{display:none}.hero{margin-top:65px;display:block}.studio{height:350px;margin-top:45px}.orb{width:265px;height:265px;right:5px}.window{width:90%}.floating-note{left:0}.feature-grid{grid-template-columns:1fr}.feature{min-height:auto}.footer{gap:12px;flex-direction:column}.hero-actions{flex-wrap:wrap}}
-    .type-picker { display:flex; gap:10px; margin:26px 0 30px; }
-    .type-btn { flex:1; max-width:220px; display:flex; align-items:center; gap:12px; padding:14px 16px; border-radius:16px; border:1.5px solid var(--line); background:var(--paper); cursor:pointer; text-align:left; font-family:'DM Sans',sans-serif; transition:.15s transform,.15s box-shadow,.15s border-color; }
-    .type-btn .type-emoji { font-size:24px; line-height:1; }
-    .type-btn .type-label { font-weight:700; font-size:14px; color:var(--ink); }
-    .type-btn .type-sub { font-size:11.5px; color:var(--muted); margin-top:1px; }
-    .type-btn:hover { transform:translateY(-2px); box-shadow:0 10px 22px rgba(16,37,31,.12); }
-    .type-btn.selected { border-color:#5c8d36; background:#edf6d4; box-shadow:0 10px 22px rgba(16,37,31,.12); }
-    .picker-hint { font-family:'DM Mono',monospace; font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:#7f9186; margin-bottom:10px; }
-    .v2-badge { display:inline-flex; align-items:center; gap:6px; font-family:'DM Mono',monospace; font-size:10.5px; letter-spacing:.06em; background:var(--ink); color:var(--lime); padding:5px 10px; border-radius:99px; margin-bottom:14px; }
-    @media(max-width:760px){.type-picker{flex-direction:column}.type-btn{max-width:none}}
+    :root {
+      --ink: #17231b;
+      --muted: #6f776d;
+      --green: #244633;
+      --green-2: #58704a;
+      --lime: #e8d8ad;
+      --cream: #f3f0e7;
+      --white: #fffdf8;
+      --line: #e3e0d5;
+      --serif: Georgia, 'Times New Roman', serif;
+      --sans: 'DM Sans', sans-serif;
+      --display: 'Manrope', sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; color: var(--ink); background: var(--cream); font-family: var(--sans); -webkit-font-smoothing: antialiased; }
+    a { color: inherit; }
+    .site { overflow: hidden; }
+    .masthead { width: 100%; height: 82px; padding: 0 max(54px, calc((100vw - 1212px) / 2)); margin: auto; display: flex; align-items: center; justify-content: space-between; color: white; background: #12231a; border-bottom: 1px solid rgba(255,255,255,.1); }
+    .wordmark { display: inline-flex; align-items: center; gap: 9px; color: white; text-decoration: none; font: 800 24px var(--display); letter-spacing: -.075em; }
+    .wordmark img { width: 32px; height: 32px; object-fit: contain; }
+    .wordmark-dot { color: #7c9c4d; }
+    .mast-links { display: flex; align-items: center; gap: 29px; }
+    .mast-link { color: #d2dbd1; text-decoration: none; font-size: 12px; font-weight: 700; }
+    .mast-link:hover { color: var(--lime); }
+    .button { min-height: 47px; padding: 0 19px; display: inline-flex; align-items: center; justify-content: center; gap: 11px; border: 1px solid transparent; border-radius: 7px; text-decoration: none; font-size: 12px; font-weight: 700; transition: transform .18s ease, background .18s ease, box-shadow .18s ease; }
+    .button:hover { transform: translateY(-2px); }
+    .button-green { color: #17251b; background: var(--lime); box-shadow: 0 7px 16px rgba(10,24,15,.16); }
+    .button-green:hover { background: #eaf8bd; box-shadow: 0 10px 22px rgba(10,24,15,.22); }
+    .button-outline { border-color: #dfe2d6; color: var(--ink); background: rgba(255,254,250,.68); }
+    .button-outline:hover { background: white; }
+    .arrow { font-size: 17px; line-height: .8; }
+
+    .hero { width: 100%; min-height: 635px; margin: auto; padding: 53px max(54px, calc((100vw - 1212px) / 2)) 74px; display: grid; grid-template-columns: .94fr 1.06fr; gap: 50px; align-items: center; color: white; background: radial-gradient(ellipse at 78% 43%, rgba(142,160,106,.18), transparent 32%), radial-gradient(ellipse at 12% 100%, rgba(232,216,173,.08), transparent 36%), linear-gradient(115deg, #14251b, #203729 56%, #14251b); }
+    .hero-copy { position: relative; z-index: 2; max-width: 560px; padding-bottom: 14px; }
+    .overline { display: flex; align-items: center; gap: 9px; color: #d2dfc9; font-size: 10px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+    .overline-mark { width: 8px; height: 8px; border-radius: 50%; background: var(--lime); box-shadow: 0 0 0 4px rgba(232,216,173,.16); }
+    h1 { margin: 24px 0 21px; font: 800 clamp(53px,6.25vw,84px)/.99 var(--display); letter-spacing: -.09em; }
+    h1 .serif { color: var(--lime); font: italic 500 1.01em/.98 var(--serif); letter-spacing: -.075em; }
+    .hero-intro { max-width: 450px; margin: 0; color: #c5d0c7; font-size: 15px; line-height: 1.8; }
+    .hero-buttons { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 29px; }
+    .promise { display: flex; align-items: center; gap: 8px; margin-top: 20px; color: #b9c6ba; font-size: 10px; font-weight: 600; }
+    .promise svg { color: var(--lime); flex: 0 0 auto; }
+
+    .artboard { min-height: 490px; position: relative; display: grid; place-items: center; isolation: isolate; }
+    .artboard::before { content: ''; position: absolute; z-index: -2; width: min(96%, 560px); height: 415px; right: 0; top: 43px; overflow: hidden; border: 1px solid rgba(255,255,255,.7); border-radius: 28px 112px 28px 112px; background: radial-gradient(ellipse at 76% 15%, rgba(255,255,255,.74), transparent 30%), linear-gradient(145deg, #eeede2, #dedfcf 72%); box-shadow: 0 28px 65px rgba(2,14,7,.28); transform: rotate(-2deg); }
+    .artboard::after { content: ''; position: absolute; z-index: -1; width: 200px; height: 200px; top: 4px; right: 22px; border-radius: 50%; background: #d7bd82; opacity: .96; }
+    .art-scribble { position: absolute; top: 13px; left: 16px; color: #48634a; font: italic 16px var(--serif); transform: rotate(-9deg); }
+    .book-illustration { width: min(76%, 390px); position: absolute; top: 43px; left: 50%; transform: translateX(-50%) rotate(-4deg); filter: drop-shadow(0 25px 23px rgba(5,19,10,.34)); }
+    .learning-panel { position: absolute; z-index: 2; right: -3px; bottom: 14px; width: min(58%, 275px); padding: 15px; border: 1px solid rgba(255,255,255,.85); border-radius: 12px; background: rgba(255,254,250,.96); box-shadow: 0 17px 38px rgba(46,63,39,.15); transform: rotate(3deg); }
+    .panel-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 13px; }
+    .panel-title { display: flex; align-items: center; gap: 6px; font-size: 9px; font-weight: 800; }
+    .panel-mark { width: 18px; height: 18px; display: grid; place-items: center; color: white; background: var(--green); border-radius: 5px; font-size: 10px; }
+    .panel-pill { padding: 5px 7px; color: #62764c; background: #edf2df; border-radius: 99px; font-size: 7px; font-weight: 800; letter-spacing: .06em; }
+    .panel-copy { color: var(--muted); font-size: 8px; line-height: 1.55; }
+    .panel-copy strong { color: var(--ink); font-size: 9px; }
+    .panel-progress { height: 4px; margin-top: 10px; overflow: hidden; background: #e8ebdf; border-radius: 10px; }
+    .panel-progress span { display: block; width: 64%; height: 100%; background: #93b15c; border-radius: inherit; }
+    .subject-sticker { position: absolute; left: 0; bottom: 59px; z-index: 2; padding: 11px 14px; border: 1px solid rgba(255,255,255,.17); border-radius: 9px; color: #203529; background: var(--lime); box-shadow: 0 12px 25px rgba(5,19,10,.22); font-size: 9px; font-weight: 800; transform: rotate(-5deg); }
+    .subject-sticker span { margin-right: 6px; color: #4c713c; }
+    .sparkle { position: absolute; color: var(--lime); font-size: 30px; }
+    .sparkle-one { top: 80px; left: 20px; }
+    .sparkle-two { right: 0; bottom: 92px; font-size: 19px; }
+    .image-caption { position: absolute; right: 8px; top: 16px; color: #e5ebd7; font: italic 10px var(--serif); transform: rotate(5deg); }
+    .hero-bottom { position: absolute; bottom: 0; left: max(54px, calc((100vw - 1212px) / 2)); right: max(54px, calc((100vw - 1212px) / 2)); display: flex; align-items: center; justify-content: space-between; padding: 17px 0; border-top: 1px solid rgba(255,255,255,.18); }
+    .hero-bottom-note { color: #c2cec3; font-size: 9px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
+    .hero-bottom-index { color: #8fa092; font: 600 9px var(--display); }
+
+    .proof-band { background: #e7e8d8; border-top: 1px solid rgba(255,255,255,.8); border-bottom: 1px solid #dedfd1; }
+    .proof-inner { max-width: 1212px; min-height: 78px; margin: auto; padding: 16px 48px; display: flex; justify-content: space-between; align-items: center; gap: 14px; }
+    .proof-item { display: flex; align-items: center; gap: 9px; color: #344537; font-size: 10px; font-weight: 700; }
+    .proof-symbol { color: #8b7445; font-size: 16px; }
+    .content { max-width: 1212px; padding: 96px 48px; margin: auto; }
+    .content-head { display: flex; align-items: end; justify-content: space-between; gap: 30px; margin-bottom: 32px; }
+    .kicker { color: #68854f; font-size: 9px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; }
+    h2 { margin: 12px 0 10px; font: 800 clamp(34px,4vw,50px)/1.05 var(--display); letter-spacing: -.075em; }
+    .section-intro { max-width: 505px; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.7; }
+    .text-link { color: #3f6b48; font-size: 10px; font-weight: 800; text-decoration: none; white-space: nowrap; }
+    .text-link span { font-size: 15px; margin-left: 5px; }
+    .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 13px; }
+    .feature { min-height: 205px; padding: 21px; border: 1px solid #e6e8df; border-radius: 10px; background: var(--white); transition: transform .2s ease, box-shadow .2s ease; }
+    .feature:hover { transform: translateY(-4px); box-shadow: 0 15px 32px rgba(41,63,40,.08); }
+    .feature-top { display: flex; align-items: center; justify-content: space-between; color: #919a8b; font: 700 9px var(--display); }
+    .feature-icon { width: 34px; height: 34px; display: grid; place-items: center; margin: 21px 0 17px; border-radius: 9px; color: #4a7043; background: #eef2e4; font-size: 15px; }
+    .feature:nth-child(2) .feature-icon { color: #94753c; background: #f5efdf; }
+    .feature:nth-child(3) .feature-icon { color: #4c7770; background: #e7f0ed; }
+    .feature h3 { margin: 0 0 7px; font: 700 15px var(--display); letter-spacing: -.04em; }
+    .feature p { max-width: 260px; margin: 0; color: var(--muted); font-size: 10px; line-height: 1.7; }
+    .journey { padding: 70px 0; background: linear-gradient(120deg, #193a29, #244b35 53%, #193a29); color: white; }
+    .journey-inner { max-width: 1212px; margin: auto; padding: 0 48px; }
+    .journey .kicker { color: #c2d89a; }
+    .journey h2 { max-width: 570px; }
+    .journey-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 31px; margin-top: 32px; }
+    .journey-step { display: flex; gap: 12px; }
+    .step-no { width: 27px; height: 27px; flex: 0 0 auto; display: grid; place-items: center; color: var(--ink); background: var(--lime); border-radius: 50%; font: 800 10px var(--display); }
+    .journey-step h3 { margin: 2px 0 6px; font: 700 12px var(--display); }
+    .journey-step p { max-width: 230px; margin: 0; color: #c1cec1; font-size: 9px; line-height: 1.7; }
+    .encouragement { position: relative; overflow: hidden; padding: 83px 24px; color: #f8f5eb; background: radial-gradient(ellipse at 13% 100%, rgba(214,190,132,.13), transparent 42%), linear-gradient(120deg, #263e30, #304d39 52%, #23392c); }
+    .encouragement::after { content: '“'; position: absolute; top: 17px; right: max(7%, calc((100vw - 1100px) / 2)); color: rgba(232,216,173,.13); font: 300 240px/.8 var(--serif); }
+    .encouragement-inner { position: relative; z-index: 1; max-width: 1050px; margin: auto; display: grid; grid-template-columns: .78fr 1.22fr; align-items: start; gap: 70px; }
+    .encouragement-label { padding-top: 12px; color: #e4d3a8; font-size: 9px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
+    .encouragement-label::before { content: ''; display: block; width: 29px; height: 1px; margin-bottom: 15px; background: #d5bd83; }
+    .encouragement-copy h2 { max-width: 600px; margin: 0 0 18px; font-size: clamp(34px,4.5vw,53px); }
+    .encouragement-copy h2 em { color: #e8d8ad; font: italic 500 1em var(--serif); }
+    .encouragement-copy p { max-width: 670px; margin: 0 0 13px; color: #d4ded4; font-size: 12px; line-height: 1.85; }
+    .encouragement-copy .world-needs { margin-top: 21px; padding-left: 15px; border-left: 2px solid #d5bd83; color: #f0e7d0; font: italic 16px/1.65 var(--serif); }
+    .closing { padding: 74px 20px; text-align: center; background: linear-gradient(120deg, #e5edce, #f0e4bd 56%, #e5edce); }
+    .closing h2 { max-width: 650px; margin: 0 auto 11px; }
+    .closing p { margin: 0 auto 21px; color: #5e6556; font-size: 11px; }
+    .footer { max-width: 1212px; min-height: 60px; padding: 16px 48px; margin: auto; display: flex; justify-content: space-between; align-items: center; gap: 12px; color: #7c857b; font-size: 9px; }
+
+    @media (max-width: 850px) {
+      .masthead { padding: 0 30px; }
+      .hero { min-height: 590px; padding: 42px 30px 72px; grid-template-columns: .95fr 1.05fr; gap: 22px; }
+      h1 { font-size: clamp(49px,7vw,68px); }
+      .artboard { min-height: 405px; }
+      .book-illustration { width: 84%; top: 54px; }
+      .learning-panel { width: 61%; }
+      .subject-sticker { left: -6px; }
+      .hero-bottom { left: 30px; right: 30px; }
+      .proof-inner { padding: 16px 30px; }
+      .content, .journey-inner { padding-left: 30px; padding-right: 30px; }
+      .footer { padding-left: 30px; padding-right: 30px; }
+    }
+    @media (max-width: 650px) {
+      .masthead { height: 68px; padding: 0 20px; }
+      .wordmark { font-size: 21px; }
+      .wordmark img { width: 28px; height: 28px; }
+      .mast-links { gap: 14px; }
+      .mast-link { font-size: 10px; }
+      .masthead .button { min-height: 37px; padding: 0 11px; font-size: 10px; }
+      .hero { display: flex; flex-direction: column; align-items: stretch; gap: 0; padding: 43px 21px 76px; }
+      .hero-copy { max-width: none; }
+      h1 { max-width: 510px; margin-top: 19px; font-size: clamp(51px,13vw,72px); }
+      .hero-intro { max-width: 450px; font-size: 13px; }
+      .hero-buttons { gap: 8px; margin-top: 22px; }
+      .hero-buttons .button { min-height: 44px; font-size: 10px; }
+      .promise { font-size: 9px; }
+      .artboard { width: min(100%, 470px); min-height: 370px; margin: 16px auto 0; }
+      .artboard::before { width: 96%; height: 315px; top: 26px; border-radius: 22px 75px 22px 75px; }
+      .artboard::after { width: 145px; height: 145px; right: 11px; top: 9px; }
+      .book-illustration { width: min(78%, 325px); top: 30px; }
+      .learning-panel { right: 0; bottom: 0; width: min(61%, 260px); padding: 12px; }
+      .subject-sticker { left: 0; bottom: 38px; }
+      .art-scribble { top: 7px; left: 8px; font-size: 12px; }
+      .sparkle-one { top: 50px; left: 6px; font-size: 23px; }
+      .sparkle-two { right: 0; bottom: 75px; }
+      .image-caption { top: 5px; right: 0; font-size: 8px; }
+      .hero-bottom { left: 21px; right: 21px; padding: 13px 0; }
+      .hero-bottom-note { font-size: 8px; }
+      .proof-inner { justify-content: flex-start; flex-wrap: wrap; gap: 13px 20px; padding: 17px 21px; }
+      .proof-item { font-size: 9px; }
+      .content { padding: 67px 21px; }
+      .content-head { align-items: flex-start; flex-direction: column; gap: 12px; margin-bottom: 22px; }
+      .feature-grid { grid-template-columns: 1fr; gap: 9px; }
+      .feature { min-height: 0; padding: 17px; }
+      .feature-icon { margin: 14px 0 12px; }
+      .journey { padding: 57px 0; }
+      .journey-inner { padding: 0 21px; }
+      .journey-grid { grid-template-columns: 1fr; gap: 18px; margin-top: 24px; }
+      .encouragement { padding: 58px 21px; }
+      .encouragement-inner { grid-template-columns: 1fr; gap: 19px; }
+      .encouragement-label { padding-top: 0; }
+      .encouragement-copy h2 { font-size: clamp(34px,9vw,46px); }
+      .encouragement-copy p { font-size: 11px; }
+      .encouragement-copy .world-needs { font-size: 15px; }
+      .encouragement::after { top: 45px; right: 8px; font-size: 170px; }
+      .closing { padding: 59px 21px; }
+      .footer { align-items: flex-start; flex-direction: column; padding: 16px 21px; }
+    }
+    @media (max-width: 380px) {
+      .hero-buttons { align-items: stretch; flex-direction: column; }
+      .hero-buttons .button { width: 100%; }
+      .artboard { min-height: 335px; }
+      .artboard::before { height: 280px; }
+      .book-illustration { width: 82%; }
+      .subject-sticker { font-size: 8px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+    }
   </style>
 </head>
 <body>
-  <div class="grain"></div>
-  <main class="hero-wrap">
-    <nav><a class="logo" href="/"><img src="{{ url_for('serve_logo') }}" alt="Clavis">Clavis</a><div class="nav-right"><a class="login" href="{{ url_for('login') }}">Log in</a><a class="nav-cta" id="navCta" href="{{ url_for('signup') }}">Start learning free →</a></div></nav>
-    <div class="hero"><div><div class="v2-badge">✦ CLAVIS V2 — NOW FOR CAMPUS TOO</div><div class="eyebrow">The modern study companion</div><h1>Make learning feel <span class="accent">alive.</span></h1><p class="hero-copy">A calm, intelligent space for Kenyan students to ask better questions, understand deeply, and turn effort into confidence.</p>
-      <div class="hero-actions"><a class="cta" id="heroCta" href="{{ url_for('signup') }}">Sign up and start learning →</a><a class="ghost-link" id="heroLoginLink" href="{{ url_for('login') }}">I already have an account</a></div><div class="trust"><span class="avatars"><i></i><i></i><i></i></span> A friendly guide for every step of your learning journey</div></div><div class="studio"><div class="orb"></div><div class="floating-note" id="floatingNote">You’ve got this!</div><div class="window"><div class="window-top"><div class="dots"><span></span><span></span><span></span></div><span class="course-pill">YOUR LEARNING SPACE</span></div><div class="lesson" id="lessonPreview"><small>YOUR GOALS · YOUR PACE</small><h3>Every big goal<br>starts with one step.</h3><div class="progress-label"><span>Keep showing up</span><span>✦</span></div><div class="progress"><i></i></div></div></div></div></div>
-  </main>
-  <div class="ticker"><span>Clarity over cramming&nbsp;&nbsp; ✦ &nbsp;&nbsp;Ask anything&nbsp;&nbsp; ✦ &nbsp;&nbsp;Build confidence&nbsp;&nbsp; ✦ &nbsp;&nbsp;Learn at your pace&nbsp;&nbsp; ✦ &nbsp;&nbsp;Clarity over cramming&nbsp;&nbsp; ✦ &nbsp;&nbsp;Ask anything&nbsp;&nbsp; ✦ &nbsp;&nbsp;Build confidence&nbsp;&nbsp; ✦ &nbsp;&nbsp;Learn at your pace&nbsp;&nbsp; ✦ &nbsp;&nbsp;</span></div>
-  <section class="section"><div class="mini">Designed around real learning</div><h2>Everything you need to move from “I’m stuck” to “I’ve got this.”</h2><div class="feature-grid"><article class="feature"><div class="feature-icon">✦</div><h3>A tutor that explains</h3><p>Ask in your own words and get patient, step-by-step help tailored to your level.</p></article><article class="feature"><div class="feature-icon">⌁</div><h3>Practice with purpose</h3><p>Turn each topic into a test, see where you stand, then keep improving.</p></article><article class="feature"><div class="feature-icon">◒</div><h3>Progress you can feel</h3><p>Your dashboard turns every question and study session into visible momentum.</p></article></div></section>
-  <section class="statement"><p>Great learning is not about being the fastest. It’s about having the <em>right guide</em> when it matters.</p><a class="cta" id="statementCta" href="{{ url_for('signup') }}">Sign up and begin →</a></section>
-  <footer class="footer"><span>© {{ now().year if now is defined else '2026' }} Clavis Learning · v2</span><span>Made for learners with big futures — from CBC to Campus.</span></footer>
+  <div class="site">
+    <header class="masthead">
+      <a class="wordmark" href="/" aria-label="Clavis home">
+        <img src="{{ static_versioned('images/icon-192.png') }}" alt="">
+        <span>clavis<span class="wordmark-dot">.</span></span>
+      </a>
+      <nav class="mast-links" aria-label="Main navigation">
+        <a class="mast-link" href="#how-it-works">How it works</a>
+        <a class="mast-link" href="{{ url_for('login') }}">Log in</a>
+        <a class="button button-green" href="{{ url_for('signup') }}">Get started <span class="arrow" aria-hidden="true">↗</span></a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="hero-copy">
+          <div class="overline"><span class="overline-mark" aria-hidden="true"></span> A study space that gets you</div>
+          <h1>Make room<br>for <span class="serif">“I get it.”</span></h1>
+          <p class="hero-intro">Some things take a little explaining. Clavis is your patient study buddy for the questions, topics, and big goals on your mind.</p>
+          <div class="hero-buttons">
+            <a class="button button-green" href="{{ url_for('signup') }}">Start learning with Clavis <span class="arrow" aria-hidden="true">→</span></a>
+            <a class="button button-outline" href="{{ url_for('login') }}">I already have an account</a>
+          </div>
+          <div class="promise">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 12 4 4L19 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Elementary Grades 3–12 and Campus learning paths
+          </div>
+        </div>
+
+        <div class="artboard" aria-label="Illustration of learning with Clavis">
+          <div class="art-scribble">little by little ✳</div>
+          <div class="image-caption">Your curiosity looks good on you.</div>
+          <span class="sparkle sparkle-one" aria-hidden="true">✳</span>
+          <span class="sparkle sparkle-two" aria-hidden="true">✦</span>
+          <svg class="book-illustration" viewBox="0 0 440 410" role="img" aria-label="An open book with ideas growing from its pages">
+            <defs>
+              <linearGradient id="bookLeft" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fffefa"/><stop offset="1" stop-color="#e9e5d5"/></linearGradient>
+              <linearGradient id="bookRight" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fffefa"/><stop offset="1" stop-color="#e3ead2"/></linearGradient>
+              <linearGradient id="cover" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3c7850"/><stop offset="1" stop-color="#244d38"/></linearGradient>
+            </defs>
+            <ellipse cx="220" cy="347" rx="166" ry="25" fill="#43593d" opacity=".16"/>
+            <path d="M48 138 Q132 108 216 155 L216 327 Q132 284 48 316Z" fill="url(#cover)" transform="translate(-8 12)"/>
+            <path d="M216 155 Q304 107 392 139 L384 315 Q300 286 216 327Z" fill="#1d422e" transform="translate(8 12)"/>
+            <path d="M48 122 Q132 91 216 139 L216 309 Q132 266 48 298Z" fill="url(#bookLeft)" stroke="#d7d2c1" stroke-width="2"/>
+            <path d="M216 139 Q304 91 392 123 L384 297 Q300 268 216 309Z" fill="url(#bookRight)" stroke="#d7d2c1" stroke-width="2"/>
+            <path d="M216 139 L216 309" stroke="#c5c6ad" stroke-width="3"/>
+            <path d="M70 145 Q135 124 190 153 M70 163 Q132 145 185 170 M70 181 Q122 167 169 188" fill="none" stroke="#c5c8b7" stroke-width="5" stroke-linecap="round"/>
+            <path d="M242 153 Q310 123 370 143 M241 171 Q300 143 365 162 M240 189 Q293 166 359 181" fill="none" stroke="#c5c8b7" stroke-width="5" stroke-linecap="round"/>
+            <path d="M270 246 Q302 213 342 236 Q321 271 270 246Z" fill="#d8f27a"/>
+            <path d="M270 246 Q286 227 306 220 M271 246 Q304 253 332 240" fill="none" stroke="#62864a" stroke-width="3" stroke-linecap="round"/>
+            <path d="M134 100 C134 61 158 57 169 84 C177 45 211 49 207 92 C231 57 257 74 236 111" fill="none" stroke="#4f7947" stroke-width="8" stroke-linecap="round"/>
+            <circle cx="170" cy="46" r="13" fill="#e8bf5d"/>
+            <circle cx="207" cy="42" r="10" fill="#e8bf5d"/>
+            <path d="M166 57 Q188 70 205 57" fill="none" stroke="#7d9c4d" stroke-width="4" stroke-linecap="round"/>
+            <path d="M118 111 Q104 83 119 70 Q144 82 140 108Z" fill="#a6c879"/>
+            <path d="M243 108 Q254 75 280 78 Q286 103 256 117Z" fill="#a6c879"/>
+            <path d="M202 126 Q186 104 201 89 Q225 101 219 127Z" fill="#8fb46a"/>
+            <path d="M74 221 Q130 198 187 231 M72 241 Q123 218 186 250 M72 261 Q125 240 185 270" fill="none" stroke="#d7d6c9" stroke-width="4" stroke-linecap="round"/>
+            <circle cx="316" cy="206" r="19" fill="#f0d99a"/>
+            <path d="M309 206 L315 212 L325 200" fill="none" stroke="#617c4d" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M216 139 Q218 128 221 119" fill="none" stroke="#4f7947" stroke-width="5" stroke-linecap="round"/>
+          </svg>
+          <div class="subject-sticker"><span aria-hidden="true">✦</span> ONE STEP AT A TIME</div>
+          <aside class="learning-panel" aria-label="Study progress preview">
+            <div class="panel-top">
+              <div class="panel-title"><span class="panel-mark">C</span> YOUR STUDY SPACE</div>
+              <span class="panel-pill">TODAY</span>
+            </div>
+            <div class="panel-copy"><strong>Mathematics</strong><br>Fractions · You’re making progress</div>
+            <div class="panel-progress"><span></span></div>
+          </aside>
+        </div>
+
+        <div class="hero-bottom">
+          <span class="hero-bottom-note">Ask. Understand. Keep growing.</span>
+          <span class="hero-bottom-index">01 — YOUR JOURNEY STARTS HERE</span>
+        </div>
+      </section>
+
+      <section class="proof-band" aria-label="What Clavis helps with">
+        <div class="proof-inner">
+          <div class="proof-item"><span class="proof-symbol" aria-hidden="true">✳</span> Patient, personal explanations</div>
+          <div class="proof-item"><span class="proof-symbol" aria-hidden="true">⌁</span> Practice with a purpose</div>
+          <div class="proof-item"><span class="proof-symbol" aria-hidden="true">♡</span> Progress at your pace</div>
+        </div>
+      </section>
+
+      <section class="content">
+        <div class="content-head">
+          <div>
+            <div class="kicker">A better way to study</div>
+            <h2>Learning should feel like yours.</h2>
+            <p class="section-intro">Bring your curiosity, your questions, and whatever feels difficult. We’ll work through it together.</p>
+          </div>
+          <a class="text-link" href="{{ url_for('signup') }}">MEET YOUR STUDY BUDDY <span aria-hidden="true">↗</span></a>
+        </div>
+        <div class="feature-grid">
+          <article class="feature"><div class="feature-top"><span>01 / UNDERSTAND</span><span>✳</span></div><div class="feature-icon" aria-hidden="true">✦</div><h3>Get unstuck, gently</h3><p>Ask anything and get a clear explanation that takes the time to make sense.</p></article>
+          <article class="feature"><div class="feature-top"><span>02 / PRACTISE</span><span>⌁</span></div><div class="feature-icon" aria-hidden="true">⌁</div><h3>Turn “maybe” into “I know”</h3><p>Practice questions and exam papers help new ideas feel familiar.</p></article>
+          <article class="feature"><div class="feature-top"><span>03 / GROW</span><span>♡</span></div><div class="feature-icon" aria-hidden="true">◒</div><h3>Notice how far you’ve come</h3><p>Build a study rhythm and celebrate each bit of progress along the way.</p></article>
+        </div>
+      </section>
+
+      <section class="encouragement" aria-labelledby="encouragement-title">
+        <div class="encouragement-inner">
+          <div class="encouragement-label">A note for you</div>
+          <div class="encouragement-copy">
+            <h2 id="encouragement-title">A hard season is not <em>your whole story.</em></h2>
+            <p>A difficult test or a disappointing report does not decide how smart you are, what you can become, or how much you matter. It only shows what felt difficult on that day—and what you can get support with next.</p>
+            <p>You are allowed to learn at your own pace, ask the same question again, and take a different path toward understanding. You do not need to have your whole future figured out today. One small interest, one new skill, or one brave question can be a beginning.</p>
+            <p class="world-needs">The world needs your questions, your ideas, and the way your mind sees things. There is room for your dreams—and you can take the next step when you’re ready.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="journey" id="how-it-works">
+        <div class="journey-inner">
+          <div class="kicker">A thoughtful start</div>
+          <h2>Your space, set up around you.</h2>
+          <div class="journey-grid">
+            <article class="journey-step"><span class="step-no">1</span><div><h3>Say hello</h3><p>Tell Clavis what to call you and choose Elementary or Campus.</p></div></article>
+            <article class="journey-step"><span class="step-no">2</span><div><h3>Find your path</h3><p>Pick your grade or course, then choose the subjects you care about.</p></div></article>
+            <article class="journey-step"><span class="step-no">3</span><div><h3>Begin your way</h3><p>Set your goal, shape your timetable, and start learning.</p></div></article>
+          </div>
+        </div>
+      </section>
+
+      <section class="closing">
+        <div class="kicker">Ready when you are</div>
+        <h2>Let’s make that next topic click.</h2>
+        <p>One friendly explanation can change the whole day.</p>
+        <a class="button button-green" href="{{ url_for('signup') }}">Start learning with Clavis <span class="arrow" aria-hidden="true">→</span></a>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>© {{ now().year if now is defined else '2026' }} Clavis Learning</span>
+      <span>Made for curious learners, from Elementary to Campus.</span>
+    </footer>
+  </div>
 </body>
 </html>
