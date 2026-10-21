@@ -1235,6 +1235,15 @@
   }
   [data-theme="dark"] .topic-test-btn { color: var(--ink); }
   .topic-test-btn:hover { background: var(--chalk); color: var(--paper); }
+  .topic-test-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+  .topic-test-btn:disabled:hover {
+    background: transparent;
+    color: inherit;
+    transform: none;
+  }
 
   .final-exam-card {
     background: var(--chalk);
@@ -1839,4 +1848,3 @@ body{
     .paper-logo { filter: none !important; }
     .exam-question, .paper-section-title { break-inside: avoid; }
   }
-

@@ -10,6 +10,7 @@ from app import (
     describe_level,
     elementary_stage_for_grade,
     has_unlimited_access,
+    validate_topic_mastery_test,
 )
 
 
@@ -40,6 +41,32 @@ class CurriculumLevelTests(unittest.TestCase):
         self.assertIn("Accounting", DAILY_CHALLENGE_SUBJECTS["campus"])
         self.assertIn("Computer Science", DAILY_CHALLENGE_SUBJECTS["campus"])
         self.assertEqual(CAMPUS_YEARS, ["Year 1", "Year 2", "Year 3", "Year 4", "Year 5"])
+
+    def test_topic_mastery_test_requires_thirty_one_mark_mcqs(self):
+        test_data = {
+            "total_marks": 30,
+            "questions": [
+                {
+                    "id": index,
+                    "type": "mcq",
+                    "question": f"Question {index}?",
+                    "options": {"A": "A", "B": "B", "C": "C", "D": "D"},
+                    "correct_option": "A",
+                    "marks": 1,
+                    "explanation": "Because A is correct.",
+                }
+                for index in range(1, 31)
+            ],
+        }
+        self.assertIs(validate_topic_mastery_test(test_data), test_data)
+
+        test_data["questions"][0]["marks"] = 2
+        with self.assertRaises(ValueError):
+            validate_topic_mastery_test(test_data)
+
+    def test_topic_mastery_test_rejects_wrong_question_count(self):
+        with self.assertRaises(ValueError):
+            validate_topic_mastery_test({"total_marks": 30, "questions": []})
 
     def test_mpesa_tier_prices_are_day_and_month_only(self):
         from app import MPESA_TIER_PRICES

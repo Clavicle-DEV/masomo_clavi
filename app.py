@@ -569,6 +569,40 @@ def extract_json(text):
     return json.loads(cleaned)
 
 
+def validate_topic_mastery_test(test_data):
+    if not isinstance(test_data, dict):
+        raise ValueError("Expected a JSON object for the mastery test")
+    questions = test_data.get("questions")
+    if (
+        not isinstance(questions, list)
+        or len(questions) != 30
+        or type(test_data.get("total_marks")) is not int
+        or test_data["total_marks"] != 30
+    ):
+        raise ValueError("Mastery tests must contain exactly 30 one-mark questions")
+
+    for index, question in enumerate(questions, start=1):
+        if not isinstance(question, dict) or question.get("type") != "mcq":
+            raise ValueError("Every mastery-test question must be multiple choice")
+        options = question.get("options")
+        if (
+            type(question.get("id")) is not int
+            or question["id"] != index
+            or type(question.get("marks")) is not int
+            or question["marks"] != 1
+            or not isinstance(question.get("question"), str)
+            or not question["question"].strip()
+            or not isinstance(options, dict)
+            or set(options) != {"A", "B", "C", "D"}
+            or any(not isinstance(value, str) or not value.strip() for value in options.values())
+            or question.get("correct_option") not in {"A", "B", "C", "D"}
+            or not isinstance(question.get("explanation"), str)
+            or not question["explanation"].strip()
+        ):
+            raise ValueError("Mastery-test question is missing valid one-mark MCQ fields")
+    return test_data
+
+
 def describe_level(level, grade_form):
     if level == "cbc":
         return f"{grade_form or 'Grade 6'} (CBC) in Kenya"
@@ -1505,8 +1539,20 @@ Return ONLY valid JSON in exactly this shape, no commentary, no markdown fences:
   ]
 }}
 Include 10 to 14 questions total, mixing "mcq" and "short" types appropriately for this paper's style. Number "id" sequentially starting at 1."""
+    elif topic:
+        prompt = f"""Create a mastery test for a {level_desc} student on {subject}, covering only the topic '{topic}'.
+The learner must earn every mark to demonstrate mastery and unlock the next topic.
+{MATH_NOTATION_INSTRUCTIONS}
+Return ONLY valid JSON in exactly this shape, no commentary, no markdown fences:
+{{
+  "total_marks": 30,
+  "questions": [
+    {{"id": 1, "type": "mcq", "question": "...", "options": {{"A": "...", "B": "...", "C": "...", "D": "..."}}, "correct_option": "A", "marks": 1, "explanation": "..."}}
+  ]
+}}
+Include exactly 30 distinct, accurate, age-appropriate multiple-choice questions. Each question must have exactly 1 mark, exactly four concise options named A, B, C, and D, one unambiguously correct option, and a brief explanation. Number "id" sequentially from 1 to 30. Do not include short-answer questions or diagrams."""
     else:
-        scope = f"the topic '{topic}'" if topic else f"all of these topics: {', '.join(all_topics)}"
+        scope = f"all of these topics: {', '.join(all_topics)}"
         prompt = f"""Create a short test for a {level_desc} student on {subject}, covering {scope}.
 {MATH_NOTATION_INSTRUCTIONS}
 {EXAM_DIAGRAM_INSTRUCTIONS}
@@ -1521,10 +1567,15 @@ Return ONLY valid JSON in exactly this shape, no commentary, no markdown fences:
 Include 5 to 8 questions total, mixing "mcq" and "short" types. Number "id" sequentially starting at 1."""
 
     try:
-        raw = call_groq([{"role": "user", "content": prompt}], max_tokens=6000 if paper else 3000)
+        raw = call_groq(
+            [{"role": "user", "content": prompt}],
+            max_tokens=6000 if paper or topic else 3000,
+        )
         test_data = extract_json(raw)
         if "questions" not in test_data or "total_marks" not in test_data:
             raise ValueError("Response missing required fields")
+        if topic and not paper:
+            validate_topic_mastery_test(test_data)
     except (RuntimeError, ValueError, json.JSONDecodeError) as e:
         return jsonify({"error": f"Could not generate test: {str(e)}"}), 502
 
@@ -1614,10 +1665,14 @@ def api_topic_progress():
         return jsonify({
             row.topic: {
                 "taught": bool(row.taught),
-                "done": bool(row.passed),
+                "done": (
+                    row.score is not None
+                    and row.total_marks is not None
+                    and row.score == row.total_marks
+                ),
                 "score": (
                     f"{row.score}/{row.total_marks}"
-                    if row.score is not None and row.total_marks
+                    if row.score is not None and row.total_marks is not None
                     else None
                 ),
             }
@@ -1653,19 +1708,29 @@ def api_topic_progress():
     if taught:
         row.taught = True
     if has_score:
-        if (
+        is_better_score = (
             row.score is None
             or row.total_marks is None
-            or score / total >= row.score / row.total_marks
-        ):
+            or score * row.total_marks > row.score * total
+            or (
+                score * row.total_marks == row.score * total
+                and total == 30
+                and row.total_marks != 30
+            )
+        )
+        if is_better_score:
             row.score = score
             row.total_marks = total
-        row.passed = bool(row.passed) or score / total >= 0.7
+        row.passed = bool(row.passed) or score == total
     row.updated_at = datetime.now()
     db.session.commit()
     return jsonify({
         "taught": bool(row.taught),
-        "done": bool(row.passed),
+        "done": (
+            row.score is not None
+            and row.total_marks is not None
+            and row.score == row.total_marks
+        ),
         "score": f"{row.score}/{row.total_marks}" if row.score is not None else None,
     })
 

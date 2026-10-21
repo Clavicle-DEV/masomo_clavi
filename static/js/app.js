@@ -1090,6 +1090,10 @@
 
     const saved = loadChatProgress(currentLevel, currentGradeForm, subject);
     teachState = loadTeachState(currentLevel, currentGradeForm, subject);
+    if (teachState && !teachState.masteryGate) {
+      teachState = null;
+      saveTeachState();
+    }
     if (saved && saved.length) {
       conversationHistory = saved;
       emptyHint.style.display = 'none';
@@ -1518,10 +1522,9 @@
       if (teachState && result.topicComplete) {
         await markTopicTaught(currentSubject, currentLevel, currentGradeForm, currentTeachTopic());
         if (teachState.topicIndex < teachState.topics.length - 1) {
-          teachState.topicIndex += 1;
-          teachState.pendingTopicStart = true;
+          addMessage('tutor', `✅ Great work — you've finished learning "${currentTeachTopic()}". Take its 30/30 mastery test from Topics & Tests to unlock the next topic. You can review this lesson while you prepare.`);
+          teachState = null;
           saveTeachState();
-          addMessage('tutor', `✅ Great work — you've finished "${teachState.topics[teachState.topicIndex - 1]}". Ready for the next topic, "${currentTeachTopic()}"? Tap "Start next topic" below whenever you're ready.`);
         } else {
           addMessage('tutor', `🎉 That's the last topic done — you've been taught the full ${currentSubject} course! You can revise anytime, or head to Topics & Tests to check your understanding.`);
           teachState = null;
@@ -1901,28 +1904,53 @@
 
   function getCurrentTopicProgress() {
     const all = getAllProgress();
-    return {
+    const accountProgress = all[progressKey()] || {};
+    const progress = {
       ...(all[legacyProgressKey()] || {}),
-      ...(all[progressKey()] || {}),
+      ...accountProgress,
     };
+    for (const entry of Object.values(progress)) {
+      if (entry && typeof entry === 'object') {
+        entry.done = topicIsMastered(entry);
+      }
+    }
+    if (Object.keys(accountProgress).length) {
+      all[progressKey()] = progress;
+      localStorage.setItem('clavi_topic_progress', JSON.stringify(all));
+    }
+    return progress;
+  }
+
+  function topicIsMastered(entry) {
+    if (!entry || typeof entry.score !== 'string') return false;
+    const score = entry.score.match(/^(\d+)\/(\d+)$/);
+    return !!score && Number(score[2]) === 30 && Number(score[1]) === 30;
+  }
+
+  function nextTopicIndex(progress) {
+    return currentTopics.findIndex(topic => !topicIsMastered(progress[topic]));
   }
 
   function saveTopicResult(topicName, totalMarks, maxMarks) {
     const all = getAllProgress();
     const key = progressKey();
     if (!all[key]) all[key] = {};
-    const passed = (totalMarks / maxMarks) >= 0.7;
     const previous = all[key][topicName] || {};
     const previousScore = typeof previous.score === 'string'
       ? previous.score.match(/^(\d+)\/(\d+)$/)
       : null;
+    const previousRatio = previousScore
+      ? Number(previousScore[1]) / Number(previousScore[2])
+      : -1;
+    const currentRatio = totalMarks / maxMarks;
     const hasBetterPreviousScore = previousScore
-      && Number(previousScore[1]) / Number(previousScore[2]) >= totalMarks / maxMarks;
+      && (previousRatio > currentRatio
+        || (previousRatio === currentRatio && Number(previousScore[2]) === 30));
     const bestScore = hasBetterPreviousScore ? Number(previousScore[1]) : totalMarks;
     const bestTotal = hasBetterPreviousScore ? Number(previousScore[2]) : maxMarks;
     all[key][topicName] = {
       ...previous,
-      done: !!previous.done || passed,
+      done: bestScore === bestTotal && bestTotal === 30,
       score: `${bestScore}/${bestTotal}`,
     };
     localStorage.setItem('clavi_topic_progress', JSON.stringify(all));
@@ -1950,12 +1978,14 @@
         } catch (_) {}
         throw new Error(message);
       }
-      topicProgressSyncNotice.style.display = 'none';
+      if (topicProgressSyncNotice) topicProgressSyncNotice.style.display = 'none';
       return true;
     } catch (error) {
-      topicProgressSyncNotice.textContent =
-        'Progress is saved on this device, but could not sync to your account. Check your connection and reopen Topics & Tests to try again.';
-      topicProgressSyncNotice.style.display = 'block';
+      if (topicProgressSyncNotice) {
+        topicProgressSyncNotice.textContent =
+          'Progress is saved on this device, but could not sync to your account. Check your connection and reopen Topics & Tests to try again.';
+        topicProgressSyncNotice.style.display = 'block';
+      }
       console.error('Could not sync topic progress:', error);
       return false;
     }
@@ -2027,22 +2057,33 @@
         const localHasBetterScore = localScore
           && (!remoteScore
             || Number(localScore[1]) / Number(localScore[2])
-              > Number(remoteScore[1]) / Number(remoteScore[2]));
+              > Number(remoteScore[1]) / Number(remoteScore[2])
+            || (Number(localScore[1]) / Number(localScore[2])
+              === Number(remoteScore[1]) / Number(remoteScore[2])
+              && Number(localScore[2]) === 30
+              && Number(remoteScore[2]) !== 30));
         local[topic] = {
           ...previous,
           ...entry,
           score: localHasBetterScore ? previous.score : entry.score,
-          done: !!entry.done || !!previous.done,
+          done: topicIsMastered({
+            score: localHasBetterScore ? previous.score : entry.score,
+          }),
           taught: !!entry.taught || !!previous.taught,
         };
       }
+      for (const entry of Object.values(local)) {
+        entry.done = topicIsMastered(entry);
+      }
       all[key] = local;
       localStorage.setItem('clavi_topic_progress', JSON.stringify(all));
-      topicProgressSyncNotice.style.display = 'none';
+      if (topicProgressSyncNotice) topicProgressSyncNotice.style.display = 'none';
     } catch (error) {
-      topicProgressSyncNotice.textContent =
-        'Showing progress saved on this device. Account sync is temporarily unavailable.';
-      topicProgressSyncNotice.style.display = 'block';
+      if (topicProgressSyncNotice) {
+        topicProgressSyncNotice.textContent =
+          'Showing progress saved on this device. Account sync is temporarily unavailable.';
+        topicProgressSyncNotice.style.display = 'block';
+      }
       console.error('Could not load topic progress:', error);
     }
   }
@@ -2118,45 +2159,59 @@
     }
     const progress = getCurrentTopicProgress();
 
-    topicList.innerHTML = currentTopics.map(topic => {
+    const nextIndex = nextTopicIndex(progress);
+    topicList.innerHTML = currentTopics.map((topic, index) => {
       const entry = progress[topic];
-      const done = entry && entry.done;
+      const done = topicIsMastered(entry);
+      const unlocked = done || index === nextIndex;
       return `
         <div class="topic-row">
           <div class="topic-row-left">
             <div class="topic-badge ${done ? 'done' : ''}">${done ? '✓' : ''}</div>
             <div>
               <div class="topic-name">${topic}${entry && entry.taught ? ' 📖' : ''}</div>
-              ${entry ? `<div class="topic-score">Best score: ${entry.score}</div>` : ''}
+              ${entry && entry.score ? `<div class="topic-score">Best score: ${entry.score}</div>` : ''}
+              ${!unlocked ? '<div class="topic-score">Pass the previous topic with 30/30 to unlock this.</div>' : ''}
             </div>
           </div>
-          <button class="topic-test-btn" data-topic="${topic}">${entry ? 'Retake test' : 'Take test'}</button>
+          <button class="topic-test-btn" data-topic-index="${index}" ${unlocked ? '' : 'disabled'}>${done ? 'Retake test' : 'Take mastery test'}</button>
         </div>
       `;
     }).join('');
 
     topicList.querySelectorAll('.topic-test-btn').forEach(btn => {
-      btn.addEventListener('click', () => openExamScreen(btn.dataset.topic));
+      btn.addEventListener('click', () => {
+        const topic = currentTopics[Number(btn.dataset.topicIndex)];
+        if (topic) openExamScreen(topic);
+      });
     });
 
-    const completedCount = currentTopics.filter(t => progress[t] && progress[t].done).length;
-    finalExamProgress.textContent = `${completedCount}/${currentTopics.length} topics completed`;
-    finalExamBtn.disabled = completedCount < currentTopics.length;
+    const completedCount = currentTopics.filter(t => topicIsMastered(progress[t])).length;
+    finalExamProgress.textContent = `${completedCount}/${currentTopics.length} topics mastered with 30/30`;
+    finalExamBtn.disabled = !currentTopics.length || completedCount < currentTopics.length;
   }
 
   function renderTeachPickerList() {
     const progress = getCurrentTopicProgress();
-    const startBtn = `<button type="button" class="teach-pick-btn" id="teachPickBeginning">▶ Start from the beginning</button>`;
+    const nextIndex = nextTopicIndex(progress);
+    const startIndex = nextIndex < 0 ? 0 : nextIndex;
+    const startLabel = nextIndex < 0 ? '↻ Review from the beginning' : `▶ Teach next topic: ${currentTopics[startIndex]}`;
+    const startBtn = `<button type="button" class="teach-pick-btn" id="teachPickBeginning">${startLabel}</button>`;
     const rows = currentTopics.map((topic, idx) => {
       const entry = progress[topic];
       const taught = entry && entry.taught;
+      const mastered = topicIsMastered(entry);
+      const unlocked = mastered || idx === nextIndex;
       return `
         <div class="topic-row">
           <div class="topic-row-left">
-            <div class="topic-badge ${taught ? 'done' : ''}">${taught ? '📖' : ''}</div>
-            <div class="topic-name">${topic}</div>
+            <div class="topic-badge ${mastered ? 'done' : ''}">${mastered ? '✓' : taught ? '📖' : ''}</div>
+            <div>
+              <div class="topic-name">${topic}</div>
+              ${!unlocked ? '<div class="topic-score">Master the previous topic with 30/30 first.</div>' : ''}
+            </div>
           </div>
-          <button class="topic-test-btn" data-idx="${idx}">Start here</button>
+          <button class="topic-test-btn" data-idx="${idx}" ${unlocked ? '' : 'disabled'}>${mastered ? 'Review' : 'Teach topic'}</button>
         </div>
       `;
     }).join('');
@@ -2165,7 +2220,7 @@
     document.getElementById('teachPickBeginning').addEventListener('click', () => {
       teachPickerMode = false;
       showScreen('chatScreen');
-      startTeachingTopic(currentTopics, 0);
+      startTeachingTopic(currentTopics, startIndex);
     });
     topicList.querySelectorAll('.topic-test-btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -2217,7 +2272,9 @@
 
   function renderExamPaper() {
     const test = currentTestData;
-    const paperTitle = currentExamIsFinal ? 'Final Subject Exam — All Topics' : currentExamTopic;
+    const paperTitle = currentExamIsFinal
+      ? 'Final Subject Exam — All Topics'
+      : `30/30 Mastery Test — ${currentExamTopic}`;
 
     const questionsHtml = test.questions.map(q => {
       const marksLabel = `(${q.marks} mk${q.marks > 1 ? 's' : ''})`;
@@ -2253,7 +2310,7 @@
           <div class="exam-subject">${currentSubject}</div>
           <div class="exam-meta">${paperTitle} — ${levelLabelText()} — Total: ${test.total_marks} marks</div>
         </div>
-        <div class="exam-instructions">Answer ALL questions.</div>
+        <div class="exam-instructions">${currentExamIsFinal ? 'Answer ALL questions.' : 'Answer all 30 questions. You need 30/30 to master this topic and unlock the next one.'}</div>
         ${questionsHtml}
         <button class="exam-submit-btn" id="submitExamBtn">Submit Test</button>
       </div>
@@ -2345,8 +2402,12 @@
       const finalTotal = recalcTotal();
       const percent = Math.round((finalTotal / test.total_marks) * 100);
       const verdictEl = document.getElementById('resultVerdict');
-      const passed = percent >= 70;
-      verdictEl.textContent = passed ? 'PASS ✓' : 'Below 70% — consider revising and retaking';
+      const passed = currentExamIsFinal
+        ? percent >= 70
+        : finalTotal === test.total_marks && test.total_marks === 30;
+      verdictEl.textContent = currentExamIsFinal
+        ? (passed ? 'PASS ✓' : 'Below 70% — consider revising and retaking')
+        : (passed ? 'MASTERY ACHIEVED — 30/30 ✓' : 'Not yet — score 30/30 to master this topic. Review and try again.');
       verdictEl.className = 'result-verdict ' + (passed ? 'pass' : 'retry');
 
       let synced = true;
@@ -2957,7 +3018,13 @@
   }
 
   async function startTeachingTopic(topics, topicIndex) {
-    teachState = { topics, topicIndex, pendingTopicStart: false };
+    const progress = getCurrentTopicProgress();
+    const isMastered = topicIsMastered(progress[topics[topicIndex]]);
+    if (!isMastered && topicIndex !== nextTopicIndex(progress)) {
+      addMessage('tutor', 'Master the previous topic with a 30/30 test before starting this one.');
+      return;
+    }
+    teachState = { topics, topicIndex, pendingTopicStart: false, masteryGate: true };
     saveTeachState();
     emptyHint.style.display = 'none';
     teachStarter.hidden = true;
@@ -2982,10 +3049,9 @@
       if (result.topicComplete) {
         await markTopicTaught(currentSubject, currentLevel, currentGradeForm, currentTeachTopic());
         if (teachState.topicIndex < teachState.topics.length - 1) {
-          teachState.topicIndex += 1;
-          teachState.pendingTopicStart = true;
+          addMessage('tutor', `✅ Great work — you've finished learning "${currentTeachTopic()}". Take its 30/30 mastery test from Topics & Tests to unlock the next topic. You can review this lesson while you prepare.`);
+          teachState = null;
           saveTeachState();
-          addMessage('tutor', `✅ Great work — you've finished "${teachState.topics[teachState.topicIndex - 1]}". Ready for the next topic, "${currentTeachTopic()}"? Tap "Start next topic" below whenever you're ready.`);
         } else {
           addMessage('tutor', `🎉 That's the last topic done — you've been taught the full ${currentSubject} course! You can revise anytime, or head to Topics & Tests to check your understanding.`);
           teachState = null;
