@@ -7,9 +7,12 @@ from app import (
     DAILY_CHALLENGE_SUBJECTS,
     ELEMENTARY_GRADES,
     app as flask_app,
+    CLASS_SUBJECTS_BY_LEVEL,
     describe_level,
     elementary_stage_for_grade,
     has_unlimited_access,
+    next_promotion_level,
+    validate_class_promotion_test,
     validate_topic_mastery_test,
 )
 
@@ -67,6 +70,52 @@ class CurriculumLevelTests(unittest.TestCase):
     def test_topic_mastery_test_rejects_wrong_question_count(self):
         with self.assertRaises(ValueError):
             validate_topic_mastery_test({"total_marks": 30, "questions": []})
+
+    def test_promotion_exam_covers_every_subject(self):
+        subjects = CLASS_SUBJECTS_BY_LEVEL["upper_primary"]
+        questions = [
+            {
+                "id": index,
+                "subject": subjects[(index - 1) % len(subjects)],
+                "type": "mcq",
+                "question": f"Question {index}?",
+                "options": {"A": "A", "B": "B", "C": "C", "D": "D"},
+                "correct_option": "A",
+                "marks": 1,
+                "explanation": "Because A is correct.",
+            }
+            for index in range(1, 31)
+        ]
+        exam = {"total_marks": 30, "questions": questions}
+        self.assertIs(validate_class_promotion_test(exam, subjects), exam)
+
+        questions[-1]["subject"] = "Unlisted subject"
+        with self.assertRaises(ValueError):
+            validate_class_promotion_test(exam, subjects)
+
+    def test_promotion_completion_at_highest_school_and_campus_level(self):
+        class Learner:
+            def __init__(self, track, grade):
+                self.student_track = track
+                self.elementary_grade = grade if track != "campus" else None
+                self.campus_year = grade if track == "campus" else None
+
+        school = Learner("highschool", "Grade 12")
+        self.assertEqual(next_promotion_level(school), ("Grade 13", True))
+        campus = Learner("campus", "Year 5")
+        self.assertEqual(next_promotion_level(campus), ("Year 6", True))
+
+    def test_promotion_advancement_stops_at_highest_defined_levels(self):
+        class Learner:
+            student_track = "highschool"
+            elementary_grade = "Grade 9"
+            campus_year = None
+
+        school = Learner()
+        self.assertEqual(next_promotion_level(school), ("Grade 10", False))
+        school.student_track = "campus"
+        school.campus_year = "Year 2"
+        self.assertEqual(next_promotion_level(school), ("Year 3", False))
 
     def test_mpesa_tier_prices_are_day_and_month_only(self):
         from app import MPESA_TIER_PRICES

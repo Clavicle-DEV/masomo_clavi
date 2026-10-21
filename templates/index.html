@@ -773,6 +773,11 @@
       <div class="final-exam-sub" id="finalExamProgress">Master every topic with 30/30 to unlock this.</div>
       <button class="final-exam-btn" id="finalExamBtn" disabled>Take Final Exam</button>
     </div>
+    <div class="final-exam-card promotion-exam-card">
+      <div class="final-exam-title">Class Promotion Exam</div>
+      <div class="final-exam-sub" id="promotionExamStatus">One 30-question exam covering your current grade or Campus course. Score 21/30 (70%) to advance automatically.</div>
+      <button class="final-exam-btn" id="promotionExamBtn">Take Promotion Exam</button>
+    </div>
   </div>
 
   <!-- ============ EXAM SCREEN ============ -->
@@ -1183,6 +1188,7 @@
   const ACCOUNT_TRACK = "{{ student_track }}" === 'campus' ? 'campus' : 'highschool';
   const ACCOUNT_GRADE = {{ learning_level|default('', true)|tojson }};
   const ACCOUNT_USER_ID = {{ user.id|tojson }};
+  const ACCOUNT_COURSE_COMPLETED = {{ course_completed|default(false)|tojson }};
   const REFERRAL_LINK = JSON.parse(document.getElementById('referralLinkConfig').textContent);
 
   /* Splash hide lives here, independent of app.js, so a slow network or an

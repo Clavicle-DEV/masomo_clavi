@@ -6,6 +6,7 @@ import io
 import zipfile
 import hashlib
 import importlib
+import secrets
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
@@ -511,6 +512,22 @@ class TopicProgress(db.Model):
     )
 
 
+class PromotionExam(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    exam_key = db.Column(db.String(64), unique=True, nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    student_track = db.Column(db.String(20), nullable=False)
+    level = db.Column(db.String(50), nullable=False)
+    grade_form = db.Column(db.String(50), nullable=False)
+    subjects_json = db.Column(db.Text, nullable=False)
+    questions_json = db.Column(db.Text, nullable=False)
+    status = db.Column(db.String(20), nullable=False, default='ready')
+    score = db.Column(db.Integer, nullable=True)
+    total_marks = db.Column(db.Integer, nullable=True)
+    result_json = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
+
+
 REFERRAL_BONUS_DAYS = 3
 
 
@@ -595,11 +612,53 @@ def validate_topic_mastery_test(test_data):
             or not isinstance(options, dict)
             or set(options) != {"A", "B", "C", "D"}
             or any(not isinstance(value, str) or not value.strip() for value in options.values())
-            or question.get("correct_option") not in {"A", "B", "C", "D"}
+            or not isinstance(question.get("correct_option"), str)
+            or question["correct_option"] not in {"A", "B", "C", "D"}
             or not isinstance(question.get("explanation"), str)
             or not question["explanation"].strip()
         ):
             raise ValueError("Mastery-test question is missing valid one-mark MCQ fields")
+    return test_data
+
+
+def validate_class_promotion_test(test_data, subjects):
+    if (
+        not isinstance(test_data, dict)
+        or type(test_data.get("total_marks")) is not int
+        or test_data["total_marks"] != 30
+        or not isinstance(test_data.get("questions"), list)
+        or len(test_data["questions"]) != 30
+    ):
+        raise ValueError("Promotion exams must contain exactly 30 one-mark questions")
+
+    covered_subjects = set()
+    for index, question in enumerate(test_data["questions"], start=1):
+        if not isinstance(question, dict) or question.get("type") != "mcq":
+            raise ValueError("Every promotion-exam question must be multiple choice")
+        question_subject = question.get("subject")
+        options = question.get("options")
+        if (
+            type(question.get("id")) is not int
+            or question["id"] != index
+            or type(question.get("marks")) is not int
+            or question["marks"] != 1
+            or not isinstance(question_subject, str)
+            or question_subject not in subjects
+            or not isinstance(question.get("question"), str)
+            or not question["question"].strip()
+            or not isinstance(options, dict)
+            or set(options) != {"A", "B", "C", "D"}
+            or any(not isinstance(value, str) or not value.strip() for value in options.values())
+            or not isinstance(question.get("correct_option"), str)
+            or question["correct_option"] not in {"A", "B", "C", "D"}
+            or not isinstance(question.get("explanation"), str)
+            or not question["explanation"].strip()
+        ):
+            raise ValueError("Promotion-exam question is missing valid subject or MCQ fields")
+        covered_subjects.add(question_subject)
+
+    if covered_subjects != set(subjects):
+        raise ValueError("Promotion exam must include every subject for the learner's level")
     return test_data
 
 
@@ -1139,6 +1198,17 @@ def home():
             current_user.referral_code = generate_referral_code()
             db.session.commit()
         referral_link = f"{request.host_url}signup?ref={current_user.referral_code}"
+        current_grade = (
+            current_user.campus_year if current_user.student_track == 'campus'
+            else current_user.elementary_grade or ''
+        )
+        at_highest_level = current_grade in ('Grade 12', 'Year 5')
+        course_completed = at_highest_level and PromotionExam.query.filter_by(
+            user_id=current_user.id,
+            student_track=current_user.student_track or 'highschool',
+            grade_form=current_grade,
+            status='passed',
+        ).first() is not None
         return render_template(
             'index.html',
             user=current_user,
@@ -1150,11 +1220,9 @@ def home():
             referral_bonus_days=REFERRAL_BONUS_DAYS,
             email_verified=current_user.email_verified,
             student_track=current_user.student_track or 'highschool',
-            learning_level=(
-                current_user.campus_year if current_user.student_track == 'campus'
-                else current_user.elementary_grade or ''
-            ),
+            learning_level=current_grade,
             student_track_locked=(not is_full_admin(current_user)) and current_user.student_track is not None,
+            course_completed=course_completed,
         )
 
     return render_template(
@@ -1735,6 +1803,189 @@ def api_topic_progress():
     })
 
 
+def current_promotion_level(user):
+    if user.student_track == 'campus':
+        if user.campus_year not in CAMPUS_YEARS:
+            return None, None
+        return 'campus', user.campus_year
+    if user.student_track != 'highschool':
+        return None, None
+    grade = user.elementary_grade or ''
+    match = re.fullmatch(r'Grade (1[0-2]|[3-9])', grade)
+    if not match:
+        return None, None
+    number = int(match.group(1))
+    level = 'senior_school' if number >= 10 else 'junior_school' if number >= 7 else 'upper_primary'
+    return level, grade
+
+
+def next_promotion_level(user):
+    level, grade = current_promotion_level(user)
+    if level == 'campus':
+        year = int(grade.split()[-1])
+        return (f'Year {year + 1}', year == 5)
+    if grade:
+        number = int(grade.split()[-1])
+        return (f'Grade {number + 1}', number == 12)
+    return None, False
+
+
+@app.route('/api/promotion-exam', methods=['POST'])
+@login_required
+@limiter.limit("2 per minute; 10 per hour", exempt_when=is_unlimited_rate_limit_user)
+def api_create_promotion_exam():
+    if not current_user.email_verified:
+        return jsonify({"error": "Please verify your email before taking a promotion exam."}), 403
+    if current_user.subscription_expired and not has_unlimited_access(current_user):
+        return jsonify({"error": "Your trial has ended — please choose a plan."}), 402
+
+    level, grade = current_promotion_level(current_user)
+    if not level or not grade:
+        return jsonify({"error": "Complete your learning-path setup before taking a promotion exam."}), 400
+    if grade in ('Grade 12', 'Year 5') and PromotionExam.query.filter_by(
+        user_id=current_user.id,
+        student_track=current_user.student_track,
+        grade_form=grade,
+        status='passed',
+    ).first():
+        return jsonify({"error": "You have already completed the highest available level."}), 409
+
+    if level == 'campus':
+        if current_user.campus_course not in DAILY_CHALLENGE_SUBJECTS['campus']:
+            return jsonify({"error": "Choose a valid Campus course before taking a promotion exam."}), 400
+        subjects = [current_user.campus_course]
+    else:
+        subjects = CLASS_SUBJECTS_BY_LEVEL.get(level)
+    if not subjects:
+        app.logger.error("No class promotion subjects configured for level %s", level)
+        return jsonify({"error": "Promotion exams are not configured for this learning level yet."}), 503
+
+    allowed, remaining = check_and_consume_ai_call(current_user)
+    if not allowed:
+        return jsonify({"error": "You've hit today's message limit — it resets tomorrow. Upgrade for a higher daily limit."}), 429
+
+    subject_list = ', '.join(subjects)
+    exam_scope = (
+        f"the Campus course {subject_list}"
+        if level == 'campus'
+        else f"all subjects for this class: {subject_list}"
+    )
+    prompt = f"""Create one combined class promotion exam for a {describe_level(level, grade)} learner in Kenya.
+The exam covers {exam_scope}.
+Write exactly 30 questions total. Distribute them as evenly as possible across these subjects, and include every subject at least once. Each question must be a one-mark, age-appropriate multiple-choice question with four concise options. All questions must be unambiguous and have one correct answer.
+Return ONLY valid JSON with this shape and no markdown:
+{{
+  "total_marks": 30,
+  "questions": [
+    {{"id": 1, "subject": "{subjects[0]}", "type": "mcq", "question": "...", "options": {{"A": "...", "B": "...", "C": "...", "D": "..."}}, "correct_option": "A", "marks": 1, "explanation": "..."}}
+  ]
+}}
+Use sequential question IDs from 1 to 30. Use only the exact subject names listed above. Do not add short-answer questions or diagrams."""
+
+    try:
+        raw = call_groq([{"role": "user", "content": prompt}], max_tokens=6500)
+        exam_data = validate_class_promotion_test(extract_json(raw), subjects)
+    except (RuntimeError, ValueError, json.JSONDecodeError) as error:
+        return jsonify({"error": f"Could not create a valid promotion exam: {error}"}), 502
+
+    exam = PromotionExam(
+        exam_key=secrets.token_urlsafe(32),
+        user_id=current_user.id,
+        student_track=current_user.student_track,
+        level=level,
+        grade_form=grade,
+        subjects_json=json.dumps(subjects),
+        questions_json=json.dumps(exam_data["questions"]),
+    )
+    db.session.add(exam)
+    db.session.commit()
+    return jsonify({
+        "examId": exam.exam_key,
+        "level": level,
+        "gradeForm": grade,
+        "scopeLabel": f"Campus course: {subject_list}" if level == 'campus' else "All class subjects",
+        "totalMarks": 30,
+        "passMark": 21,
+        "questions": [{
+            "id": question["id"],
+            "subject": question["subject"],
+            "type": question["type"],
+            "question": question["question"],
+            "options": question["options"],
+            "marks": question["marks"],
+        } for question in exam_data["questions"]],
+    })
+
+
+@app.route('/api/promotion-exam/<exam_key>/submit', methods=['POST'])
+@login_required
+def api_submit_promotion_exam(exam_key):
+    exam = PromotionExam.query.filter_by(
+        exam_key=exam_key,
+        user_id=current_user.id,
+    ).first()
+    if exam is None:
+        return jsonify({"error": "This exam is no longer available. Start a new promotion exam."}), 404
+    if exam.status != 'ready':
+        if exam.result_json:
+            return jsonify(json.loads(exam.result_json))
+        return jsonify({"error": "This exam has already been submitted."}), 409
+
+    level, grade = current_promotion_level(current_user)
+    if current_user.student_track != exam.student_track or level != exam.level or grade != exam.grade_form:
+        return jsonify({"error": "Your learning level changed after this exam was created."}), 409
+
+    data = request.get_json(silent=True) or {}
+    answers = data.get('answers')
+    if not isinstance(answers, dict):
+        return jsonify({"error": "Submit your selected answers to finish the exam."}), 400
+
+    questions = json.loads(exam.questions_json)
+    question_ids = {str(question["id"]) for question in questions}
+    if set(answers) - question_ids or any(
+        not isinstance(answer, str) or answer not in {"A", "B", "C", "D"}
+        for answer in answers.values()
+    ):
+        return jsonify({"error": "One or more submitted answers are invalid."}), 400
+
+    score = sum(
+        question["marks"]
+        for question in questions
+        if answers.get(str(question["id"])) == question["correct_option"]
+    )
+    passed = score >= 21
+    exam.score = score
+    exam.total_marks = 30
+    exam.status = 'passed' if passed else 'failed'
+
+    next_grade, course_completed = next_promotion_level(current_user)
+    if passed and not course_completed:
+        if exam.student_track == 'campus':
+            current_user.campus_year = next_grade
+        else:
+            current_user.elementary_grade = next_grade
+    result = {
+        "score": score,
+        "total": 30,
+        "percent": round(score / 30 * 100),
+        "passed": passed,
+        "previousGrade": exam.grade_form,
+        "nextGrade": next_grade if passed and not course_completed else exam.grade_form,
+        "courseCompleted": bool(passed and course_completed),
+        "review": [{
+            "id": question["id"],
+            "subject": question["subject"],
+            "question": question["question"],
+            "correctOption": question["correct_option"],
+            "explanation": question["explanation"],
+            "yourAnswer": answers.get(str(question["id"])),
+        } for question in questions],
+    }
+    exam.result_json = json.dumps(result)
+    db.session.commit()
+    return jsonify(result)
+
+
 @app.route('/api/exam-results', methods=['GET', 'POST'])
 @login_required
 def api_exam_results():
@@ -1840,6 +2091,13 @@ DAILY_CHALLENGE_SUBJECTS = {
     'highschool': ['Mathematics', 'English', 'Physics', 'Chemistry', 'Biology', 'Kiswahili', 'Geography',
                    'History', 'Business Studies', 'Computer Studies', 'Agriculture', 'Home Science',
                    'Religious Education', 'Creative Arts'],
+}
+
+CLASS_SUBJECTS_BY_LEVEL = {
+    'upper_primary': ['Mathematics', 'English', 'Kiswahili', 'Science and Technology', 'Social Studies', 'Agriculture', 'Creative Arts'],
+    'junior_school': ['Mathematics', 'English', 'Kiswahili', 'Science and Technology', 'Social Studies', 'Pre-Technical Studies', 'Agriculture', 'Creative Arts', 'ICT', 'Business Studies'],
+    'senior_school': ['Mathematics', 'English', 'Physics', 'Chemistry', 'Agriculture', 'Home Science', 'Creative Arts', 'Biology', 'Kiswahili', 'Geography', 'Religious Education', 'Business Studies', 'History', 'Computer Studies'],
+    'campus': ['Mathematics', 'Statistics', 'Accounting', 'Economics', 'Business Studies', 'Marketing', 'Finance', 'Human Resource Management', 'Public Administration', 'Law', 'Computer Science', 'Psychology', 'Sociology', 'Political Science', 'Communication and Media Studies', 'Education', 'History', 'Literature', 'Philosophy', 'Kiswahili'],
 }
 
 

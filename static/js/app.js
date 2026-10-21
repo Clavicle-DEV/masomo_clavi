@@ -1870,6 +1870,7 @@
   let currentTestData = null;
   let currentExamTopic = null; // null means final exam
   let currentExamIsFinal = false;
+  let currentPromotionExamId = null;
 
   function levelLabelText() {
     return currentLevel === 'cbc'
@@ -2232,8 +2233,18 @@
   }
 
   finalExamBtn.addEventListener('click', () => openExamScreen(null));
+  const promotionExamBtn = document.getElementById('promotionExamBtn');
+  if (ACCOUNT_COURSE_COMPLETED) {
+    promotionExamBtn.disabled = true;
+    promotionExamBtn.textContent = 'Course complete';
+    document.getElementById('promotionExamStatus').textContent =
+      'You have completed the highest available level. Congratulations on your learning journey!';
+  } else {
+    promotionExamBtn.addEventListener('click', openPromotionExam);
+  }
 
   async function openExamScreen(topic) {
+    currentPromotionExamId = null;
     currentExamTopic = topic;
     currentExamIsFinal = !topic;
     showScreen('examScreen');
@@ -2267,6 +2278,108 @@
     } catch (err) {
       examLoading.innerHTML = err.message || 'Could not generate the test right now. Please go back and try again.';
       console.error(err);
+    }
+  }
+
+  async function openPromotionExam() {
+    currentPromotionExamId = null;
+    showScreen('examScreen');
+    examLoading.textContent = 'Building your class promotion exam...';
+    examLoading.style.display = 'block';
+    examTakingView.style.display = 'none';
+    examResultsView.style.display = 'none';
+    examTakingView.innerHTML = '';
+    examResultsView.innerHTML = '';
+    try {
+      const response = await fetch('/api/promotion-exam', { method: 'POST' });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Could not create the promotion exam.');
+      currentPromotionExamId = data.examId;
+      const questionHtml = data.questions.map(question => `
+        <div class="exam-question">
+          <div class="exam-question-text">${question.id}. <strong>${escapeHtml(question.subject)}</strong> — ${escapeHtml(question.question)} <span class="exam-question-marks">(1 mk)</span></div>
+          <div class="exam-options">
+            ${Object.entries(question.options).map(([letter, text]) => `
+              <label class="exam-option">
+                <input type="radio" name="promotion_q_${question.id}" value="${letter}">
+                <span><strong>${letter}.</strong> ${escapeHtml(text)}</span>
+              </label>
+            `).join('')}
+          </div>
+        </div>
+      `).join('');
+      examTakingView.innerHTML = `
+        <div class="exam-paper">
+          <div class="exam-paper-header">
+            <div class="exam-subject">Class Promotion Exam</div>
+            <div class="exam-meta">${escapeHtml(data.gradeForm)} — ${escapeHtml(data.scopeLabel)} — 30 marks</div>
+          </div>
+          <div class="exam-instructions">Answer all 30 questions. Score at least 21/30 (70%) to advance automatically. Unanswered questions count as incorrect.</div>
+          ${questionHtml}
+          <button class="exam-submit-btn" id="submitPromotionExamBtn">Submit Promotion Exam</button>
+        </div>
+      `;
+      document.getElementById('submitPromotionExamBtn')
+        .addEventListener('click', submitPromotionExam);
+    } catch (error) {
+      examLoading.textContent = error.message || 'Could not create the promotion exam. Please try again.';
+      console.error('Could not create promotion exam:', error);
+    }
+  }
+
+  async function submitPromotionExam(event) {
+    const submitButton = event.currentTarget;
+    submitButton.disabled = true;
+    const answers = {};
+    for (let id = 1; id <= 30; id += 1) {
+      const selected = document.querySelector(`input[name="promotion_q_${id}"]:checked`);
+      if (selected) answers[String(id)] = selected.value;
+    }
+    try {
+      const response = await fetch(`/api/promotion-exam/${encodeURIComponent(currentPromotionExamId)}/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answers }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Could not submit your exam.');
+      const heading = data.courseCompleted
+        ? 'Course complete — congratulations!'
+        : data.passed
+          ? `Promotion passed — welcome to ${escapeHtml(data.nextGrade)}!`
+          : 'Not passed yet — keep learning and try again.';
+      const reviewHtml = data.review.map(item => {
+        const correct = item.yourAnswer === item.correctOption;
+        return `
+          <div class="marking-item">
+            <div class="marking-question">${item.id}. <strong>${escapeHtml(item.subject)}</strong> — ${escapeHtml(item.question)}</div>
+            <div class="marking-row ${correct ? 'marking-correct' : 'marking-wrong'}">
+              Your answer: ${item.yourAnswer || '(not answered)'} — correct answer: ${item.correctOption}
+            </div>
+            <div class="marking-row">${escapeHtml(item.explanation)}</div>
+          </div>
+        `;
+      }).join('');
+      examTakingView.style.display = 'none';
+      examResultsView.style.display = 'block';
+      examResultsView.innerHTML = `
+        <div class="result-summary">
+          <div class="result-score">${data.score} / ${data.total}</div>
+          <div class="result-percent">${data.percent}%</div>
+          <div class="result-verdict ${data.passed ? 'pass' : 'retry'}">${heading}</div>
+          <div class="result-verdict">${data.passed ? 'You needed at least 21/30 (70%).' : 'You need at least 21/30 (70%). Review the answers below and try another exam.'}</div>
+          <button type="button" class="primary" id="promotionResultDoneBtn">${data.passed ? 'Continue' : 'Back to learning'}</button>
+        </div>
+        ${reviewHtml}
+      `;
+      document.getElementById('promotionResultDoneBtn')
+        .addEventListener('click', () => window.location.reload());
+      renderMath(examResultsView);
+    } catch (error) {
+      submitButton.disabled = false;
+      examLoading.textContent = error.message || 'Could not submit your exam. Please try again.';
+      examLoading.style.display = 'block';
+      console.error('Could not submit promotion exam:', error);
     }
   }
 
