@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Certificate application · Clavis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    :root { color-scheme:light; --ink:#173b2b; --muted:#65756b; --paper:#fffdf8; --line:#dfe7d7; --red:#8a351d; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:radial-gradient(circle at 85% 5%,#e8f5c5,transparent 32%),#f5f3eb; color:var(--ink); font-family:'DM Sans',sans-serif; padding:24px; display:grid; place-items:center; }
+    .card { width:min(100%,560px); background:var(--paper); border:1px solid var(--line); border-radius:22px; padding:clamp(24px,6vw,42px); box-shadow:0 24px 65px rgba(23,59,43,.09); }
+    .back { display:inline-block; color:var(--ink); font-size:13px; font-weight:700; text-decoration:none; margin-bottom:26px; }
+    h1 { font:700 clamp(29px,7vw,40px)/1.08 'Playfair Display',serif; letter-spacing:-.04em; margin:0 0 10px; }
+    p { color:var(--muted); line-height:1.6; }
+    .flash { padding:11px 13px; border-radius:10px; margin:12px 0; font-size:14px; background:#fff0e9; color:var(--red); border:1px solid #f4c7b5; }
+    .flash-success { background:#eff7e8; color:#24543c; border-color:#cbdcbd; }
+    .status { border:1px solid var(--line); background:#f7f8f1; border-radius:12px; padding:16px; margin:22px 0; }
+    .status strong { display:block; margin-bottom:4px; text-transform:capitalize; }
+    label { display:block; font-size:13px; font-weight:700; margin:18px 0 7px; }
+    input { width:100%; min-height:48px; border:1px solid #cad6c8; border-radius:10px; padding:11px 13px; color:var(--ink); background:white; font:inherit; }
+    input:focus { outline:3px solid rgba(121,168,58,.2); border-color:#79a83a; }
+    .hint { font-size:12px; }
+    button { width:100%; border:0; border-radius:11px; min-height:50px; padding:13px 18px; margin-top:22px; background:var(--ink); color:white; font:700 15px 'DM Sans',sans-serif; cursor:pointer; }
+    button:hover { background:#24543c; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <a class="back" href="{{ url_for('home') }}">← Back to Clavis</a>
+    <h1>Certificate application</h1>
+    <p>You’ve completed {{ course_level }}. Submit the name you want printed and a clear portrait photo. An admin will review your application. Application photos and review records are admin-only; after approval, you can download your own certificate PDF.</p>
+
+    {% with flashed = get_flashed_messages(with_categories=true) %}
+      {% for category, message in flashed %}
+        <div class="flash {% if category == 'success' %}flash-success{% endif %}" role="status">{{ message }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    {% if application and application.status != 'rejected' %}
+      <div class="status">
+        <strong>Application {{ application.status }}</strong>
+        Submitted {{ application.submitted_at.strftime('%d %b %Y') if application.submitted_at else 'recently' }}.
+        {% if application.status == 'issued' %}
+          Your certificate is ready. <a href="{{ url_for('download_certificate', application_id=application.id) }}">Download your certificate PDF</a>.
+        {% else %}
+          We’ll update the status after admin review.
+        {% endif %}
+      </div>
+    {% else %}
+      {% if application and application.status == 'rejected' %}
+        <div class="status"><strong>Changes requested</strong>Please submit a new photo and application for admin review.</div>
+      {% endif %}
+      <form method="post" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <label for="learner_name">Name for the certificate</label>
+        <input id="learner_name" name="learner_name" maxlength="100" autocomplete="name" value="{{ application.learner_name if application else user.display_name or '' }}" required>
+        <label for="learner_photo">Portrait photo</label>
+        <input id="learner_photo" name="learner_photo" type="file" accept="image/jpeg,image/png,image/webp" required>
+        <p class="hint">JPG, PNG, or WEBP · maximum 3 MB. Your photo is stored privately and shown only to admins reviewing certificates.</p>
+        <button type="submit">Submit application</button>
+      </form>
+    {% endif %}
+  </main>
+</body>
+</html>

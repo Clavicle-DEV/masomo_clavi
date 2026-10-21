@@ -140,6 +140,13 @@
       {% elif is_admin_user %}
       <a href="{{ url_for('admin_mpesa_requests') }}" style="color: var(--chalk); font-weight: 700; text-decoration: none; font-size: 13px;">✅ M-Pesa requests</a>
       {% endif %}
+      {% if is_admin_user %}
+      <a href="{{ url_for('admin_certificates') }}" style="color: var(--chalk); font-weight: 700; text-decoration: none; font-size: 13px;">🎓 Certificates</a>
+      {% elif student_track == 'campus' and course_completed %}
+      <a href="{{ url_for('certificate_application') }}" style="color: var(--chalk); font-weight: 700; text-decoration: none; font-size: 13px;">
+        🎓 {{ 'Certificate status' if certificate_application else 'Apply for certificate' }}
+      </a>
+      {% endif %}
       {% if not is_admin_user and not subscription_expired %}
       <button type="button" class="upgrade-nav-btn" id="upgradeBtn">Upgrade</button>
       {% endif %}

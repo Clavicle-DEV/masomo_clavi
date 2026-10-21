@@ -1,6 +1,9 @@
 import os
+from io import BytesIO
 import unittest
 from unittest.mock import patch
+
+from PIL import Image
 
 from app import (
     CAMPUS_YEARS,
@@ -8,10 +11,14 @@ from app import (
     ELEMENTARY_GRADES,
     app as flask_app,
     CLASS_SUBJECTS_BY_LEVEL,
+    certificate_photo_mime,
     describe_level,
     elementary_stage_for_grade,
     has_unlimited_access,
+    has_completed_highest_course,
+    normalize_certificate_photo,
     next_promotion_level,
+    render_certificate_pdf,
     validate_class_promotion_test,
     validate_topic_mastery_test,
 )
@@ -117,6 +124,60 @@ class CurriculumLevelTests(unittest.TestCase):
         school.campus_year = "Year 2"
         self.assertEqual(next_promotion_level(school), ("Year 3", False))
 
+    def test_certificate_photo_checks_image_signatures(self):
+        self.assertEqual(
+            certificate_photo_mime(b"\x89PNG\r\n\x1a\n" + b"content"),
+            "image/png",
+        )
+        self.assertEqual(
+            certificate_photo_mime(b"\xff\xd8\xff" + b"content" + b"\xff\xd9"),
+            "image/jpeg",
+        )
+        self.assertEqual(
+            certificate_photo_mime(b"RIFF" + b"\x00\x00\x00\x00" + b"WEBP" + b"data"),
+            "image/webp",
+        )
+        self.assertIsNone(certificate_photo_mime(b"not really an image"))
+
+    def test_certificate_photo_is_decoded_and_normalized(self):
+        image_buffer = BytesIO()
+        Image.new("RGB", (24, 18), color=(34, 90, 55)).save(image_buffer, format="PNG")
+
+        normalized = normalize_certificate_photo(image_buffer.getvalue())
+
+        self.assertEqual(certificate_photo_mime(normalized), "image/jpeg")
+        with Image.open(BytesIO(normalized)) as image:
+            self.assertEqual(image.size, (24, 18))
+
+    def test_certificate_eligibility_is_campus_only(self):
+        class Learner:
+            student_track = "highschool"
+            campus_year = None
+            elementary_grade = "Grade 12"
+
+        self.assertFalse(has_completed_highest_course(Learner()))
+
+        learner = Learner()
+        learner.student_track = "campus"
+        learner.campus_year = "Year 4"
+        self.assertFalse(has_completed_highest_course(learner))
+
+    def test_certificate_pdf_is_generated(self):
+        from datetime import datetime
+        from types import SimpleNamespace
+
+        photo_buffer = BytesIO()
+        Image.new("RGB", (24, 18), color=(34, 90, 55)).save(photo_buffer, format="JPEG")
+        pdf = render_certificate_pdf(SimpleNamespace(
+            certificate_number="CLV-2026-AB12CD34",
+            learner_name="Amina Njeri",
+            course_level="Year 5 — Computer Science",
+            reviewed_at=datetime(2026, 10, 21),
+            photo_data=photo_buffer.getvalue(),
+        ))
+        self.assertTrue(pdf.startswith(b"%PDF-"))
+        self.assertGreater(len(pdf), 1000)
+
     def test_mpesa_tier_prices_are_day_and_month_only(self):
         from app import MPESA_TIER_PRICES
         self.assertEqual(set(MPESA_TIER_PRICES.keys()), {"day", "month"})
@@ -125,6 +186,21 @@ class CurriculumLevelTests(unittest.TestCase):
         with flask_app.test_client() as client:
             response = client.get("/pay-mpesa")
             self.assertEqual(response.status_code, 302)
+
+    def test_certificate_routes_require_login(self):
+        with flask_app.test_client() as client:
+            self.assertEqual(client.get("/certificate/application").status_code, 302)
+            self.assertEqual(client.get("/admin/certificates").status_code, 302)
+            self.assertEqual(client.get("/admin/certificates/1/photo").status_code, 302)
+            self.assertEqual(client.get("/certificate/1/download").status_code, 302)
+            self.assertEqual(
+                client.post("/admin/certificates/1/issue").status_code,
+                302,
+            )
+            self.assertEqual(
+                client.post("/admin/certificates/1/reject").status_code,
+                302,
+            )
 
     def test_admin_emails_bypass_payment_gate(self):
         class DummyUser:

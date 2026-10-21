@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Clavis — Certificate Applications</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root { --bg:#F6F1E5; --paper:#FFFDF8; --chalk:#1F3B30; --gold:#D9A62E; --red:#B8433A; --ink:#21281F; --muted:#6E7A6C; --line:#E4DCC8; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink); font-family:'Inter',sans-serif; padding:32px 16px; }
+    .wrap { max-width:900px; margin:0 auto; }
+    h1 { font-family:'Fraunces',serif; color:var(--chalk); font-size:28px; margin:0 0 6px; }
+    .sub { color:var(--muted); margin:0 0 24px; font-size:14px; }
+    .flash { padding:10px 14px; border-radius:8px; font-size:14px; margin-bottom:10px; background:#eff7e8; color:#24543c; border:1px solid #cbdcbd; }
+    .flash-warning, .flash-danger { background:#fff0e9; color:#8a351d; border-color:#f4c7b5; }
+    .card { background:var(--paper); border:1px solid var(--line); border-radius:14px; padding:18px; margin-bottom:14px; display:grid; grid-template-columns:110px 1fr; gap:16px; }
+    .photo { width:110px; height:132px; object-fit:cover; border-radius:9px; border:1px solid var(--line); background:var(--bg); }
+    .details { font-size:14px; line-height:1.65; overflow-wrap:anywhere; }
+    .name { color:var(--chalk); font-size:17px; font-weight:700; }
+    .badge { display:inline-block; text-transform:capitalize; font-size:11px; font-weight:700; background:#f0e8d6; border-radius:999px; padding:3px 9px; margin-left:5px; }
+    .number { font-family:monospace; font-weight:700; }
+    .actions { display:flex; gap:8px; margin-top:12px; }
+    button { padding:9px 14px; border-radius:8px; border:0; font-size:13px; font-weight:700; cursor:pointer; }
+    .issue { background:var(--chalk); color:white; }
+    .reject { background:transparent; color:var(--red); border:1px solid var(--red); }
+    .empty { color:var(--muted); font-size:14px; padding:24px 0; text-align:center; }
+    @media(max-width:520px) { body { padding:22px 12px; }.card { grid-template-columns:76px 1fr; gap:12px; padding:13px; }.photo { width:76px; height:100px; }.actions { flex-wrap:wrap; } }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <h1>Certificate applications</h1>
+    <p class="sub"><a href="{{ url_for('home') }}">← Back to app</a> · Only admins can access applicant photos and issued certificate records.</p>
+
+    {% with flashed = get_flashed_messages(with_categories=true) %}
+      {% for category, message in flashed %}
+        <div class="flash {% if category != 'success' %}flash-{{ category }}{% endif %}" role="status">{{ message }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    {% for application in applications %}
+      {% set learner = users.get(application.user_id) %}
+      <section class="card">
+        <img class="photo" src="{{ url_for('admin_certificate_photo', application_id=application.id) }}" alt="Portrait photo for {{ application.learner_name }}">
+        <div class="details">
+          <div class="name">{{ application.learner_name }} <span class="badge">{{ application.status }}</span></div>
+          <div>Account: {{ learner.email if learner else 'Account unavailable' }}</div>
+          <div>Path: {{ 'Campus' if application.student_track == 'campus' else 'Elementary' }} · {{ application.course_level }}</div>
+          <div>Submitted: {{ application.submitted_at.strftime('%d %b %Y, %H:%M') if application.submitted_at else '—' }}</div>
+          {% if application.certificate_number %}<div>Certificate number: <span class="number">{{ application.certificate_number }}</span></div>{% endif %}
+          {% if application.status == 'issued' %}
+            <div><a href="{{ url_for('download_certificate', application_id=application.id) }}">Download certificate PDF</a></div>
+          {% endif %}
+          {% if application.status == 'pending' %}
+            <div class="actions">
+              <form method="post" action="{{ url_for('admin_issue_certificate', application_id=application.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button class="issue" type="submit">Issue certificate</button>
+              </form>
+              <form method="post" action="{{ url_for('admin_reject_certificate', application_id=application.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button class="reject" type="submit">Reject application</button>
+              </form>
+            </div>
+          {% endif %}
+        </div>
+      </section>
+    {% else %}
+      <div class="empty">No certificate applications yet.</div>
+    {% endfor %}
+  </main>
+</body>
+</html>

@@ -7,6 +7,7 @@ import zipfile
 import hashlib
 import importlib
 import secrets
+import warnings
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
@@ -14,7 +15,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 import requests
-from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, Response, send_from_directory
+from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, Response, send_from_directory, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 try:
@@ -30,7 +31,14 @@ except ImportError:
 from werkzeug.security import generate_password_hash, check_password_hash
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from sqlalchemy import inspect, text
+from sqlalchemy.orm import deferred
 from dotenv import load_dotenv
+from PIL import Image, ImageOps
+from reportlab.lib.colors import HexColor
+from reportlab.lib.pagesizes import A4, landscape
+from reportlab.pdfbase import pdfmetrics
+from reportlab.lib.utils import simpleSplit
+from reportlab.pdfgen import canvas
 
 def load_environment(project_root=None):
     root = Path(project_root or Path(__file__).resolve().parent).resolve()
@@ -526,6 +534,25 @@ class PromotionExam(db.Model):
     total_marks = db.Column(db.Integer, nullable=True)
     result_json = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
+
+
+class CertificateApplication(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    student_track = db.Column(db.String(20), nullable=False)
+    course_level = db.Column(db.String(50), nullable=False)
+    learner_name = db.Column(db.String(100), nullable=False)
+    photo_data = deferred(db.Column(db.LargeBinary, nullable=False))
+    photo_mime = db.Column(db.String(30), nullable=False)
+    status = db.Column(db.String(20), nullable=False, default='pending')
+    certificate_number = db.Column(db.String(32), unique=True, nullable=True)
+    submitted_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
+    reviewed_at = db.Column(db.DateTime, nullable=True)
+    reviewed_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'student_track', name='uq_certificate_application_track'),
+    )
 
 
 REFERRAL_BONUS_DAYS = 3
@@ -1202,13 +1229,13 @@ def home():
             current_user.campus_year if current_user.student_track == 'campus'
             else current_user.elementary_grade or ''
         )
-        at_highest_level = current_grade in ('Grade 12', 'Year 5')
-        course_completed = at_highest_level and PromotionExam.query.filter_by(
-            user_id=current_user.id,
-            student_track=current_user.student_track or 'highschool',
-            grade_form=current_grade,
-            status='passed',
-        ).first() is not None
+        course_completed = has_completed_highest_course(current_user)
+        certificate_application_record = None
+        if current_user.student_track == 'campus':
+            certificate_application_record = CertificateApplication.query.filter_by(
+                user_id=current_user.id,
+                student_track='campus',
+            ).first()
         return render_template(
             'index.html',
             user=current_user,
@@ -1223,6 +1250,7 @@ def home():
             learning_level=current_grade,
             student_track_locked=(not is_full_admin(current_user)) and current_user.student_track is not None,
             course_completed=course_completed,
+            certificate_application=certificate_application_record,
         )
 
     return render_template(
@@ -1830,6 +1858,20 @@ def next_promotion_level(user):
     return None, False
 
 
+def has_completed_highest_course(user):
+    if user.student_track != 'campus':
+        return False
+    grade = user.campus_year or ''
+    if grade != 'Year 5':
+        return False
+    return PromotionExam.query.filter_by(
+        user_id=user.id,
+        student_track='campus',
+        grade_form=grade,
+        status='passed',
+    ).first() is not None
+
+
 @app.route('/api/promotion-exam', methods=['POST'])
 @login_required
 @limiter.limit("2 per minute; 10 per hour", exempt_when=is_unlimited_rate_limit_user)
@@ -1984,6 +2026,425 @@ def api_submit_promotion_exam(exam_key):
     exam.result_json = json.dumps(result)
     db.session.commit()
     return jsonify(result)
+
+
+def certificate_photo_mime(photo_data):
+    if photo_data.startswith(b'\x89PNG\r\n\x1a\n'):
+        return 'image/png'
+    if photo_data.startswith(b'\xff\xd8\xff') and photo_data.endswith(b'\xff\xd9'):
+        return 'image/jpeg'
+    if (
+        len(photo_data) >= 12
+        and photo_data.startswith(b'RIFF')
+        and photo_data[8:12] == b'WEBP'
+    ):
+        return 'image/webp'
+    return None
+
+
+def normalize_certificate_photo(photo_data):
+    if certificate_photo_mime(photo_data) is None:
+        raise ValueError("Upload a valid JPG, PNG, or WEBP image.")
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter('error', Image.DecompressionBombWarning)
+            with Image.open(io.BytesIO(photo_data)) as source:
+                if source.format not in ('JPEG', 'PNG', 'WEBP'):
+                    raise ValueError("Upload a valid JPG, PNG, or WEBP image.")
+                source.verify()
+            with Image.open(io.BytesIO(photo_data)) as source:
+                image = ImageOps.exif_transpose(source).convert('RGB')
+                image.thumbnail((1600, 2000), Image.Resampling.LANCZOS)
+                output = io.BytesIO()
+                image.save(output, format='JPEG', quality=88, optimize=True)
+                return output.getvalue()
+    except (Image.DecompressionBombError, Image.DecompressionBombWarning, OSError) as error:
+        raise ValueError("This photo could not be processed. Please choose another image.") from error
+
+
+def _certificate_text(value):
+    return str(value or '').encode('cp1252', errors='replace').decode('cp1252')
+
+
+def render_certificate_pdf(application):
+    page_width, page_height = landscape(A4)
+    output = io.BytesIO()
+    document = canvas.Canvas(output, pagesize=(page_width, page_height), pageCompression=1)
+    document.setTitle(f"Clavis Campus Certificate {application.certificate_number}")
+    document.setAuthor("Clavis Campus")
+
+    forest = HexColor('#183D2D')
+    deep_forest = HexColor('#102C20')
+    gold = HexColor('#B7924B')
+    pale_gold = HexColor('#E8D9B5')
+    paper = HexColor('#FBF8F0')
+    ink = HexColor('#26372D')
+    muted = HexColor('#637266')
+
+    document.setFillColor(paper)
+    document.rect(0, 0, page_width, page_height, fill=1, stroke=0)
+    document.setStrokeColor(forest)
+    document.setLineWidth(2.2)
+    document.rect(24, 24, page_width - 48, page_height - 48, fill=0, stroke=1)
+    document.setStrokeColor(gold)
+    document.setLineWidth(0.8)
+    document.rect(32, 32, page_width - 64, page_height - 64, fill=0, stroke=1)
+
+    for x, y, horizontal, vertical in (
+        (40, 40, 1, 1),
+        (page_width - 40, 40, -1, 1),
+        (40, page_height - 40, 1, -1),
+        (page_width - 40, page_height - 40, -1, -1),
+    ):
+        document.setStrokeColor(gold)
+        document.setLineWidth(0.75)
+        document.line(x, y, x + 18 * horizontal, y)
+        document.line(x, y, x, y + 18 * vertical)
+        document.circle(x + 5 * horizontal, y + 5 * vertical, 1.7, fill=1, stroke=0)
+
+    center_x = page_width / 2
+    document.setFillColor(forest)
+    document.setFont('Times-Bold', 13)
+    document.drawCentredString(center_x, page_height - 69, "C L A V I S   C A M P U S")
+    document.setFillColor(muted)
+    document.setFont('Helvetica', 7.5)
+    document.drawCentredString(center_x, page_height - 84, "LEARNING  ·  PURPOSE  ·  ACHIEVEMENT")
+
+    medallion_y = page_height - 135
+    document.setFillColor(forest)
+    document.setStrokeColor(gold)
+    document.setLineWidth(1.4)
+    document.circle(center_x, medallion_y, 25, fill=1, stroke=1)
+    document.setStrokeColor(pale_gold)
+    document.setLineWidth(0.7)
+    document.circle(center_x, medallion_y, 20, fill=0, stroke=1)
+    document.setFillColor(pale_gold)
+    document.setFont('Times-Bold', 12)
+    document.drawCentredString(center_x, medallion_y - 4, "C")
+    document.setFillColor(gold)
+    document.setFont('Times-Bold', 7)
+    document.drawCentredString(center_x, page_height - 174, "CERTIFICATE OF COMPLETION")
+
+    document.setFillColor(deep_forest)
+    document.setFont('Times-Roman', 29)
+    document.drawCentredString(center_x, page_height - 218, "Certificate of Achievement")
+    document.setFillColor(muted)
+    document.setFont('Times-Italic', 13)
+    document.drawCentredString(center_x, page_height - 244, "This distinction is proudly presented to")
+
+    learner_name = _certificate_text(application.learner_name)
+    name_font_size = 27
+    name_lines = simpleSplit(learner_name, 'Times-BoldItalic', name_font_size, page_width - 190)
+    while name_font_size > 15 and (
+        len(name_lines) > 2
+        or any(
+            pdfmetrics.stringWidth(line, 'Times-BoldItalic', name_font_size) > page_width - 190
+            for line in name_lines
+        )
+    ):
+        name_font_size -= 1
+        name_lines = simpleSplit(learner_name, 'Times-BoldItalic', name_font_size, page_width - 190)
+    document.setFillColor(forest)
+    document.setFont('Times-BoldItalic', name_font_size)
+    name_baseline = page_height - 280
+    for line in name_lines:
+        document.drawCentredString(center_x, name_baseline, line)
+        name_baseline -= name_font_size + 3
+    underline_y = name_baseline + 1
+    document.setStrokeColor(gold)
+    document.setLineWidth(0.8)
+    document.line(center_x - 120, underline_y, center_x + 120, underline_y)
+
+    document.setFillColor(ink)
+    document.setFont('Times-Roman', 13)
+    document.drawCentredString(center_x, underline_y - 24, "in recognition of successfully completing the")
+    course_title = _certificate_text(application.course_level)
+    course_font_size = 17
+    course_lines = simpleSplit(course_title, 'Times-Bold', course_font_size, page_width - 190)
+    while course_font_size > 12 and (
+        len(course_lines) > 2
+        or any(
+            pdfmetrics.stringWidth(line, 'Times-Bold', course_font_size) > page_width - 190
+            for line in course_lines
+        )
+    ):
+        course_font_size -= 1
+        course_lines = simpleSplit(course_title, 'Times-Bold', course_font_size, page_width - 190)
+    document.setFillColor(forest)
+    document.setFont('Times-Bold', course_font_size)
+    course_baseline = underline_y - 51
+    for line in course_lines:
+        document.drawCentredString(center_x, course_baseline, line)
+        course_baseline -= course_font_size + 2
+    document.setFillColor(muted)
+    document.setFont('Times-Italic', 11)
+    document.drawCentredString(center_x, course_baseline - 7, "through the Clavis Campus learning programme.")
+
+    photo_data = getattr(application, 'photo_data', None)
+    if photo_data:
+        with Image.open(io.BytesIO(photo_data)) as source:
+            portrait = ImageOps.exif_transpose(source).convert('RGB')
+            portrait.thumbnail((420, 500), Image.Resampling.LANCZOS)
+            portrait_buffer = io.BytesIO()
+            portrait.save(portrait_buffer, format='JPEG', quality=88)
+        portrait_buffer.seek(0)
+        photo_x, photo_y, photo_width, photo_height = 65, 93, 75, 95
+        document.setFillColor(HexColor('#FFFFFF'))
+        document.roundRect(photo_x - 3, photo_y - 3, photo_width + 6, photo_height + 6, 3, fill=1, stroke=0)
+        document.drawImage(
+            portrait_buffer,
+            photo_x,
+            photo_y,
+            width=photo_width,
+            height=photo_height,
+            preserveAspectRatio=True,
+            anchor='c',
+            mask='auto',
+        )
+        document.setStrokeColor(gold)
+        document.setLineWidth(0.8)
+        document.roundRect(photo_x - 3, photo_y - 3, photo_width + 6, photo_height + 6, 3, fill=0, stroke=1)
+
+    seal_x, seal_y = page_width - 100, 145
+    document.setFillColor(HexColor('#F3EDDE'))
+    document.setStrokeColor(gold)
+    document.setLineWidth(1.2)
+    document.circle(seal_x, seal_y, 29, fill=1, stroke=1)
+    document.setStrokeColor(forest)
+    document.setLineWidth(0.8)
+    document.circle(seal_x, seal_y, 24, fill=0, stroke=1)
+    document.setFillColor(forest)
+    document.setFont('Times-Bold', 7)
+    document.drawCentredString(seal_x, seal_y + 5, "CLAVIS")
+    document.setFont('Helvetica', 5.5)
+    document.drawCentredString(seal_x, seal_y - 5, "CAMPUS")
+    document.setFillColor(gold)
+    document.circle(seal_x, seal_y, 1.7, fill=1, stroke=0)
+
+    document.setStrokeColor(gold)
+    document.setLineWidth(0.7)
+    document.line(190, 104, 355, 104)
+    document.line(455, 104, 620, 104)
+    document.setFillColor(ink)
+    document.setFont('Helvetica-Bold', 8)
+    document.drawCentredString(272.5, 89, "ISSUED BY CLAVIS CAMPUS")
+    document.setFillColor(muted)
+    document.setFont('Helvetica', 7)
+    document.drawCentredString(272.5, 76, application.reviewed_at.strftime('%d %B %Y') if application.reviewed_at else '')
+    document.setFillColor(ink)
+    document.setFont('Helvetica-Bold', 8)
+    document.drawCentredString(537.5, 89, "CERTIFICATE NUMBER")
+    document.setFillColor(muted)
+    document.setFont('Helvetica', 7)
+    document.drawCentredString(537.5, 76, _certificate_text(application.certificate_number))
+    document.setFillColor(muted)
+    document.setFont('Helvetica', 6)
+    document.drawCentredString(center_x, 49, "A Clavis Campus record of learning and achievement")
+
+    document.showPage()
+    document.save()
+    return output.getvalue()
+
+
+def certificate_csrf_token():
+    token = session.get('certificate_csrf_token')
+    if not token:
+        token = secrets.token_urlsafe(32)
+        session['certificate_csrf_token'] = token
+    return token
+
+
+def certificate_csrf_valid():
+    token = session.get('certificate_csrf_token')
+    submitted_token = request.form.get('csrf_token', '')
+    return bool(token and submitted_token and secrets.compare_digest(token, submitted_token))
+
+
+@app.route('/certificate/application', methods=['GET', 'POST'])
+@login_required
+def certificate_application():
+    if current_user.student_track != 'campus':
+        flash("Campus certificates are available to Campus learners only.", "warning")
+        return redirect(url_for('home'))
+    if not current_user.email_verified:
+        flash("Please verify your email before applying for a certificate.", "danger")
+        return redirect(url_for('home'))
+    if not has_completed_highest_course(current_user):
+        flash("Pass your Campus Year 5 promotion exam before applying for a certificate.", "warning")
+        return redirect(url_for('home'))
+
+    application = CertificateApplication.query.filter_by(
+        user_id=current_user.id,
+        student_track='campus',
+    ).first()
+
+    if request.method == 'POST':
+        if not certificate_csrf_valid():
+            flash("Your session expired. Please refresh the page and try again.", "danger")
+            return redirect(url_for('certificate_application'))
+        if application and application.status != 'rejected':
+            flash("Your certificate application has already been submitted.", "warning")
+            return redirect(url_for('certificate_application'))
+
+        learner_name = (request.form.get('learner_name') or '').strip()
+        photo = request.files.get('learner_photo')
+        if not learner_name or len(learner_name) > 100:
+            flash("Enter the name you want printed on the certificate (up to 100 characters).", "danger")
+            return redirect(url_for('certificate_application'))
+        if photo is None or not photo.filename:
+            flash("Choose a clear portrait photo to include with your application.", "danger")
+            return redirect(url_for('certificate_application'))
+
+        photo_data = photo.stream.read(3 * 1024 * 1024 + 1)
+        if len(photo_data) > 3 * 1024 * 1024:
+            flash("The photo must be 3 MB or smaller.", "danger")
+            return redirect(url_for('certificate_application'))
+        if certificate_photo_mime(photo_data) is None:
+            flash("Upload a valid JPG, PNG, or WEBP image.", "danger")
+            return redirect(url_for('certificate_application'))
+        try:
+            photo_data = normalize_certificate_photo(photo_data)
+        except ValueError as error:
+            flash(str(error), "danger")
+            return redirect(url_for('certificate_application'))
+        photo_mime = 'image/jpeg'
+
+        course_level = f"{current_user.campus_year} — {current_user.campus_course}"
+        if application is None:
+            application = CertificateApplication(
+                user_id=current_user.id,
+                student_track='campus',
+                course_level=course_level,
+                learner_name=learner_name,
+                photo_data=photo_data,
+                photo_mime=photo_mime,
+            )
+            db.session.add(application)
+        else:
+            application.course_level = course_level
+            application.learner_name = learner_name
+            application.photo_data = photo_data
+            application.photo_mime = photo_mime
+            application.status = 'pending'
+            application.certificate_number = None
+            application.submitted_at = datetime.now()
+            application.reviewed_at = None
+            application.reviewed_by_id = None
+        db.session.commit()
+        flash("Your application was submitted. An admin will review it.", "success")
+        return redirect(url_for('certificate_application'))
+
+    return render_template(
+        'certificate_application.html',
+        application=application,
+        user=current_user,
+        csrf_token=certificate_csrf_token(),
+        course_level=f"{current_user.campus_year} — {current_user.campus_course}",
+    )
+
+
+@app.route('/admin/certificates')
+@login_required
+def admin_certificates():
+    if not has_unlimited_access(current_user):
+        flash("Admin access required.", "danger")
+        return redirect(url_for('home'))
+    applications = (
+        CertificateApplication.query
+        .filter_by(student_track='campus')
+        .order_by(CertificateApplication.submitted_at.desc())
+        .all()
+    )
+    users = {user.id: user for user in User.query.filter(
+        User.id.in_([application.user_id for application in applications])
+    ).all()} if applications else {}
+    return render_template(
+        'admin_certificates.html',
+        applications=applications,
+        users=users,
+        csrf_token=certificate_csrf_token(),
+    )
+
+
+@app.route('/admin/certificates/<int:application_id>/photo')
+@login_required
+def admin_certificate_photo(application_id):
+    if not has_unlimited_access(current_user):
+        return jsonify({"error": "Admin access required."}), 403
+    application = CertificateApplication.query.get_or_404(application_id)
+    response = Response(application.photo_data, mimetype=application.photo_mime)
+    response.headers['Content-Disposition'] = 'inline'
+    response.headers['Cache-Control'] = 'private, no-store'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    return response
+
+
+@app.route('/certificate/<int:application_id>/download')
+@login_required
+def download_certificate(application_id):
+    application = CertificateApplication.query.get_or_404(application_id)
+    is_applicant = application.user_id == current_user.id
+    if not is_applicant and not has_unlimited_access(current_user):
+        return jsonify({"error": "Certificate not found."}), 404
+    if application.student_track != 'campus' or application.status != 'issued':
+        return jsonify({"error": "This certificate is not available for download."}), 404
+
+    pdf_data = render_certificate_pdf(application)
+    filename = f"{application.certificate_number or 'clavis-campus-certificate'}.pdf"
+    response = Response(pdf_data, mimetype='application/pdf')
+    response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+    response.headers['Cache-Control'] = 'private, no-store'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    return response
+
+
+@app.route('/admin/certificates/<int:application_id>/issue', methods=['POST'])
+@login_required
+def admin_issue_certificate(application_id):
+    if not has_unlimited_access(current_user):
+        flash("Admin access required.", "danger")
+        return redirect(url_for('home'))
+    if not certificate_csrf_valid():
+        flash("Your session expired. Please refresh the page and try again.", "danger")
+        return redirect(url_for('admin_certificates'))
+    application = CertificateApplication.query.get_or_404(application_id)
+    if application.status != 'pending':
+        flash("This certificate application has already been reviewed.", "warning")
+        return redirect(url_for('admin_certificates'))
+    applicant = User.query.get(application.user_id)
+    if applicant is None or not has_completed_highest_course(applicant):
+        flash("The learner must still have completed their highest level before a certificate can be issued.", "danger")
+        return redirect(url_for('admin_certificates'))
+    application.status = 'issued'
+    application.certificate_number = (
+        f"CLV-{datetime.now().year}-{secrets.token_hex(4).upper()}"
+    )
+    application.reviewed_at = datetime.now()
+    application.reviewed_by_id = current_user.id
+    db.session.commit()
+    flash(f"Certificate issued for {application.learner_name}.", "success")
+    return redirect(url_for('admin_certificates'))
+
+
+@app.route('/admin/certificates/<int:application_id>/reject', methods=['POST'])
+@login_required
+def admin_reject_certificate(application_id):
+    if not has_unlimited_access(current_user):
+        flash("Admin access required.", "danger")
+        return redirect(url_for('home'))
+    if not certificate_csrf_valid():
+        flash("Your session expired. Please refresh the page and try again.", "danger")
+        return redirect(url_for('admin_certificates'))
+    application = CertificateApplication.query.get_or_404(application_id)
+    if application.status != 'pending':
+        flash("This certificate application has already been reviewed.", "warning")
+        return redirect(url_for('admin_certificates'))
+    application.status = 'rejected'
+    application.reviewed_at = datetime.now()
+    application.reviewed_by_id = current_user.id
+    db.session.commit()
+    flash(f"Rejected the certificate application from {application.learner_name}.", "warning")
+    return redirect(url_for('admin_certificates'))
 
 
 @app.route('/api/exam-results', methods=['GET', 'POST'])
