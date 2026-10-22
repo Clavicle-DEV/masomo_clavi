@@ -1989,6 +1989,110 @@ def api_topic_progress():
     })
 
 
+def summarize_learning_topics(subjects, rows):
+    rows_by_subject = {}
+    for row in rows:
+        rows_by_subject.setdefault(row.subject, []).append(row)
+
+    subject_progress = []
+    for subject in subjects:
+        subject_rows = rows_by_subject.get(subject, [])
+        started = len(subject_rows)
+        taught = sum(bool(row.taught) for row in subject_rows)
+        mastered = sum(
+            row.score == 30 and row.total_marks == 30
+            for row in subject_rows
+        )
+        latest_scored = next(
+            (row for row in subject_rows if row.score is not None and row.total_marks),
+            None,
+        )
+        subject_progress.append({
+            "subject": subject,
+            "topicsStarted": started,
+            "topicsTaught": taught,
+            "topicsMastered": mastered,
+            "latestScore": (
+                f"{latest_scored.score}/{latest_scored.total_marks}"
+                if latest_scored else None
+            ),
+            "lastUpdated": (
+                latest_scored.updated_at.isoformat()
+                if latest_scored and latest_scored.updated_at else None
+            ),
+        })
+    return subject_progress
+
+
+@app.route('/api/learning-progress')
+@login_required
+def api_learning_progress():
+    level, grade = current_promotion_level(current_user)
+    if not level or not grade:
+        return jsonify({"error": "Choose your learning path and level to see your progress."}), 400
+
+    subjects = onboarding_subject_choices(current_user)
+    rows = TopicProgress.query.filter_by(
+        user_id=current_user.id,
+        level=level,
+        grade_form=grade,
+    ).order_by(TopicProgress.updated_at.desc()).all()
+    subject_progress = summarize_learning_topics(subjects, rows)
+
+    promotion_rows = (
+        PromotionExam.query
+        .filter_by(user_id=current_user.id, student_track=current_user.student_track)
+        .order_by(PromotionExam.created_at.desc())
+        .limit(10)
+        .all()
+    )
+    promotion_passes = PromotionExam.query.filter_by(
+        user_id=current_user.id,
+        student_track=current_user.student_track,
+        status='passed',
+    ).count()
+    timetable = study_timetable_for_user(current_user)
+    promotion_exams = []
+    for exam in promotion_rows:
+        completed_course = False
+        if exam.result_json:
+            try:
+                completed_course = bool(json.loads(exam.result_json).get('courseCompleted'))
+            except (AttributeError, TypeError, json.JSONDecodeError):
+                app.logger.warning("Invalid promotion result data for exam %s", exam.id)
+        promotion_exams.append({
+            "level": exam.grade_form,
+            "status": exam.status,
+            "score": exam.score,
+            "total": exam.total_marks or 30,
+            "passed": exam.status == 'passed',
+            "completedCourse": completed_course,
+            "date": exam.created_at.isoformat() if exam.created_at else None,
+        })
+    return jsonify({
+        "track": current_user.student_track,
+        "level": level,
+        "grade": grade,
+        "course": current_user.campus_course if current_user.student_track == 'campus' else None,
+        "favoriteSubject": current_user.favorite_subject,
+        "challengingSubjects": challenging_subjects_for_user(current_user),
+        "subjects": subject_progress,
+        "topicTotals": {
+            "started": sum(item["topicsStarted"] for item in subject_progress),
+            "taught": sum(item["topicsTaught"] for item in subject_progress),
+            "mastered": sum(item["topicsMastered"] for item in subject_progress),
+        },
+        "promotionExams": promotion_exams,
+        "promotionPasses": promotion_passes,
+        "timetable": {
+            "dailyHours": timetable["daily_hours"],
+            "totalSubjects": timetable["total_subjects"],
+            "subjects": timetable["subjects"],
+            "dailyGoalMinutes": current_user.daily_goal_minutes or 0,
+        },
+    })
+
+
 def current_promotion_level(user):
     if user.student_track == 'campus':
         if user.campus_year not in CAMPUS_YEARS:

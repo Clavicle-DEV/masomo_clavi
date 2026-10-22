@@ -887,6 +887,39 @@
       </div>
     </div>
 
+    <section class="learning-journey" id="learningJourneyWrap" aria-labelledby="learningJourneyTitle">
+      <div class="learning-journey-header">
+        <div>
+          <h3 id="learningJourneyTitle" class="section-heading">Learning journey</h3>
+          <p id="learningJourneyContext" class="learning-journey-context">Loading your saved course progress…</p>
+        </div>
+        <a href="/study-timetable" class="learning-plan-link">Edit study plan →</a>
+      </div>
+      <div id="learningProgressError" class="learning-progress-error" role="status" style="display:none;"></div>
+      <div id="learningProgressContent" style="display:none;">
+        <div class="learning-summary-grid">
+          <div class="learning-summary-card"><strong id="topicsStartedCount">0</strong><span>Topics started</span></div>
+          <div class="learning-summary-card"><strong id="topicsTaughtCount">0</strong><span>Topics taught</span></div>
+          <div class="learning-summary-card"><strong id="topicsMasteredCount">0</strong><span>Mastered at 30/30</span></div>
+          <div class="learning-summary-card"><strong id="promotionPassCount">0</strong><span>Promotion exams passed</span></div>
+        </div>
+        <div class="learning-focus-callout" id="learningFocusCallout"></div>
+        <h4 class="learning-subheading">Progress by subject</h4>
+        <p class="learning-progress-note">Topic totals count topics you’ve opened in Clavis; they don’t represent the full course syllabus.</p>
+        <div class="learning-subject-grid" id="learningSubjectGrid"></div>
+        <div class="learning-lower-grid">
+          <section class="learning-panel">
+            <h4 class="learning-subheading">Promotion journey</h4>
+            <div id="promotionJourney"></div>
+          </section>
+          <section class="learning-panel">
+            <h4 class="learning-subheading">Daily study plan</h4>
+            <div id="dashboardTimetable"></div>
+          </section>
+        </div>
+      </div>
+    </section>
+
     <div id="badgeRow" class="badge-row"></div>
 
     <div id="subjectBarsWrap">

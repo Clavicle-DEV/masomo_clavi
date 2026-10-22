@@ -923,6 +923,99 @@
 
     renderBadges(stats, null);
     renderExamProgress();
+    renderLearningJourney();
+  }
+
+  let learningProgressRequestId = 0;
+  async function renderLearningJourney() {
+    const requestId = ++learningProgressRequestId;
+    const errorEl = document.getElementById('learningProgressError');
+    const contentEl = document.getElementById('learningProgressContent');
+    errorEl.style.display = 'none';
+    contentEl.style.display = 'none';
+
+    try {
+      const response = await fetch('/api/learning-progress');
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Could not load your saved learning progress.');
+      if (requestId !== learningProgressRequestId) return;
+
+      document.getElementById('learningJourneyContext').textContent =
+        data.track === 'campus'
+          ? `${data.course || 'Campus course'} · ${data.grade}`
+          : `${data.grade} · ${levelDisplayName(data.level)}`;
+      document.getElementById('topicsStartedCount').textContent = data.topicTotals.started;
+      document.getElementById('topicsTaughtCount').textContent = data.topicTotals.taught;
+      document.getElementById('topicsMasteredCount').textContent = data.topicTotals.mastered;
+      document.getElementById('promotionPassCount').textContent = data.promotionPasses;
+
+      const focusSubject = data.challengingSubjects.find(subject =>
+        data.subjects.some(item => item.subject === subject
+          && (item.topicsStarted === 0 || item.topicsMastered < item.topicsStarted))
+      ) || (data.favoriteSubject && data.subjects.some(item =>
+        item.subject === data.favoriteSubject && (item.topicsStarted === 0 || item.topicsMastered < item.topicsStarted)
+      ) ? data.favoriteSubject : null)
+        || data.subjects.find(item => item.topicsStarted === 0)?.subject
+        || data.subjects.find(item => item.topicsMastered < item.topicsStarted)?.subject;
+      const focusCallout = document.getElementById('learningFocusCallout');
+      focusCallout.textContent = focusSubject
+        ? `Suggested next focus: ${focusSubject}. Open its topics to continue learning and work toward a 30/30 mastery score.`
+        : data.topicTotals.started
+          ? 'You’ve mastered every topic you have started. Open a subject and begin its next topic when you’re ready.'
+          : 'Choose a subject and start your first topic. Clavis will track lessons and mastery tests here.';
+
+      document.getElementById('learningSubjectGrid').innerHTML = data.subjects.map(item => {
+        const status = item.topicsStarted === 0
+          ? 'Not started'
+          : `${item.topicsMastered}/${item.topicsStarted} mastered`;
+        const startedLabel = item.topicsStarted === 1 ? 'topic started' : 'topics started';
+        const taughtLabel = item.topicsTaught === 1 ? 'lesson taught' : 'lessons taught';
+        return `
+          <button type="button" class="learning-subject-card learning-subject-button" data-learning-subject="${escapeHtml(item.subject)}">
+            <span class="learning-subject-top">
+              <span class="learning-subject-name">${escapeHtml(item.subject)}</span>
+              <span class="learning-subject-status">${status}</span>
+            </span>
+            <span class="learning-subject-detail">${item.topicsStarted} ${startedLabel} · ${item.topicsTaught} ${taughtLabel}${item.latestScore ? ` · Latest test ${escapeHtml(item.latestScore)}` : ''}</span>
+          </button>
+        `;
+      }).join('');
+      document.querySelectorAll('.learning-subject-button').forEach(button => {
+        button.addEventListener('click', () => {
+          const subject = button.dataset.learningSubject;
+          showScreen('homeScreen');
+          openSubjectChat(subject);
+        });
+      });
+
+      const promotionJourney = document.getElementById('promotionJourney');
+      promotionJourney.innerHTML = data.promotionExams.length
+        ? data.promotionExams.map(exam => `
+            <div class="promotion-row">
+              <span class="promotion-row-label">${escapeHtml(exam.level)}${exam.completedCourse ? ' · Course complete' : ''}${exam.date ? `<small class="promotion-row-date">${escapeHtml(new Date(exam.date).toLocaleDateString())}</small>` : ''}</span>
+              <span class="promotion-row-result">${exam.score === null ? escapeHtml(exam.status) : `${exam.score}/${exam.total} · ${exam.passed ? 'Passed' : 'Not passed'}`}</span>
+            </div>
+          `).join('')
+        : '<p class="learning-progress-note">Promotion exam results will appear here after your first attempt.</p>';
+
+      const timetable = data.timetable;
+      document.getElementById('dashboardTimetable').innerHTML = `
+        <div class="dashboard-plan-total">${timetable.dailyHours} ${timetable.dailyHours === 1 ? 'hour' : 'hours'} per day · ${timetable.totalSubjects} ${timetable.totalSubjects === 1 ? 'subject' : 'subjects'}</div>
+        ${timetable.subjects.map(subject => `
+          <div class="dashboard-plan-subject">
+            <span>${escapeHtml(subject.name)}</span>
+            <strong>${escapeHtml(subject.minutes)}</strong>
+          </div>
+        `).join('')}
+        <a class="learning-plan-link" href="/study-timetable">Edit timetable →</a>
+      `;
+      contentEl.style.display = 'block';
+    } catch (error) {
+      if (requestId !== learningProgressRequestId) return;
+      errorEl.textContent = `${error.message} Refresh the dashboard to try again.`;
+      errorEl.style.display = 'block';
+      console.error('Could not load learning dashboard:', error);
+    }
   }
 
   function renderBadges(stats, averagePercent) {

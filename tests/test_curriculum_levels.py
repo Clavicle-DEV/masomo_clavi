@@ -1,6 +1,7 @@
 import os
 import json
 from io import BytesIO
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
@@ -26,6 +27,7 @@ from app import (
     onboarding_subject_choices,
     render_certificate_pdf,
     save_study_schedule,
+    summarize_learning_topics,
     study_schedule_for_user,
     study_timetable_for_user,
     validate_class_promotion_test,
@@ -129,6 +131,34 @@ class CurriculumLevelTests(unittest.TestCase):
                 ("timetable_subjects", "Pre-Technical Studies"),
                 ("daily_hours", "3"),
             ]))
+
+    def test_learning_progress_summary_counts_mastery_and_unstarted_subjects(self):
+        progress = summarize_learning_topics(
+            ["Mathematics", "Physics"],
+            [
+                SimpleNamespace(
+                    subject="Mathematics",
+                    taught=True,
+                    score=30,
+                    total_marks=30,
+                    updated_at=None,
+                ),
+                SimpleNamespace(
+                    subject="Mathematics",
+                    taught=True,
+                    score=24,
+                    total_marks=30,
+                    updated_at=None,
+                ),
+            ],
+        )
+
+        self.assertEqual(progress[0]["topicsStarted"], 2)
+        self.assertEqual(progress[0]["topicsTaught"], 2)
+        self.assertEqual(progress[0]["topicsMastered"], 1)
+        self.assertEqual(progress[0]["latestScore"], "30/30")
+        self.assertEqual(progress[1]["topicsStarted"], 0)
+        self.assertIsNone(progress[1]["latestScore"])
 
     def test_campus_onboarding_uses_existing_subjects_and_years(self):
         self.assertIn("Accounting", DAILY_CHALLENGE_SUBJECTS["campus"])
@@ -273,6 +303,7 @@ class CurriculumLevelTests(unittest.TestCase):
     def test_certificate_routes_require_login(self):
         with flask_app.test_client() as client:
             self.assertEqual(client.get("/study-timetable").status_code, 302)
+            self.assertEqual(client.get("/api/learning-progress").status_code, 302)
             self.assertEqual(client.get("/certificate/application").status_code, 302)
             self.assertEqual(client.get("/admin/certificates").status_code, 302)
             self.assertEqual(client.get("/admin/certificates/preview").status_code, 302)

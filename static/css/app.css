@@ -843,6 +843,53 @@
   }
   [data-theme="dark"] .dash-title { color: var(--ink); }
 
+  .learning-journey {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 24px;
+  }
+  .learning-journey-header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:16px; }
+  .learning-journey-header .section-heading { margin:0 0 5px; }
+  .learning-journey-context { margin:0; color:var(--muted); font-size:13px; }
+  .learning-plan-link { color:var(--chalk); font-size:13px; font-weight:700; text-decoration:none; white-space:nowrap; }
+  .learning-summary-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; margin-bottom:14px; }
+  .learning-summary-card { display:flex; flex-direction:column; gap:4px; padding:13px; background:var(--bg); border:1px solid var(--line); border-radius:11px; }
+  .learning-summary-card strong { color:var(--chalk); font-family:'Fraunces',serif; font-size:23px; line-height:1; }
+  .learning-summary-card span { color:var(--muted); font-size:11px; line-height:1.4; }
+  .learning-focus-callout { padding:13px 15px; background:linear-gradient(120deg,rgba(92,141,54,.1),rgba(92,141,54,.035)); border:1px solid rgba(92,141,54,.22); border-radius:11px; color:var(--ink); font-size:13px; line-height:1.55; margin-bottom:18px; }
+  .learning-subheading { color:var(--chalk); font-size:15px; font-weight:700; margin:16px 0 7px; }
+  .learning-progress-note { margin:0 0 11px; color:var(--muted); font-size:11px; line-height:1.45; }
+  .learning-subject-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:9px; }
+  .learning-subject-card { display:block; width:100%; padding:12px; border:1px solid var(--line); border-radius:10px; background:var(--paper); min-width:0; text-align:left; font:inherit; cursor:pointer; transition:border-color .15s ease,transform .15s ease; }
+  .learning-subject-card:hover { border-color:var(--gold); transform:translateY(-1px); }
+  .learning-subject-top { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+  .learning-subject-name { color:var(--ink); font-size:13px; font-weight:700; overflow-wrap:anywhere; }
+  .learning-subject-status { color:var(--muted); font-size:10px; text-align:right; white-space:nowrap; }
+  .learning-subject-detail { color:var(--muted); font-size:11px; margin-top:6px; line-height:1.45; }
+  .learning-lower-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:6px; }
+  .learning-panel { border:1px solid var(--line); border-radius:11px; background:var(--paper); padding:13px; min-width:0; }
+  .learning-panel .learning-subheading { margin:0 0 10px; }
+  .promotion-row { display:flex; justify-content:space-between; gap:8px; padding:8px 0; border-bottom:1px solid var(--line); font-size:12px; }
+  .promotion-row:last-child { border-bottom:0; padding-bottom:0; }
+  .promotion-row-label { color:var(--ink); font-weight:600; }
+  .promotion-row-date { display:block; margin-top:3px; color:var(--muted); font-size:10px; font-weight:400; }
+  .promotion-row-result { color:var(--muted); text-align:right; }
+  .dashboard-plan-total { color:var(--muted); font-size:12px; margin-bottom:8px; }
+  .dashboard-plan-subject { display:flex; justify-content:space-between; gap:8px; padding:6px 0; border-bottom:1px solid var(--line); color:var(--ink); font-size:11px; }
+  .dashboard-plan-subject:last-child { border-bottom:0; }
+  .learning-progress-error { padding:11px 13px; border:1px solid var(--line); border-radius:10px; color:var(--muted); background:var(--bg); font-size:13px; line-height:1.5; }
+  [data-theme="dark"] .learning-journey,
+  [data-theme="dark"] .learning-subject-card,
+  [data-theme="dark"] .learning-panel { background:var(--paper); }
+  @media(max-width:620px) {
+    .learning-journey { padding:15px; }
+    .learning-journey-header { flex-direction:column; }
+    .learning-lower-grid { grid-template-columns:1fr; }
+    .learning-summary-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  }
+
   .stat-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
