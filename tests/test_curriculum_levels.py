@@ -27,6 +27,7 @@ from app import (
     onboarding_subject_choices,
     render_certificate_pdf,
     save_study_schedule,
+    summarize_study_sessions,
     summarize_learning_topics,
     study_schedule_for_user,
     study_timetable_for_user,
@@ -159,6 +160,39 @@ class CurriculumLevelTests(unittest.TestCase):
         self.assertEqual(progress[0]["latestScore"], "30/30")
         self.assertEqual(progress[1]["topicsStarted"], 0)
         self.assertIsNone(progress[1]["latestScore"])
+
+    def test_study_session_summary_totals_by_subject_and_caps_goal_progress(self):
+        rows = [
+            SimpleNamespace(
+                subject="Mathematics",
+                duration_seconds=900,
+                created_at=None,
+            ),
+            SimpleNamespace(
+                subject="Physics",
+                duration_seconds=600,
+                created_at=None,
+            ),
+            SimpleNamespace(
+                subject="Mathematics",
+                duration_seconds=300,
+                created_at=None,
+            ),
+        ]
+
+        summary = summarize_study_sessions(rows, 20)
+
+        self.assertEqual(summary["todaySeconds"], 1800)
+        self.assertEqual(summary["goalSeconds"], 1200)
+        self.assertEqual(summary["goalPercent"], 100)
+        self.assertEqual(
+            summary["subjects"],
+            [
+                {"subject": "Mathematics", "seconds": 1200},
+                {"subject": "Physics", "seconds": 600},
+            ],
+        )
+        self.assertEqual(len(summary["recent"]), 3)
 
     def test_campus_onboarding_uses_existing_subjects_and_years(self):
         self.assertIn("Accounting", DAILY_CHALLENGE_SUBJECTS["campus"])
@@ -304,6 +338,8 @@ class CurriculumLevelTests(unittest.TestCase):
         with flask_app.test_client() as client:
             self.assertEqual(client.get("/study-timetable").status_code, 302)
             self.assertEqual(client.get("/api/learning-progress").status_code, 302)
+            self.assertEqual(client.get("/api/study-sessions").status_code, 302)
+            self.assertEqual(client.post("/api/study-sessions").status_code, 302)
             self.assertEqual(client.get("/certificate/application").status_code, 302)
             self.assertEqual(client.get("/admin/certificates").status_code, 302)
             self.assertEqual(client.get("/admin/certificates/preview").status_code, 302)

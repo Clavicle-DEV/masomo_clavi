@@ -16,6 +16,8 @@
   let conversationHistory = [];
   let studyTimerInterval = null;
   let studyTimerSubject = null;
+  let studyTimerDurationSeconds = 0;
+  let studyTimerStartedAt = 0;
   let studyTimerEndsAt = 0;
 
   /* Permanently remove the level-toggle buttons that don't belong to this
@@ -1022,6 +1024,7 @@
         `).join('')}
         <a class="learning-plan-link" href="/study-timetable">Edit timetable →</a>
       `;
+      renderStudySummary(data.study);
       contentEl.style.display = 'block';
     } catch (error) {
       if (requestId !== learningProgressRequestId) return;
@@ -1258,9 +1261,98 @@
       : `${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
   }
 
+  function renderStudySummary(study) {
+    if (!study) return;
+    document.getElementById('studyTimeToday').textContent = formatStudyDuration(study.todaySeconds);
+    document.getElementById('studyGoalLabel').textContent = study.goalSeconds
+      ? `${formatStudyDuration(study.goalSeconds)} daily goal`
+      : 'Daily goal not set';
+    const progress = document.getElementById('studyGoalProgress');
+    progress.style.width = `${Math.min(100, study.goalPercent)}%`;
+    progress.parentElement.setAttribute('aria-valuenow', String(Math.min(100, study.goalPercent)));
+    document.getElementById('studyTimeSubjects').innerHTML = study.subjects.length
+      ? study.subjects.map(item => `
+          <div class="study-time-row">
+            <span>${escapeHtml(item.subject)}</span>
+            <strong>${formatStudyDuration(item.seconds)}</strong>
+          </div>
+        `).join('')
+      : '<p class="learning-progress-note">Your completed study sessions will appear here.</p>';
+    document.getElementById('studySessionHistory').innerHTML = study.recent.length
+      ? `<h5>Recent sessions</h5>${study.recent.map(item => `
+          <div class="study-time-row study-history-row">
+            <span>${escapeHtml(item.subject)}${item.createdAt ? ` · ${escapeHtml(new Date(item.createdAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))}` : ''}</span>
+            <strong>${formatStudyDuration(item.durationSeconds)}</strong>
+          </div>
+        `).join('')}`
+      : '';
+  }
+
+  function formatStudyDuration(seconds) {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    if (minutes >= 60) {
+      const hours = Math.floor(minutes / 60);
+      const extraMinutes = minutes % 60;
+      return extraMinutes ? `${hours} hr ${extraMinutes} min` : `${hours} hr`;
+    }
+    return remainingSeconds && minutes === 0
+      ? `${remainingSeconds} sec`
+      : `${minutes} min`;
+  }
+
+  async function saveStudySession(subject, seconds) {
+    try {
+      const response = await fetch('/api/study-sessions', {
+        method: 'POST',
+        keepalive: true,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subject,
+          level: currentLevel,
+          gradeForm: currentGradeForm,
+          durationSeconds: seconds,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Could not save this study session.');
+      renderStudySummary(data);
+      const status = document.getElementById('studySessionSaveStatus');
+      status.textContent = 'Study session saved.';
+      status.hidden = false;
+
+      const latestResponse = await fetch('/api/study-sessions');
+      const latest = await latestResponse.json();
+      if (!latestResponse.ok) throw new Error(latest.error || 'Could not refresh today’s study total.');
+      renderStudySummary(latest);
+    } catch (error) {
+      const status = document.getElementById('studySessionSaveStatus');
+      status.textContent = `Study time update failed: ${error.message}`;
+      status.hidden = false;
+      console.error('Could not save study session:', error);
+    }
+  }
+
+  function finishStudyTimer() {
+    if (studyTimerInterval) clearInterval(studyTimerInterval);
+    studyTimerInterval = null;
+    if (studyTimerStartedAt) {
+      const elapsedSeconds = Math.min(
+        studyTimerDurationSeconds,
+        Math.floor((Date.now() - studyTimerStartedAt) / 1000),
+      );
+      if (elapsedSeconds > 0) saveStudySession(studyTimerSubject, elapsedSeconds);
+    }
+    studyTimerStartedAt = 0;
+    studyTimerEndsAt = 0;
+    studySessionTimer.hidden = true;
+    studySessionTimerActions.hidden = true;
+  }
+
   function stopStudyTimer() {
     if (studyTimerInterval) clearInterval(studyTimerInterval);
     studyTimerInterval = null;
+    studyTimerStartedAt = 0;
     studyTimerSubject = null;
     studyTimerEndsAt = 0;
     studySessionTimer.hidden = true;
@@ -1276,11 +1368,14 @@
 
     clearInterval(studyTimerInterval);
     studyTimerInterval = null;
+    studyTimerStartedAt = 0;
+    saveStudySession(studyTimerSubject, studyTimerDurationSeconds);
     studySessionTimerLabel.textContent = `Study time for ${studyTimerSubject} is up. Restart or exit?`;
     studySessionTimerActions.hidden = false;
   }
 
   function startStudyTimer(subject) {
+    if (studyTimerStartedAt) finishStudyTimer();
     stopStudyTimer();
     const scheduledSubject = STUDY_TIMETABLE.subjects.find(item => item.name === subject);
     const minutes = scheduledSubject ? Number.parseFloat(scheduledSubject.minutes) : 0;
@@ -1288,6 +1383,8 @@
     if (durationSeconds <= 0) return;
 
     studyTimerSubject = subject;
+    studyTimerDurationSeconds = durationSeconds;
+    studyTimerStartedAt = Date.now();
     studyTimerEndsAt = Date.now() + durationSeconds * 1000;
     studySessionTimer.hidden = false;
     studySessionTimerActions.hidden = true;
@@ -1299,14 +1396,17 @@
     if (studyTimerSubject) startStudyTimer(studyTimerSubject);
   });
   studySessionExit.addEventListener('click', () => {
-    stopStudyTimer();
+    finishStudyTimer();
+    studyTimerSubject = null;
     showScreen('homeScreen');
   });
 
   backBtn.addEventListener('click', () => {
-    stopStudyTimer();
+    finishStudyTimer();
+    studyTimerSubject = null;
     showScreen('homeScreen');
   });
+  window.addEventListener('pagehide', finishStudyTimer);
 
   function escapeHtml(str) {
     return str

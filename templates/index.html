@@ -922,6 +922,19 @@
           <section class="learning-panel">
             <h4 class="learning-subheading">Daily study plan</h4>
             <div id="dashboardTimetable"></div>
+            <div class="study-time-dashboard">
+              <h4 class="learning-subheading">Today’s study time</h4>
+              <div class="study-time-summary">
+                <strong id="studyTimeToday">0 min</strong>
+                <span id="studyGoalLabel">Daily goal not set</span>
+              </div>
+              <div class="study-goal-track" role="progressbar" aria-label="Daily study goal progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                <div id="studyGoalProgress" class="study-goal-progress"></div>
+              </div>
+              <div id="studyTimeSubjects" class="study-time-subjects"></div>
+              <div id="studySessionHistory" class="study-session-history"></div>
+              <p id="studySessionSaveStatus" class="study-progress-note" role="status" hidden></p>
+            </div>
           </section>
         </div>
       </div>

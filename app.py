@@ -521,6 +521,20 @@ class TopicProgress(db.Model):
     )
 
 
+class StudySession(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    subject = db.Column(db.String(100), nullable=False)
+    level = db.Column(db.String(50), nullable=False)
+    grade_form = db.Column(db.String(50), nullable=False)
+    duration_seconds = db.Column(db.Integer, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
+
+    __table_args__ = (
+        db.Index('ix_study_session_user_created', 'user_id', 'created_at'),
+    )
+
+
 class PromotionExam(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     exam_key = db.Column(db.String(64), unique=True, nullable=False)
@@ -2024,6 +2038,63 @@ def summarize_learning_topics(subjects, rows):
     return subject_progress
 
 
+def summarize_study_sessions(rows, daily_goal_minutes, recent_rows=None):
+    seconds_by_subject = {}
+    for row in rows:
+        seconds_by_subject[row.subject] = (
+            seconds_by_subject.get(row.subject, 0) + row.duration_seconds
+        )
+
+    total_seconds = sum(seconds_by_subject.values())
+    goal_seconds = max(0, daily_goal_minutes or 0) * 60
+    return {
+        "todaySeconds": total_seconds,
+        "goalSeconds": goal_seconds,
+        "goalPercent": min(100, round(total_seconds * 100 / goal_seconds)) if goal_seconds else 0,
+        "subjects": [
+            {"subject": subject, "seconds": seconds}
+            for subject, seconds in sorted(
+                seconds_by_subject.items(),
+                key=lambda item: (-item[1], item[0].casefold()),
+            )
+        ],
+        "recent": [
+            {
+                "subject": row.subject,
+                "durationSeconds": row.duration_seconds,
+                "createdAt": row.created_at.isoformat() if row.created_at else None,
+            }
+            for row in (recent_rows if recent_rows is not None else rows)[:8]
+        ],
+    }
+
+
+def study_sessions_for_today(user_id):
+    now = datetime.now()
+    start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    start_of_next_day = start_of_day + timedelta(days=1)
+    return (
+        StudySession.query
+        .filter(
+            StudySession.user_id == user_id,
+            StudySession.created_at >= start_of_day,
+            StudySession.created_at < start_of_next_day,
+        )
+        .order_by(StudySession.created_at.desc())
+        .all()
+    )
+
+
+def recent_study_sessions_for_user(user_id):
+    return (
+        StudySession.query
+        .filter_by(user_id=user_id)
+        .order_by(StudySession.created_at.desc())
+        .limit(8)
+        .all()
+    )
+
+
 @app.route('/api/learning-progress')
 @login_required
 def api_learning_progress():
@@ -2052,6 +2123,11 @@ def api_learning_progress():
         status='passed',
     ).count()
     timetable = study_timetable_for_user(current_user)
+    study_summary = summarize_study_sessions(
+        study_sessions_for_today(current_user.id),
+        current_user.daily_goal_minutes,
+        recent_study_sessions_for_user(current_user.id),
+    )
     promotion_exams = []
     for exam in promotion_rows:
         completed_course = False
@@ -2090,7 +2166,68 @@ def api_learning_progress():
             "subjects": timetable["subjects"],
             "dailyGoalMinutes": current_user.daily_goal_minutes or 0,
         },
+        "study": study_summary,
     })
+
+
+@app.route('/api/study-sessions', methods=['GET', 'POST'])
+@login_required
+def api_study_sessions():
+    if request.method == 'GET':
+        return jsonify(summarize_study_sessions(
+            study_sessions_for_today(current_user.id),
+            current_user.daily_goal_minutes,
+            recent_study_sessions_for_user(current_user.id),
+        ))
+
+    data = request.get_json(silent=True) or {}
+    subject = data.get('subject')
+    level = data.get('level')
+    grade_form = data.get('gradeForm')
+    duration_seconds = data.get('durationSeconds')
+    if (
+        not isinstance(subject, str)
+        or not isinstance(level, str)
+        or not isinstance(grade_form, str)
+        or type(duration_seconds) is not int
+    ):
+        return jsonify({"error": "A subject, level, grade, and duration are required."}), 400
+
+    subject = subject.strip()
+    level = level.strip()
+    grade_form = grade_form.strip()
+    if not subject or not level or not grade_form or len(subject) > 100:
+        return jsonify({"error": "Choose a valid subject, level, and grade."}), 400
+    if duration_seconds <= 0:
+        return jsonify({"error": "Study time must be greater than zero."}), 400
+
+    current_level, current_grade = current_promotion_level(current_user)
+    if (level, grade_form) != (current_level, current_grade):
+        return jsonify({"error": "The submitted study period does not match your enrolled level."}), 400
+
+    scheduled_subject = next(
+        (item for item in study_timetable_for_user(current_user)["subjects"] if item["name"] == subject),
+        None,
+    )
+    if not scheduled_subject:
+        return jsonify({"error": "This subject is not in your saved study timetable."}), 400
+    scheduled_minutes = float(scheduled_subject["minutes"].replace(" min", ""))
+    if duration_seconds > round(scheduled_minutes * 60):
+        return jsonify({"error": "The recorded time exceeds this subject's scheduled study period."}), 400
+
+    db.session.add(StudySession(
+        user_id=current_user.id,
+        subject=subject,
+        level=level,
+        grade_form=grade_form,
+        duration_seconds=duration_seconds,
+    ))
+    db.session.commit()
+    return jsonify(summarize_study_sessions(
+        study_sessions_for_today(current_user.id),
+        current_user.daily_goal_minutes,
+        recent_study_sessions_for_user(current_user.id),
+    )), 201
 
 
 def current_promotion_level(user):
