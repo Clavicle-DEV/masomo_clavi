@@ -2421,13 +2421,14 @@ def certificate_csrf_valid():
 @app.route('/certificate/application', methods=['GET', 'POST'])
 @login_required
 def certificate_application():
-    if current_user.student_track != 'campus':
+    is_admin = has_unlimited_access(current_user)
+    if current_user.student_track != 'campus' and not is_admin:
         flash("Campus certificates are available to Campus learners only.", "warning")
         return redirect(url_for('home'))
-    if not current_user.email_verified:
+    if not current_user.email_verified and not is_admin:
         flash("Please verify your email before applying for a certificate.", "danger")
         return redirect(url_for('home'))
-    if not has_completed_highest_course(current_user):
+    if not is_admin and not has_completed_highest_course(current_user):
         flash("Pass your Campus Year 5 promotion exam before applying for a certificate.", "warning")
         return redirect(url_for('home'))
 
@@ -2467,7 +2468,15 @@ def certificate_application():
             return redirect(url_for('certificate_application'))
         photo_mime = 'image/jpeg'
 
-        course_level = f"{current_user.campus_year} — {current_user.campus_course}"
+        if is_admin:
+            course = request.form.get('campus_course', '').strip()
+            year = request.form.get('campus_year', '').strip()
+            if course not in DAILY_CHALLENGE_SUBJECTS['campus'] or year not in CAMPUS_YEARS:
+                flash("Choose a valid Campus course and year for this certificate.", "danger")
+                return redirect(url_for('certificate_application'))
+            course_level = f"{year} — {course}"
+        else:
+            course_level = f"{current_user.campus_year} — {current_user.campus_course}"
         if application is None:
             application = CertificateApplication(
                 user_id=current_user.id,
@@ -2496,8 +2505,15 @@ def certificate_application():
         'certificate_application.html',
         application=application,
         user=current_user,
+        is_admin_applicant=is_admin,
         csrf_token=certificate_csrf_token(),
-        course_level=f"{current_user.campus_year} — {current_user.campus_course}",
+        course_level=(
+            f"{current_user.campus_year} — {current_user.campus_course}"
+            if current_user.student_track == 'campus' and current_user.campus_course
+            else None
+        ),
+        campus_courses=DAILY_CHALLENGE_SUBJECTS['campus'],
+        campus_years=CAMPUS_YEARS,
     )
 
 
@@ -2522,6 +2538,25 @@ def admin_certificates():
         users=users,
         csrf_token=certificate_csrf_token(),
     )
+
+
+@app.route('/admin/certificates/preview')
+@login_required
+def admin_certificate_preview():
+    if not has_unlimited_access(current_user):
+        return jsonify({"error": "Certificate preview not found."}), 404
+    preview_application = type('CertificatePreview', (), {
+        'certificate_number': 'CLV-2026-PREVIEW',
+        'learner_name': 'Sample Campus Graduate',
+        'course_level': 'Year 5 — Computer Science',
+        'reviewed_at': datetime.now(),
+        'photo_data': None,
+    })()
+    response = Response(render_certificate_pdf(preview_application), mimetype='application/pdf')
+    response.headers['Content-Disposition'] = 'inline; filename="clavis-certificate-preview.pdf"'
+    response.headers['Cache-Control'] = 'private, no-store'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    return response
 
 
 @app.route('/admin/certificates/<int:application_id>/photo')
@@ -2570,7 +2605,10 @@ def admin_issue_certificate(application_id):
         flash("This certificate application has already been reviewed.", "warning")
         return redirect(url_for('admin_certificates'))
     applicant = User.query.get(application.user_id)
-    if applicant is None or not has_completed_highest_course(applicant):
+    if applicant is None or (
+        not has_unlimited_access(applicant)
+        and not has_completed_highest_course(applicant)
+    ):
         flash("The learner must still have completed their highest level before a certificate can be issued.", "danger")
         return redirect(url_for('admin_certificates'))
     application.status = 'issued'

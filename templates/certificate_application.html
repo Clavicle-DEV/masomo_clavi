@@ -30,7 +30,14 @@
   <main class="card">
     <a class="back" href="{{ url_for('home') }}">← Back to Clavis</a>
     <h1>Certificate application</h1>
-    <p>You’ve completed {{ course_level }}. Submit the name you want printed and a clear portrait photo. An admin will review your application. Application photos and review records are admin-only; after approval, you can download your own certificate PDF.</p>
+    <p>
+      {% if is_admin_applicant %}
+        Admin applications are always available. Choose the Campus course and year, enter the full name, and upload a portrait photo. An admin must still review and issue the certificate.
+      {% else %}
+        You’ve completed {{ course_level }}. Submit your full name and a clear portrait photo. An admin will review your application; after approval, you can download your certificate PDF.
+      {% endif %}
+      Application photos and review records are admin-only.
+    </p>
 
     {% with flashed = get_flashed_messages(with_categories=true) %}
       {% for category, message in flashed %}
@@ -54,7 +61,22 @@
       {% endif %}
       <form method="post" enctype="multipart/form-data">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <label for="learner_name">Name for the certificate</label>
+        {% if is_admin_applicant %}
+          <label for="campus_course">Campus course</label>
+          <select id="campus_course" name="campus_course" required>
+            <option value="">Choose a Campus course</option>
+            {% for course in campus_courses %}
+              <option value="{{ course }}" {% if user.campus_course == course %}selected{% endif %}>{{ course }}</option>
+            {% endfor %}
+          </select>
+          <label for="campus_year">Course year</label>
+          <select id="campus_year" name="campus_year" required>
+            {% for year in campus_years %}
+              <option value="{{ year }}" {% if (user.campus_year or 'Year 5') == year %}selected{% endif %}>{{ year }}</option>
+            {% endfor %}
+          </select>
+        {% endif %}
+        <label for="learner_name">Full name for the certificate</label>
         <input id="learner_name" name="learner_name" maxlength="100" autocomplete="name" value="{{ application.learner_name if application else user.display_name or '' }}" required>
         <label for="learner_photo">Portrait photo</label>
         <input id="learner_photo" name="learner_photo" type="file" accept="image/jpeg,image/png,image/webp" required>

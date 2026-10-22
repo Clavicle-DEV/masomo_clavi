@@ -275,6 +275,7 @@ class CurriculumLevelTests(unittest.TestCase):
             self.assertEqual(client.get("/study-timetable").status_code, 302)
             self.assertEqual(client.get("/certificate/application").status_code, 302)
             self.assertEqual(client.get("/admin/certificates").status_code, 302)
+            self.assertEqual(client.get("/admin/certificates/preview").status_code, 302)
             self.assertEqual(client.get("/admin/certificates/1/photo").status_code, 302)
             self.assertEqual(client.get("/certificate/1/download").status_code, 302)
             self.assertEqual(

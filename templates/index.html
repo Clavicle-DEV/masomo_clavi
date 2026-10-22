@@ -272,6 +272,34 @@
       </div>
     </section>
 
+    {% if student_track == 'campus' and not is_admin_user %}
+      <section style="background:linear-gradient(135deg,#f3f8ff,#ffffff); border:1px solid #cbdcf5; border-radius:16px; padding:20px; margin-bottom:20px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:14px; flex-wrap:wrap;">
+          <div style="max-width:620px;">
+            <h2 style="margin:0 0 7px; color:#173b69; font-family:'Fraunces',serif; font-size:21px;">Campus course certificate</h2>
+            {% if certificate_application and certificate_application.status == 'issued' %}
+              <p style="margin:0; color:var(--muted); font-size:13px; line-height:1.55;">Your certificate for {{ certificate_application.course_level }} is ready.</p>
+            {% elif certificate_application and certificate_application.status == 'pending' %}
+              <p style="margin:0; color:var(--muted); font-size:13px; line-height:1.55;">Your application is awaiting admin review.</p>
+            {% elif course_completed %}
+              <p style="margin:0; color:var(--muted); font-size:13px; line-height:1.55;">You passed your Year 5 promotion exam. Apply for a certificate for {{ user.campus_course }}.</p>
+            {% else %}
+              <p style="margin:0; color:var(--muted); font-size:13px; line-height:1.55;">The Apply button is inactive for now. It becomes active after you complete your selected Campus course and pass its Year 5 promotion exam with at least 70%.</p>
+            {% endif %}
+          </div>
+          {% if certificate_application and certificate_application.status == 'issued' %}
+            <a href="{{ url_for('download_certificate', application_id=certificate_application.id) }}" style="display:inline-flex; align-items:center; justify-content:center; min-height:44px; padding:10px 17px; border-radius:10px; background:#1769c2; color:white; font-size:14px; font-weight:700; text-decoration:none;">Download certificate</a>
+          {% elif certificate_application and certificate_application.status == 'pending' %}
+            <a href="{{ url_for('certificate_application') }}" style="display:inline-flex; align-items:center; justify-content:center; min-height:44px; padding:10px 17px; border-radius:10px; background:#1769c2; color:white; font-size:14px; font-weight:700; text-decoration:none;">Check application</a>
+          {% elif course_completed %}
+            <a href="{{ url_for('certificate_application') }}" style="display:inline-flex; align-items:center; justify-content:center; min-height:44px; padding:10px 17px; border-radius:10px; background:#1769c2; color:white; font-size:14px; font-weight:700; text-decoration:none;">Apply for certificate</a>
+          {% else %}
+            <button type="button" disabled aria-disabled="true" title="Complete and excel in your selected Campus course first" style="display:inline-flex; align-items:center; justify-content:center; min-height:44px; padding:10px 17px; border:0; border-radius:10px; background:#1769c2; color:white; opacity:.38; filter:blur(.35px); font-size:14px; font-weight:700; cursor:not-allowed;">Apply for certificate</button>
+          {% endif %}
+        </div>
+      </section>
+    {% endif %}
+
     <div class="hero">
       <h1>Ask a question.<br>Get a clear explanation.</h1>
       <p>A study buddy for students who can't always get extra tuition. Pick a level, choose a subject, and ask anything.</p>
