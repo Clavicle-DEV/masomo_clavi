@@ -24,6 +24,10 @@
     ['levelToggle', 'defaultLevelToggle', 'papersLevelToggle'].forEach(id => {
       const el = document.getElementById(id);
       if (!el) return;
+      if (ACCOUNT_TRACK !== 'campus' && ACCOUNT_GRADE) {
+        el.style.display = 'none';
+        return;
+      }
       if (ACCOUNT_TRACK === 'campus') {
         [...el.children].forEach(b => { if (b.dataset.level !== 'campus') b.remove(); });
         el.style.display = 'none'; // nothing left to toggle between
@@ -235,6 +239,15 @@
   }
 
   function populateGradeFormSelect(selectEl, level, savedValue) {
+    if (ACCOUNT_GRADE) {
+      const option = document.createElement('option');
+      option.value = ACCOUNT_GRADE;
+      option.textContent = ACCOUNT_GRADE;
+      selectEl.replaceChildren(option);
+      selectEl.value = ACCOUNT_GRADE;
+      selectEl.disabled = true;
+      return;
+    }
     const options = level === 'cbc'
       ? CBC_GRADES
       : level === 'upper_primary'
@@ -551,8 +564,8 @@
     textEl.textContent = comebackMessageFor(last);
     el.style.display = 'flex';
     btn.onclick = () => {
-      currentLevel = last.level;
-      currentGradeForm = last.gradeForm;
+      currentLevel = ACCOUNT_GRADE ? ACCOUNT_LEVEL : last.level;
+      currentGradeForm = ACCOUNT_GRADE || last.gradeForm;
       [...levelToggle.children].forEach(b => b.classList.toggle('active', b.dataset.level === currentLevel));
       document.getElementById('subLevelLabel').textContent = subLevelLabelFor(currentLevel);
       populateGradeFormSelect(gradeFormSelect, currentLevel, currentGradeForm);

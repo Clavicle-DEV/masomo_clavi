@@ -29,8 +29,13 @@
     .choice input { width:auto; min-height:0; margin:0 7px 0 0; accent-color:#5a8a31; }
     .choice strong { display:block; margin-bottom:4px; }
     .choice small, .hint { display:block; color:var(--muted); font-size:12px; line-height:1.45; }
-    .day-row { display:grid; grid-template-columns:110px 1fr; gap:12px; align-items:center; }
-    .day-row label { margin:10px 0; }
+    .subject-check-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:8px; }
+    .subject-check { display:flex; gap:9px; align-items:center; border:1px solid var(--line); border-radius:10px; padding:11px; background:white; font-size:13px; cursor:pointer; }
+    .subject-check input { width:17px; min-height:17px; margin:0; accent-color:#5a8a31; }
+    .subject-choice { margin-top:20px; }
+    .hours-note { color:var(--muted); font-size:13px; line-height:1.5; margin-top:8px; }
+    .plan-preview { border:1px solid var(--line); background:#f7f8f1; border-radius:12px; padding:14px; margin-top:16px; }
+    .plan-preview strong { display:block; margin-bottom:5px; }
     .goal-note { padding:15px; border-radius:12px; background:#f1f7e6; margin:17px 0; color:var(--ink); line-height:1.5; }
     .submit { width:100%; border:0; border-radius:11px; min-height:50px; padding:13px 18px; margin-top:24px; background:var(--ink); color:white; font:700 15px 'DM Sans',sans-serif; cursor:pointer; }
     .submit:hover { background:#24543c; }
@@ -103,7 +108,7 @@
 
       {% elif step == 'subjects' %}
         <h1>Pick your focus</h1>
-        <p class="intro">Choose a favourite subject and one that feels challenging. Clavis will use these to shape your study plan.</p>
+        <p class="intro">Choose your favourite subject and every subject that feels challenging. You can select more than one headache subject.</p>
         {% if user.student_track == 'campus' %}<p class="hint">Your selected course: {{ user.campus_course }} · {{ user.campus_year }}</p>{% else %}<p class="hint">{{ stage }} · {{ user.elementary_grade }}</p>{% endif %}
         <form method="post">
           <label for="favorite_subject">Your favourite subject</label>
@@ -111,38 +116,58 @@
             <option value="">Choose a subject</option>
             {% for subject in subjects %}<option value="{{ subject }}" {% if user.favorite_subject == subject %}selected{% endif %}>{{ subject }}</option>{% endfor %}
           </select>
-          <label for="challenging_subject">The subject that feels heavy</label>
-          <select id="challenging_subject" name="challenging_subject" required>
-            <option value="">Choose a subject</option>
-            {% for subject in subjects %}<option value="{{ subject }}" {% if user.challenging_subject == subject %}selected{% endif %}>{{ subject }}</option>{% endfor %}
-          </select>
-          <button class="submit" type="submit">Build my timetable →</button>
+          <div class="subject-choice">
+            <label>Which subjects feel challenging? Choose all that apply</label>
+            <div class="subject-check-grid">
+              {% for subject in subjects %}
+                <label class="subject-check">
+                  <input type="checkbox" name="challenging_subjects" value="{{ subject }}" {% if subject in challenging_subjects %}checked{% endif %}>
+                  <span>{{ subject }}</span>
+                </label>
+              {% endfor %}
+            </div>
+          </div>
+          <button class="submit" type="submit">Set up my timetable →</button>
         </form>
 
       {% elif step == 'schedule' %}
-        <h1>Your first study timetable</h1>
-        <p class="intro">We’ve made a starter schedule around your subjects. Keep it or adjust any day to make it yours.</p>
+        <h1>Build your daily timetable</h1>
+        <p class="intro">Choose whether to include every subject for {{ user.campus_course if user.student_track == 'campus' else user.elementary_grade }}, or only the subjects you want to study. Clavis will divide your daily study time equally between them.</p>
         <form method="post">
-          {% for day in days %}
-            <div class="day-row">
-              <label for="schedule_{{ day }}">{{ day }}</label>
-              <select id="schedule_{{ day }}" name="schedule_{{ day }}" required>
-                {% for subject in subjects %}<option value="{{ subject }}" {% if schedule.get(day) == subject %}selected{% endif %}>{{ subject }}</option>{% endfor %}
-              </select>
-            </div>
-          {% endfor %}
+          <label>Subjects to show in my timetable</label>
+          <div class="choice-grid">
+            <label class="choice">
+              <input type="radio" name="timetable_mode" value="all" {% if schedule.mode == 'all' %}checked{% endif %} required>
+              <strong>All my subjects</strong>
+              <small>Include every subject available for my class.</small>
+            </label>
+            <label class="choice">
+              <input type="radio" name="timetable_mode" value="selected" {% if schedule.mode == 'selected' %}checked{% endif %} required>
+              <strong>Let me choose</strong>
+              <small>Pick the subjects I want on my timetable.</small>
+            </label>
+          </div>
+          <div class="subject-check-grid" id="timetableSubjectChoices">
+            {% for subject in subjects %}
+              <label class="subject-check">
+                <input type="checkbox" name="timetable_subjects" value="{{ subject }}" {% if subject in timetable_subjects %}checked{% endif %}>
+                <span>{{ subject }}</span>
+              </label>
+            {% endfor %}
+          </div>
+          <label for="daily_hours">How many hours do you want to study daily?</label>
+          <select id="daily_hours" name="daily_hours" required>
+            {% for hours in daily_hours_options %}<option value="{{ hours }}" {% if schedule.daily_hours == hours %}selected{% endif %}>{{ hours }} {{ 'hour' if hours == 1 else 'hours' }} a day</option>{% endfor %}
+          </select>
+          <div class="plan-preview" id="studyPlanPreview" aria-live="polite"></div>
           <button class="submit" type="submit">Save my timetable →</button>
         </form>
 
       {% elif step == 'goals' %}
-        <h1>Set a goal and get started</h1>
-        <p class="intro">Small, steady sessions add up. Choose a daily goal that feels realistic for you.</p>
+        <h1>Choose where to begin</h1>
+        <p class="intro">Your timetable is ready. You can change your subjects or study hours any time from the app.</p>
         <div class="goal-note">🔥 Your current daily challenge streak: <strong>{{ user.daily_challenge_streak or 0 }} days</strong></div>
         <form method="post">
-          <label for="daily_goal_minutes">Daily study goal</label>
-          <select id="daily_goal_minutes" name="daily_goal_minutes" required>
-            {% for minutes in (15, 30, 45, 60) %}<option value="{{ minutes }}" {% if user.daily_goal_minutes == minutes %}selected{% endif %}>{{ minutes }} minutes a day</option>{% endfor %}
-          </select>
           <label for="starting_topic">Where would you like to begin?</label>
           <select id="starting_topic" name="starting_topic" required>
             <option value="topic_1" {% if user.starting_topic == 'topic_1' %}selected{% endif %}>Start from Topic 1</option>
@@ -150,12 +175,42 @@
           </select>
           <label for="continue_topic">Topic to continue from (optional)</label>
           <input id="continue_topic" name="continue_topic" maxlength="100" placeholder="Enter the topic name">
-          <span class="hint">You can change this after setup. Topic progress will be added in the next learning-path phase.</span>
+          <span class="hint">You can update your study plan later. Your topic progress is saved as you learn.</span>
           <button class="submit" type="submit">Finish setup and start learning →</button>
         </form>
       {% endif %}
     </section>
     <a class="logout" href="{{ url_for('logout') }}">Sign out</a>
   </main>
+  {% if step == 'schedule' %}
+  <script>
+    const subjectChoices = document.getElementById('timetableSubjectChoices');
+    const subjectChecks = [...subjectChoices.querySelectorAll('input[type="checkbox"]')];
+    const modeRadios = [...document.querySelectorAll('input[name="timetable_mode"]')];
+    const hoursSelect = document.getElementById('daily_hours');
+    const preview = document.getElementById('studyPlanPreview');
+    const allSubjects = {{ subjects|tojson }};
+
+    function updateStudyPlanPreview() {
+      const mode = modeRadios.find(radio => radio.checked)?.value || 'all';
+      const hours = Number(hoursSelect.value || 1);
+      const chosen = mode === 'all' ? allSubjects : subjectChecks.filter(input => input.checked).map(input => input.value);
+      subjectChoices.style.display = mode === 'selected' ? 'grid' : 'none';
+      subjectChecks.forEach(input => { input.required = mode === 'selected' && !subjectChecks.some(item => item.checked); });
+      if (!chosen.length) {
+        preview.innerHTML = '<strong>Choose at least one subject</strong>Your daily study time will be split evenly across your selection.';
+        return;
+      }
+      const minutesEach = hours * 60 / chosen.length;
+      const timeEach = Number.isInteger(minutesEach) ? `${minutesEach} min` : `${minutesEach.toFixed(2)} min`;
+      preview.innerHTML = `<strong>${hours} ${hours === 1 ? 'hour' : 'hours'} daily · ${chosen.length} ${chosen.length === 1 ? 'subject' : 'subjects'}</strong>${chosen.map(subject => `${subject} — ${timeEach}`).join('<br>')}`;
+    }
+
+    modeRadios.forEach(radio => radio.addEventListener('change', updateStudyPlanPreview));
+    subjectChecks.forEach(input => input.addEventListener('change', updateStudyPlanPreview));
+    hoursSelect.addEventListener('change', updateStudyPlanPreview);
+    updateStudyPlanPreview();
+  </script>
+  {% endif %}
 </body>
 </html>

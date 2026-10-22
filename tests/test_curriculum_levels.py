@@ -1,24 +1,33 @@
 import os
+import json
 from io import BytesIO
 import unittest
 from unittest.mock import patch
 
 from PIL import Image
+from werkzeug.datastructures import MultiDict
 
 from app import (
     CAMPUS_YEARS,
     DAILY_CHALLENGE_SUBJECTS,
     ELEMENTARY_GRADES,
+    ELEMENTARY_SUBJECTS,
     app as flask_app,
     CLASS_SUBJECTS_BY_LEVEL,
     certificate_photo_mime,
+    challenging_subjects_for_user,
+    default_study_schedule,
     describe_level,
     elementary_stage_for_grade,
     has_unlimited_access,
     has_completed_highest_course,
     normalize_certificate_photo,
     next_promotion_level,
+    onboarding_subject_choices,
     render_certificate_pdf,
+    save_study_schedule,
+    study_schedule_for_user,
+    study_timetable_for_user,
     validate_class_promotion_test,
     validate_topic_mastery_test,
 )
@@ -46,6 +55,80 @@ class CurriculumLevelTests(unittest.TestCase):
             sum(len(grades) for grades in ELEMENTARY_GRADES.values()),
             10,
         )
+
+    def test_grade_ten_subject_choices_do_not_include_other_classes(self):
+        learner = type("Learner", (), {
+            "student_track": "highschool",
+            "elementary_grade": "Grade 10",
+        })()
+        self.assertEqual(onboarding_subject_choices(learner), ELEMENTARY_SUBJECTS["Senior School"])
+        self.assertIn("Physics", onboarding_subject_choices(learner))
+        self.assertNotIn("Pre-Technical Studies", onboarding_subject_choices(learner))
+
+    def test_timetable_includes_all_subjects_and_splits_three_hours_equally(self):
+        learner = type("Learner", (), {
+            "student_track": "highschool",
+            "elementary_grade": "Grade 10",
+            "favorite_subject": "Mathematics",
+            "challenging_subject": "Physics",
+            "challenging_subjects_json": '["Physics", "Chemistry"]',
+            "study_schedule_json": None,
+            "daily_goal_minutes": None,
+        })()
+        plan = default_study_schedule(learner)
+        learner.study_schedule_json = json.dumps({
+            "version": 2,
+            "mode": "all",
+            "subjects": [],
+            "daily_hours": 3,
+        })
+
+        schedule = study_schedule_for_user(learner)
+        timetable = study_timetable_for_user(learner)
+
+        self.assertEqual(schedule["subjects"], onboarding_subject_choices(learner))
+        self.assertEqual(timetable["daily_hours"], 3)
+        self.assertEqual(timetable["total_subjects"], len(onboarding_subject_choices(learner)))
+        self.assertAlmostEqual(
+            schedule["minutes_per_subject"] * timetable["total_subjects"],
+            180,
+        )
+        self.assertEqual(plan["daily_hours"], 1)
+        self.assertEqual(challenging_subjects_for_user(learner), ["Physics", "Chemistry"])
+
+    def test_timetable_can_include_only_selected_subjects(self):
+        learner = type("Learner", (), {
+            "student_track": "highschool",
+            "elementary_grade": "Grade 10",
+            "study_schedule_json": None,
+            "daily_goal_minutes": None,
+        })()
+        save_study_schedule(learner, MultiDict([
+            ("timetable_mode", "selected"),
+            ("timetable_subjects", "Mathematics"),
+            ("timetable_subjects", "Physics"),
+            ("daily_hours", "3"),
+        ]))
+
+        schedule = study_schedule_for_user(learner)
+
+        self.assertEqual(schedule["subjects"], ["Mathematics", "Physics"])
+        self.assertEqual(schedule["minutes_per_subject"], 90)
+        self.assertEqual(learner.daily_goal_minutes, 180)
+
+    def test_timetable_rejects_subjects_outside_the_selected_class(self):
+        learner = type("Learner", (), {
+            "student_track": "highschool",
+            "elementary_grade": "Grade 10",
+            "study_schedule_json": None,
+            "daily_goal_minutes": None,
+        })()
+        with self.assertRaises(ValueError):
+            save_study_schedule(learner, MultiDict([
+                ("timetable_mode", "selected"),
+                ("timetable_subjects", "Pre-Technical Studies"),
+                ("daily_hours", "3"),
+            ]))
 
     def test_campus_onboarding_uses_existing_subjects_and_years(self):
         self.assertIn("Accounting", DAILY_CHALLENGE_SUBJECTS["campus"])
@@ -189,6 +272,7 @@ class CurriculumLevelTests(unittest.TestCase):
 
     def test_certificate_routes_require_login(self):
         with flask_app.test_client() as client:
+            self.assertEqual(client.get("/study-timetable").status_code, 302)
             self.assertEqual(client.get("/certificate/application").status_code, 302)
             self.assertEqual(client.get("/admin/certificates").status_code, 302)
             self.assertEqual(client.get("/admin/certificates/1/photo").status_code, 302)

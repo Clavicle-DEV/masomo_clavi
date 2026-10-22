@@ -245,6 +245,33 @@
       <div><span style="font-weight:700;">Did you know? </span><span id="dailySparkText"></span></div>
     </div>
 
+    <section style="background:var(--paper); border:1px solid var(--line); border-radius:16px; padding:20px; margin-bottom:20px;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:14px; flex-wrap:wrap; margin-bottom:14px;">
+        <div>
+          <h2 style="margin:0 0 5px; color:var(--chalk); font-family:'Fraunces',serif; font-size:21px;">My daily timetable</h2>
+          <p style="margin:0; color:var(--muted); font-size:13px;">
+            Every day · {{ '%g'|format(timetable.daily_hours) }} {{ 'hour' if timetable.daily_hours == 1 else 'hours' }} total · equally shared across {{ timetable.total_subjects }} {{ 'subject' if timetable.total_subjects == 1 else 'subjects' }}
+          </p>
+          {% if user.favorite_subject or challenging_subjects %}
+            <p style="margin:7px 0 0; color:var(--muted); font-size:12px;">
+              Favourite: {{ user.favorite_subject or 'not set' }}{% if challenging_subjects %} · Focus subjects: {{ challenging_subjects|join(', ') }}{% endif %}
+            </p>
+          {% endif %}
+        </div>
+        <a href="{{ url_for('study_timetable') }}" style="color:var(--chalk); font-size:13px; font-weight:700; text-decoration:none;">Edit study plan →</a>
+      </div>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:9px;">
+        {% for session in timetable.subjects %}
+          <div style="background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:12px;">
+            <div style="font-size:13px; font-weight:700; color:var(--chalk);">{{ session.name }}</div>
+            <div style="font-size:12px; color:var(--muted); margin-top:4px;">{{ session.minutes }} each day</div>
+          </div>
+        {% else %}
+          <p style="color:var(--muted); font-size:13px;">No subjects are available for your study plan yet.</p>
+        {% endfor %}
+      </div>
+    </section>
+
     <div class="hero">
       <h1>Ask a question.<br>Get a clear explanation.</h1>
       <p>A study buddy for students who can't always get extra tuition. Pick a level, choose a subject, and ask anything.</p>

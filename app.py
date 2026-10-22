@@ -403,6 +403,7 @@ class User(UserMixin, db.Model):
     campus_year = db.Column(db.String(12), nullable=True)
     favorite_subject = db.Column(db.String(100), nullable=True)
     challenging_subject = db.Column(db.String(100), nullable=True)
+    challenging_subjects_json = db.Column(db.Text, nullable=True)
     study_schedule_json = db.Column(db.Text, nullable=True)
     daily_goal_minutes = db.Column(db.Integer, nullable=True)
     starting_topic = db.Column(db.String(100), nullable=True)
@@ -936,8 +937,13 @@ ELEMENTARY_SUBJECTS = {
     ],
 }
 
+ELEMENTARY_SUBJECTS_BY_GRADE = {
+    grade: ELEMENTARY_SUBJECTS[elementary_stage]
+    for elementary_stage, grades in ELEMENTARY_GRADES.items()
+    for grade in grades
+}
+
 ONBOARDING_STEPS = ('name', 'path', 'level', 'subjects', 'schedule', 'goals')
-ONBOARDING_DAYS = ('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')
 CAMPUS_YEARS = [f'Year {year}' for year in range(1, 6)]
 
 
@@ -951,19 +957,143 @@ def elementary_stage_for_grade(grade):
 def onboarding_subject_choices(user):
     if user.student_track == 'campus':
         return DAILY_CHALLENGE_SUBJECTS['campus']
-    return ELEMENTARY_SUBJECTS.get(elementary_stage_for_grade(user.elementary_grade), [])
+    return ELEMENTARY_SUBJECTS_BY_GRADE.get(user.elementary_grade, [])
+
+
+def challenging_subjects_for_user(user):
+    try:
+        saved_subjects = json.loads(user.challenging_subjects_json or '[]')
+    except (TypeError, json.JSONDecodeError):
+        saved_subjects = []
+    if not isinstance(saved_subjects, list):
+        saved_subjects = []
+    choices = onboarding_subject_choices(user)
+    subjects = list(dict.fromkeys(
+        subject for subject in saved_subjects
+        if isinstance(subject, str) and subject in choices
+    ))
+    if not subjects and user.challenging_subject in choices:
+        subjects = [user.challenging_subject]
+    return subjects
 
 
 def default_study_schedule(user):
-    subjects = [user.favorite_subject, user.challenging_subject]
-    subjects = [subject for subject in subjects if subject]
-    if not subjects:
-        subjects = onboarding_subject_choices(user)[:2]
-    if not subjects:
-        return {}
+    previous_goal = getattr(user, 'daily_goal_minutes', None)
+    daily_hours = round((previous_goal or 60) / 30) / 2
+    daily_hours = min(12, max(0.5, daily_hours))
     return {
-        day: subjects[index % len(subjects)]
-        for index, day in enumerate(ONBOARDING_DAYS)
+        'version': 2,
+        'mode': 'all',
+        'subjects': onboarding_subject_choices(user),
+        'daily_hours': daily_hours,
+    }
+
+
+def study_schedule_for_user(user):
+    choices = onboarding_subject_choices(user)
+    try:
+        saved = json.loads(user.study_schedule_json or '{}')
+    except (TypeError, json.JSONDecodeError):
+        saved = {}
+    if not isinstance(saved, dict) or saved.get('version') != 2:
+        saved = default_study_schedule(user)
+
+    mode = saved.get('mode')
+    if mode not in ('all', 'selected'):
+        mode = 'all'
+    selected = saved.get('subjects')
+    if not isinstance(selected, list):
+        selected = []
+    selected = list(dict.fromkeys(
+        subject for subject in selected
+        if isinstance(subject, str) and subject in choices
+    ))
+    if mode == 'all':
+        selected = choices
+    elif not selected:
+        mode = 'all'
+        selected = choices
+
+    try:
+        daily_hours = float(saved.get('daily_hours', 1))
+    except (TypeError, ValueError):
+        daily_hours = 1
+    if daily_hours < 0.5 or daily_hours > 12 or daily_hours * 2 != int(daily_hours * 2):
+        daily_hours = 1
+    return {
+        'version': 2,
+        'mode': mode,
+        'subjects': selected,
+        'daily_hours': daily_hours,
+        'minutes_per_subject': float(daily_hours * 60 / len(selected)) if selected else 0.0,
+    }
+
+
+def preferred_timetable_subjects(user, schedule=None):
+    schedule = schedule or study_schedule_for_user(user)
+    if schedule['mode'] == 'selected':
+        return schedule['subjects']
+    choices = onboarding_subject_choices(user)
+    preferred = [user.favorite_subject] + challenging_subjects_for_user(user)
+    selected = list(dict.fromkeys(subject for subject in preferred if subject in choices))
+    return selected or choices[:1]
+
+
+def has_current_study_schedule(user):
+    try:
+        saved = json.loads(user.study_schedule_json or '{}')
+    except (TypeError, json.JSONDecodeError):
+        return False
+    return isinstance(saved, dict) and saved.get('version') == 2
+
+
+def save_study_schedule(user, form):
+    mode = form.get('timetable_mode', '').strip()
+    if mode not in ('all', 'selected'):
+        raise ValueError('Choose all subjects or choose the subjects for your timetable.')
+    try:
+        daily_hours = float(form.get('daily_hours', ''))
+    except (TypeError, ValueError):
+        raise ValueError('Choose how many hours you want to study each day.')
+    if daily_hours < 0.5 or daily_hours > 12 or daily_hours * 2 != int(daily_hours * 2):
+        raise ValueError('Choose a daily study time between 0.5 and 12 hours in half-hour steps.')
+
+    choices = onboarding_subject_choices(user)
+    if mode == 'all':
+        selected = choices
+    else:
+        selected = list(dict.fromkeys(form.getlist('timetable_subjects')))
+        if not selected or any(subject not in choices for subject in selected):
+            raise ValueError('Choose at least one valid subject for your timetable.')
+
+    user.study_schedule_json = json.dumps({
+        'version': 2,
+        'mode': mode,
+        'subjects': selected,
+        'daily_hours': daily_hours,
+    })
+    user.daily_goal_minutes = int(daily_hours * 60)
+
+
+def study_timetable_for_user(user):
+    schedule = study_schedule_for_user(user)
+    minutes_per_subject = schedule['minutes_per_subject']
+    minutes_label = (
+        f'{int(minutes_per_subject)} min'
+        if minutes_per_subject.is_integer()
+        else f'{minutes_per_subject:.2f} min'
+    )
+    return {
+        'daily_hours': schedule['daily_hours'],
+        'subjects': [
+            {
+                'name': subject,
+                'minutes': minutes_label,
+            }
+            for subject in schedule['subjects']
+        ],
+        'mode': schedule['mode'],
+        'total_subjects': len(schedule['subjects']),
     }
 
 
@@ -987,11 +1117,10 @@ def onboarding(step):
         ),
         'subjects': bool(
             current_user.favorite_subject
-            and current_user.challenging_subject
             and current_user.favorite_subject in onboarding_subject_choices(current_user)
-            and current_user.challenging_subject in onboarding_subject_choices(current_user)
+            and challenging_subjects_for_user(current_user)
         ),
-        'schedule': bool(current_user.study_schedule_json),
+        'schedule': has_current_study_schedule(current_user),
     }
     for required_step in ONBOARDING_STEPS[:ONBOARDING_STEPS.index(step)]:
         if not prerequisites.get(required_step, False):
@@ -1045,31 +1174,22 @@ def onboarding(step):
         elif step == 'subjects':
             choices = onboarding_subject_choices(current_user)
             favorite = request.form.get('favorite_subject', '').strip()
-            challenging = request.form.get('challenging_subject', '').strip()
-            if favorite not in choices or challenging not in choices:
-                flash('Choose both subjects from the list for your learning path.', 'danger')
+            challenging = list(dict.fromkeys(request.form.getlist('challenging_subjects')))
+            if favorite not in choices or not challenging or any(subject not in choices for subject in challenging):
+                flash('Choose a favourite subject and at least one challenging subject from your learning path.', 'danger')
                 return redirect(url_for('onboarding', step=step))
             current_user.favorite_subject = favorite
-            current_user.challenging_subject = challenging
+            current_user.challenging_subject = challenging[0]
+            current_user.challenging_subjects_json = json.dumps(challenging)
 
         elif step == 'schedule':
-            schedule = {}
-            for day in ONBOARDING_DAYS:
-                subject = request.form.get(f'schedule_{day}', '').strip()
-                if subject not in choices:
-                    flash('Choose a valid subject for each day in your timetable.', 'danger')
-                    return redirect(url_for('onboarding', step=step))
-                schedule[day] = subject
-            current_user.study_schedule_json = json.dumps(schedule)
+            try:
+                save_study_schedule(current_user, request.form)
+            except ValueError as error:
+                flash(str(error), 'danger')
+                return redirect(url_for('onboarding', step=step))
 
         elif step == 'goals':
-            try:
-                goal = int(request.form.get('daily_goal_minutes', ''))
-            except ValueError:
-                goal = 0
-            if goal not in (15, 30, 45, 60):
-                flash('Choose a daily study goal of 15, 30, 45, or 60 minutes.', 'danger')
-                return redirect(url_for('onboarding', step=step))
             starting_topic = request.form.get('starting_topic', '').strip()
             if starting_topic == 'continue':
                 starting_topic = request.form.get('continue_topic', '').strip()
@@ -1079,7 +1199,6 @@ def onboarding(step):
             if starting_topic not in ('topic_1', 'continue') and not re.fullmatch(r'[\w -]{1,100}', starting_topic):
                 flash('Enter a valid topic to continue from, or choose Topic 1.', 'danger')
                 return redirect(url_for('onboarding', step=step))
-            current_user.daily_goal_minutes = goal
             current_user.starting_topic = starting_topic or 'topic_1'
             current_user.onboarding_completed = True
 
@@ -1089,15 +1208,9 @@ def onboarding(step):
         next_step = ONBOARDING_STEPS[ONBOARDING_STEPS.index(step) + 1]
         return redirect(url_for('onboarding', step=next_step))
 
-    schedule = {}
-    if step == 'schedule':
-        try:
-            schedule = json.loads(current_user.study_schedule_json or '{}')
-        except json.JSONDecodeError:
-            app.logger.warning("Invalid saved onboarding schedule for user %s", current_user.id)
-            schedule = {}
-        if not schedule:
-            schedule = default_study_schedule(current_user)
+    schedule = study_schedule_for_user(current_user)
+    if step == 'schedule' and not current_user.study_schedule_json:
+        schedule = default_study_schedule(current_user)
     return render_template(
         'onboarding.html',
         step=step,
@@ -1106,11 +1219,51 @@ def onboarding(step):
         elementary_grades=ELEMENTARY_GRADES,
         campus_courses=DAILY_CHALLENGE_SUBJECTS['campus'],
         campus_years=CAMPUS_YEARS,
+        daily_hours_options=[index / 2 for index in range(1, 25)],
         subjects=choices,
-        days=ONBOARDING_DAYS,
+        challenging_subjects=challenging_subjects_for_user(current_user),
         schedule=schedule,
+        timetable_subjects=preferred_timetable_subjects(current_user, schedule),
         stage=elementary_stage_for_grade(current_user.elementary_grade),
         user=current_user,
+    )
+
+
+@app.route('/study-timetable', methods=['GET', 'POST'])
+@login_required
+def study_timetable():
+    choices = onboarding_subject_choices(current_user)
+    if not choices:
+        flash('Choose your learning path and class before setting up a timetable.', 'warning')
+        return redirect(url_for('onboarding', step='level'))
+
+    if request.method == 'POST':
+        favorite = request.form.get('favorite_subject', '').strip()
+        challenging = list(dict.fromkeys(request.form.getlist('challenging_subjects')))
+        if favorite not in choices or not challenging or any(subject not in choices for subject in challenging):
+            flash('Choose a favourite subject and at least one challenging subject from your learning path.', 'danger')
+            return redirect(url_for('study_timetable'))
+        try:
+            save_study_schedule(current_user, request.form)
+        except ValueError as error:
+            flash(str(error), 'danger')
+            return redirect(url_for('study_timetable'))
+        current_user.favorite_subject = favorite
+        current_user.challenging_subject = challenging[0]
+        current_user.challenging_subjects_json = json.dumps(challenging)
+        db.session.commit()
+        flash('Your study preferences and timetable have been saved.', 'success')
+        return redirect(url_for('home'))
+
+    return render_template(
+        'study_timetable.html',
+        user=current_user,
+        subjects=choices,
+        challenging_subjects=challenging_subjects_for_user(current_user),
+        schedule=study_schedule_for_user(current_user),
+        timetable_subjects=preferred_timetable_subjects(current_user),
+        daily_hours_options=[index / 2 for index in range(1, 25)],
+        favorite_subject=current_user.favorite_subject,
     )
 
 
@@ -1221,6 +1374,8 @@ def home():
     if current_user.is_authenticated:
         if not current_user.onboarding_completed:
             return redirect(url_for('onboarding', step='name'))
+        if onboarding_subject_choices(current_user) and not has_current_study_schedule(current_user):
+            return redirect(url_for('study_timetable'))
         if not current_user.referral_code:
             current_user.referral_code = generate_referral_code()
             db.session.commit()
@@ -1236,6 +1391,7 @@ def home():
                 user_id=current_user.id,
                 student_track='campus',
             ).first()
+        timetable = study_timetable_for_user(current_user)
         return render_template(
             'index.html',
             user=current_user,
@@ -1251,6 +1407,8 @@ def home():
             student_track_locked=(not is_full_admin(current_user)) and current_user.student_track is not None,
             course_completed=course_completed,
             certificate_application=certificate_application_record,
+            timetable=timetable,
+            challenging_subjects=challenging_subjects_for_user(current_user),
         )
 
     return render_template(
@@ -3015,6 +3173,7 @@ def ensure_database_schema():
                     'campus_year': 'VARCHAR(12)',
                     'favorite_subject': 'VARCHAR(100)',
                     'challenging_subject': 'VARCHAR(100)',
+                    'challenging_subjects_json': 'TEXT',
                     'study_schedule_json': 'TEXT',
                     'daily_goal_minutes': 'INTEGER',
                     'starting_topic': 'VARCHAR(100)',

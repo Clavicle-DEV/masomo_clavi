@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Your study plan · Clavis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    :root { color-scheme:light; --ink:#173b2b; --muted:#65756b; --paper:#fffdf8; --line:#dfe7d7; --red:#8a351d; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:radial-gradient(circle at 85% 5%,#e8f5c5,transparent 32%),#f5f3eb; color:var(--ink); font-family:'DM Sans',sans-serif; padding:24px; display:grid; place-items:center; }
+    .card { width:min(100%,720px); background:var(--paper); border:1px solid var(--line); border-radius:22px; padding:clamp(22px,5vw,40px); box-shadow:0 24px 65px rgba(23,59,43,.09); }
+    .back { display:inline-block; color:var(--ink); font-size:13px; font-weight:700; text-decoration:none; margin-bottom:24px; }
+    h1 { font:700 clamp(29px,7vw,40px)/1.08 'Playfair Display',serif; letter-spacing:-.04em; margin:0 0 10px; }
+    .intro { color:var(--muted); line-height:1.6; margin:0 0 22px; }
+    .flash { padding:11px 13px; border-radius:10px; margin:12px 0; font-size:14px; background:#fff0e9; color:var(--red); border:1px solid #f4c7b5; }
+    .flash-success { background:#eff7e8; color:#24543c; border-color:#cbdcbd; }
+    label { display:block; font-size:13px; font-weight:700; margin:19px 0 8px; }
+    select, input { font:inherit; }
+    select { width:100%; min-height:48px; border:1px solid #cad6c8; border-radius:10px; padding:11px 13px; color:var(--ink); background:white; }
+    select:focus, input:focus { outline:3px solid rgba(121,168,58,.2); border-color:#79a83a; }
+    .choice-grid, .subject-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; }
+    .choice { border:1px solid var(--line); background:white; padding:14px; border-radius:12px; cursor:pointer; }
+    .choice:has(input:checked) { border-color:#79a83a; background:#f4f9e8; box-shadow:inset 0 0 0 1px #79a83a; }
+    .choice input, .subject input { accent-color:#5a8a31; }
+    .choice strong { display:block; margin-bottom:4px; font-size:14px; }
+    .choice small, .hint { display:block; color:var(--muted); font-size:12px; line-height:1.45; }
+    .subject-grid { margin-top:9px; }
+    .subject { display:flex; align-items:center; gap:9px; border:1px solid var(--line); background:white; border-radius:10px; padding:11px; font-size:13px; cursor:pointer; }
+    .subject input { width:17px; height:17px; margin:0; flex:0 0 auto; }
+    .preview { border:1px solid var(--line); background:#f7f8f1; border-radius:12px; padding:15px; margin-top:18px; color:var(--muted); font-size:13px; line-height:1.6; }
+    .preview strong { display:block; color:var(--ink); margin-bottom:5px; }
+    button { width:100%; border:0; border-radius:11px; min-height:50px; padding:13px 18px; margin-top:23px; background:var(--ink); color:white; font:700 15px 'DM Sans',sans-serif; cursor:pointer; }
+    button:hover { background:#24543c; }
+    @media(max-width:520px) { body { padding:14px; }.choice-grid,.subject-grid { grid-template-columns:1fr; }.card { border-radius:16px; } }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <a class="back" href="{{ url_for('home') }}">← Back to Clavis</a>
+    <h1>Your study plan</h1>
+    <p class="intro">Choose your favourite, mark every subject that feels challenging, and decide what belongs on your daily timetable. Clavis splits your study hours evenly across the selected subjects.</p>
+
+    {% with flashed = get_flashed_messages(with_categories=true) %}
+      {% for category, message in flashed %}
+        <div class="flash {% if category == 'success' %}flash-success{% endif %}" role="status">{{ message }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    <form method="post">
+      <label for="favorite_subject">Your favourite subject</label>
+      <select id="favorite_subject" name="favorite_subject" required>
+        <option value="">Choose a subject</option>
+        {% for subject in subjects %}
+          <option value="{{ subject }}" {% if favorite_subject == subject %}selected{% endif %}>{{ subject }}</option>
+        {% endfor %}
+      </select>
+
+      <label>Which subjects feel challenging? Choose all that apply</label>
+      <div class="subject-grid">
+        {% for subject in subjects %}
+          <label class="subject">
+            <input type="checkbox" name="challenging_subjects" value="{{ subject }}" {% if subject in challenging_subjects %}checked{% endif %}>
+            <span>{{ subject }}</span>
+          </label>
+        {% endfor %}
+      </div>
+
+      <label>Subjects to show in my timetable</label>
+      <div class="choice-grid">
+        <label class="choice">
+          <input type="radio" name="timetable_mode" value="all" {% if schedule.mode == 'all' %}checked{% endif %} required>
+          <strong>All my subjects</strong>
+          <small>Include every subject available for my class.</small>
+        </label>
+        <label class="choice">
+          <input type="radio" name="timetable_mode" value="selected" {% if schedule.mode == 'selected' %}checked{% endif %} required>
+          <strong>Let me choose</strong>
+          <small>Pick only the subjects I want to study.</small>
+        </label>
+      </div>
+      <div class="subject-grid" id="timetableSubjectChoices">
+        {% for subject in subjects %}
+          <label class="subject">
+            <input type="checkbox" name="timetable_subjects" value="{{ subject }}" {% if subject in timetable_subjects %}checked{% endif %}>
+            <span>{{ subject }}</span>
+          </label>
+        {% endfor %}
+      </div>
+
+      <label for="daily_hours">How many hours do you want to study daily?</label>
+      <select id="daily_hours" name="daily_hours" required>
+        {% for hours in daily_hours_options %}
+          <option value="{{ hours }}" {% if schedule.daily_hours == hours %}selected{% endif %}>{{ hours }} {{ 'hour' if hours == 1 else 'hours' }} a day</option>
+        {% endfor %}
+      </select>
+      <div class="preview" id="studyPlanPreview" aria-live="polite"></div>
+      <button type="submit">Save my study plan</button>
+    </form>
+  </main>
+  <script>
+    const subjectChoices = document.getElementById('timetableSubjectChoices');
+    const subjectChecks = [...subjectChoices.querySelectorAll('input[type="checkbox"]')];
+    const modeRadios = [...document.querySelectorAll('input[name="timetable_mode"]')];
+    const hoursSelect = document.getElementById('daily_hours');
+    const preview = document.getElementById('studyPlanPreview');
+    const allSubjects = {{ subjects|tojson }};
+
+    function updateStudyPlanPreview() {
+      const mode = modeRadios.find(radio => radio.checked)?.value || 'all';
+      const hours = Number(hoursSelect.value || 1);
+      const chosen = mode === 'all' ? allSubjects : subjectChecks.filter(input => input.checked).map(input => input.value);
+      subjectChoices.style.display = mode === 'selected' ? 'grid' : 'none';
+      subjectChecks.forEach(input => { input.required = mode === 'selected' && !subjectChecks.some(item => item.checked); });
+      if (!chosen.length) {
+        preview.innerHTML = '<strong>Choose at least one subject</strong>Your daily study time will be split evenly across your selection.';
+        return;
+      }
+      const minutesEach = hours * 60 / chosen.length;
+      const timeEach = Number.isInteger(minutesEach) ? `${minutesEach} min` : `${minutesEach.toFixed(2)} min`;
+      preview.innerHTML = `<strong>${hours} ${hours === 1 ? 'hour' : 'hours'} daily · ${chosen.length} ${chosen.length === 1 ? 'subject' : 'subjects'}</strong>${chosen.map(subject => `${subject} — ${timeEach}`).join('<br>')}`;
+    }
+
+    modeRadios.forEach(radio => radio.addEventListener('change', updateStudyPlanPreview));
+    subjectChecks.forEach(input => input.addEventListener('change', updateStudyPlanPreview));
+    hoursSelect.addEventListener('change', updateStudyPlanPreview);
+    updateStudyPlanPreview();
+  </script>
+</body>
+</html>
