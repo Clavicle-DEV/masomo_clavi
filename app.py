@@ -37,7 +37,7 @@ from PIL import Image, ImageOps
 from reportlab.lib.colors import HexColor
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.pdfbase import pdfmetrics
-from reportlab.lib.utils import simpleSplit
+from reportlab.lib.utils import ImageReader, simpleSplit
 from reportlab.pdfgen import canvas
 
 def load_environment(project_root=None):
@@ -2454,7 +2454,7 @@ def render_certificate_pdf(application):
         document.setFillColor(HexColor('#FFFFFF'))
         document.roundRect(photo_x - 3, photo_y - 3, photo_width + 6, photo_height + 6, 3, fill=1, stroke=0)
         document.drawImage(
-            portrait_buffer,
+            ImageReader(portrait_buffer),
             photo_x,
             photo_y,
             width=photo_width,
