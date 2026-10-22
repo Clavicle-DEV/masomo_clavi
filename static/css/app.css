@@ -448,9 +448,13 @@
   .sub-level-row {
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin: 4px 0 8px;
+    justify-content: center;
+    width: 100%;
+    margin: 16px 0 8px;
   }
+  .grade-display { color:var(--chalk); font-size:15px; font-weight:800; letter-spacing:.14em; text-align:center; }
+  [data-theme="dark"] .grade-display { color:var(--ink); }
+  .sub-level-select[hidden] { display:none; }
 
   .sub-level-label {
     font-size: 13px;
@@ -648,6 +652,13 @@
   [data-theme="dark"] .chat-subject-label { color: var(--ink); }
 
   .chat-level-label { font-size: 13px; color: var(--muted); }
+  .chat-header-copy { min-width:0; }
+  .study-session-timer { display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; margin-bottom:4px; color:var(--chalk); font-size:12px; font-weight:700; }
+  [data-theme="dark"] .study-session-timer { color:var(--ink); }
+  .study-session-timer[hidden], .study-session-timer-actions[hidden] { display:none; }
+  .study-session-timer-actions { display:flex; gap:6px; }
+  .study-session-timer-actions button { border:1px solid var(--line); border-radius:999px; padding:5px 11px; background:var(--paper); color:var(--chalk); font:inherit; font-size:11px; cursor:pointer; }
+  [data-theme="dark"] .study-session-timer-actions button { color:var(--ink); }
 
   .notebook {
     background: var(--paper);

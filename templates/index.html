@@ -53,7 +53,7 @@
     </div>
     <div id="welcomeStepName" style="display:none;">
       <h2>Karibu, welcome! 👋</h2>
-      <p>Clavis is your tutor study buddy — pick a level, choose a subject, and ask anything. Your questions, progress, and settings stay right here in your browser. New accounts get a free trial period before a plan is required.</p>
+      <p>Choose a level and subject, then study with a tutor that explains things step by step. Your questions, progress, and settings stay right here in your browser. New accounts get a free trial period before a plan is required.</p>
       <input type="text" id="welcomeNameInput" placeholder="What should we call you?" style="width:100%;box-sizing:border-box;padding:12px 14px;border-radius:12px;border:1px solid var(--line);font-family:'Inter',sans-serif;font-size:15px;margin-bottom:14px;" />
       <button id="welcomeStartBtn">Get started</button>
     </div>
@@ -302,7 +302,7 @@
 
     <div class="hero">
       <h1>Ask a question.<br>Get a clear explanation.</h1>
-      <p>A study buddy for students who can't always get extra tuition. Pick a level, choose a subject, and ask anything.</p>
+      <p>Choose a subject to start a focused study session, then ask Clavis for help whenever you need it.</p>
 
       <div class="level-toggle" id="levelToggle">
         <button data-level="cbc">CBC</button>
@@ -314,8 +314,8 @@
       </div>
 
       <div class="sub-level-row" id="subLevelRow">
-        <label for="gradeFormSelect" class="sub-level-label" id="subLevelLabel">Form:</label>
-        <select id="gradeFormSelect" class="sub-level-select"></select>
+        <span class="grade-display" id="gradeDisplay">GRADE 10</span>
+        <select id="gradeFormSelect" class="sub-level-select" aria-label="Grade or year" hidden></select>
       </div>
     </div>
 
@@ -752,7 +752,14 @@
   <div class="screen" id="chatScreen">
     <div class="chat-header">
       <button class="back-btn" id="backBtn">&larr; Subjects</button>
-      <div>
+      <div class="chat-header-copy">
+        <div class="study-session-timer" id="studySessionTimer" hidden aria-live="polite">
+          <span id="studySessionTimerLabel"></span>
+          <div class="study-session-timer-actions" id="studySessionTimerActions" hidden>
+            <button type="button" id="studySessionRestart">Restart</button>
+            <button type="button" id="studySessionExit">Exit</button>
+          </div>
+        </div>
         <div class="chat-subject-label" id="chatSubjectLabel">Mathematics</div>
         <div class="chat-level-label" id="chatLevelLabel">Secondary (KCSE)</div>
       </div>
@@ -788,7 +795,7 @@
           <button type="button" id="saveGoalBtn">Save goal</button>
         </div>
       </div>
-      <input type="text" id="questionInput" placeholder="Ask your question..." />
+      <input type="text" id="questionInput" placeholder="What would you like help understanding?" />
       <button type="button" id="micBtn" aria-label="Ask by voice" hidden>
         <svg width="19" height="19" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -1284,6 +1291,7 @@
   const ACCOUNT_GRADE = {{ learning_level|default('', true)|tojson }};
   const ACCOUNT_USER_ID = {{ user.id|tojson }};
   const ACCOUNT_COURSE_COMPLETED = {{ course_completed|default(false)|tojson }};
+  const STUDY_TIMETABLE = {{ timetable|tojson }};
   const REFERRAL_LINK = JSON.parse(document.getElementById('referralLinkConfig').textContent);
 
   /* Splash hide lives here, independent of app.js, so a slow network or an

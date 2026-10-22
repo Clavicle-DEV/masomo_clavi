@@ -14,6 +14,9 @@
   let teachState = null; // { topics: [...], topicIndex: 0, pendingTopicStart: bool }
   let teachPickerMode = false;
   let conversationHistory = [];
+  let studyTimerInterval = null;
+  let studyTimerSubject = null;
+  let studyTimerEndsAt = 0;
 
   /* Permanently remove the level-toggle buttons that don't belong to this
      account's track, so switching between school-grade levels and Campus
@@ -101,8 +104,14 @@
   const chatLevelLabel = document.getElementById('chatLevelLabel');
   const backBtn = document.getElementById('backBtn');
   const gradeFormSelect = document.getElementById('gradeFormSelect');
+  const gradeDisplay = document.getElementById('gradeDisplay');
   const subjectCount = document.getElementById('subjectCount');
   const subjectsTitle = document.getElementById('subjectsTitle');
+  const studySessionTimer = document.getElementById('studySessionTimer');
+  const studySessionTimerLabel = document.getElementById('studySessionTimerLabel');
+  const studySessionTimerActions = document.getElementById('studySessionTimerActions');
+  const studySessionRestart = document.getElementById('studySessionRestart');
+  const studySessionExit = document.getElementById('studySessionExit');
 
   const SUBJECTS_BY_LEVEL = {
     cbc: ['Mathematics', 'English', 'Kiswahili', 'Science and Technology', 'Social Studies', 'Creative Arts'],
@@ -115,6 +124,10 @@
 
   function levelDisplayName(level) {
     return ({ cbc: 'CBC', upper_primary: 'Lower Classes', junior_school: 'Junior School', secondary: 'Secondary (KCSE)', senior_school: 'Senior School', campus: 'Campus' })[level] || 'Your level';
+  }
+
+  function updateGradeDisplay() {
+    gradeDisplay.textContent = currentGradeForm.toUpperCase();
   }
 
   function getVisibleSubjects() {
@@ -277,8 +290,8 @@
     // sync the home screen toggle + selector too
     currentLevel = level;
     currentGradeForm = chosenGradeForm;
+    updateGradeDisplay();
     [...levelToggle.children].forEach(b => b.classList.toggle('active', b.dataset.level === level));
-    document.getElementById('subLevelLabel').textContent = subLevelLabelFor(level);
     populateGradeFormSelect(document.getElementById('gradeFormSelect'), level, chosenGradeForm);
     filterSubjectsForLevel();
   }
@@ -566,8 +579,8 @@
     btn.onclick = () => {
       currentLevel = ACCOUNT_GRADE ? ACCOUNT_LEVEL : last.level;
       currentGradeForm = ACCOUNT_GRADE || last.gradeForm;
+      updateGradeDisplay();
       [...levelToggle.children].forEach(b => b.classList.toggle('active', b.dataset.level === currentLevel));
-      document.getElementById('subLevelLabel').textContent = subLevelLabelFor(currentLevel);
       populateGradeFormSelect(gradeFormSelect, currentLevel, currentGradeForm);
       filterSubjectsForLevel();
       showScreen('chatScreen');
@@ -1171,18 +1184,20 @@
     currentLevel = btn.dataset.level;
     [...levelToggle.children].forEach(b => b.classList.toggle('active', b === btn));
 
-    document.getElementById('subLevelLabel').textContent = subLevelLabelFor(currentLevel);
     populateGradeFormSelect(gradeFormSelect, currentLevel, null);
     currentGradeForm = gradeFormSelect.value;
+    updateGradeDisplay();
     filterSubjectsForLevel();
   });
 
   gradeFormSelect.addEventListener('change', (e) => {
     currentGradeForm = e.target.value;
+    updateGradeDisplay();
   });
 
   function openSubjectChat(subject) {
     currentSubject = subject;
+    startStudyTimer(subject);
     notebook.innerHTML = '';
     notebook.appendChild(emptyHint);
     notebook.appendChild(teachStarter);
@@ -1234,7 +1249,64 @@
     card.addEventListener('click', () => openSubjectChat(card.dataset.subject));
   });
 
-  backBtn.addEventListener('click', () => showScreen('homeScreen'));
+  function formatStudyTime(seconds) {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const remainingSeconds = seconds % 60;
+    return hours
+      ? `${hours}:${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`
+      : `${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
+  }
+
+  function stopStudyTimer() {
+    if (studyTimerInterval) clearInterval(studyTimerInterval);
+    studyTimerInterval = null;
+    studyTimerSubject = null;
+    studyTimerEndsAt = 0;
+    studySessionTimer.hidden = true;
+    studySessionTimerActions.hidden = true;
+  }
+
+  function updateStudyTimer() {
+    const secondsRemaining = Math.max(0, Math.ceil((studyTimerEndsAt - Date.now()) / 1000));
+    if (secondsRemaining > 0) {
+      studySessionTimerLabel.textContent = `${studyTimerSubject} study time · ${formatStudyTime(secondsRemaining)} remaining`;
+      return;
+    }
+
+    clearInterval(studyTimerInterval);
+    studyTimerInterval = null;
+    studySessionTimerLabel.textContent = `Study time for ${studyTimerSubject} is up. Restart or exit?`;
+    studySessionTimerActions.hidden = false;
+  }
+
+  function startStudyTimer(subject) {
+    stopStudyTimer();
+    const scheduledSubject = STUDY_TIMETABLE.subjects.find(item => item.name === subject);
+    const minutes = scheduledSubject ? Number.parseFloat(scheduledSubject.minutes) : 0;
+    const durationSeconds = Number.isFinite(minutes) ? Math.round(minutes * 60) : 0;
+    if (durationSeconds <= 0) return;
+
+    studyTimerSubject = subject;
+    studyTimerEndsAt = Date.now() + durationSeconds * 1000;
+    studySessionTimer.hidden = false;
+    studySessionTimerActions.hidden = true;
+    updateStudyTimer();
+    studyTimerInterval = setInterval(updateStudyTimer, 1000);
+  }
+
+  studySessionRestart.addEventListener('click', () => {
+    if (studyTimerSubject) startStudyTimer(studyTimerSubject);
+  });
+  studySessionExit.addEventListener('click', () => {
+    stopStudyTimer();
+    showScreen('homeScreen');
+  });
+
+  backBtn.addEventListener('click', () => {
+    stopStudyTimer();
+    showScreen('homeScreen');
+  });
 
   function escapeHtml(str) {
     return str
