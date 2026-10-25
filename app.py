@@ -30,7 +30,8 @@ except ImportError:
             return lambda *args, **kwargs: (lambda view: view)
 from werkzeug.security import generate_password_hash, check_password_hash
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
-from sqlalchemy import inspect, text
+from sqlalchemy import func, inspect, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import deferred
 from dotenv import load_dotenv
 from PIL import Image, ImageOps
@@ -432,6 +433,23 @@ class User(UserMixin, db.Model):
         return datetime.now() > self.expiry_date
 
 
+def password_validation_error(password):
+    if len(password) < 8:
+        return "Password must be at least 8 characters."
+    if not re.search(r'[A-Za-z]', password):
+        return "Password must include at least one letter."
+    if not re.search(r'[0-9]', password):
+        return "Password must include at least one number."
+    return None
+
+
+def find_user_by_email(email):
+    normalized_email = (email or '').strip().lower()
+    if not normalized_email:
+        return None
+    return User.query.filter(func.lower(func.trim(User.email)) == normalized_email).first()
+
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
@@ -825,8 +843,13 @@ def signup():
             flash('Email and password are required.', 'danger')
             return redirect(url_for('signup'))
 
-        if User.query.filter_by(email=email).first():
-            flash('Email already registered!', 'danger')
+        password_error = password_validation_error(password)
+        if password_error:
+            flash(password_error, 'danger')
+            return redirect(url_for('signup'))
+
+        if find_user_by_email(email):
+            flash('An account already exists for this email. Log in or use Forgot password.', 'danger')
             return redirect(url_for('signup'))
 
         trial_end = datetime.now() + timedelta(days=1)
@@ -865,7 +888,16 @@ def signup():
             base = referrer.expiry_date if (referrer.expiry_date and referrer.expiry_date > datetime.now()) else datetime.now()
             referrer.expiry_date = base + timedelta(days=REFERRAL_BONUS_DAYS)
 
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            if find_user_by_email(email):
+                flash('An account already exists for this email. Log in or use Forgot password.', 'danger')
+            else:
+                app.logger.exception("Could not create a new account after a database integrity error")
+                flash('We could not create your account right now. Please try again.', 'danger')
+            return redirect(url_for('signup'))
 
         if not new_user.email_verified:
             token = reset_serializer.dumps(email, salt='email-verify')
@@ -876,6 +908,7 @@ def signup():
                 app.logger.error(f"Failed to send verification email to {email}: {e}")
 
         login_user(new_user, remember=True)
+        flash('Your account is ready. Let’s set up your learning path.', 'success')
         return redirect(url_for('onboarding', step='name'))
 
     return render_template('auth.html', mode='signup', ref_code=request.args.get('ref', ''), student_track=request.args.get('type', ''))
@@ -891,14 +924,22 @@ def login():
         email = request.form.get('email', '').strip().lower()
         password = request.form.get('password', '')
         student_track = (request.form.get('track') or '').strip().lower()
-        user = User.query.filter_by(email=email).first()
+        user = find_user_by_email(email)
 
-        if user and user.lockout_until and user.lockout_until > datetime.now():
+        if not email or not password:
+            flash('Enter both your email address and password.', 'danger')
+            return render_template('auth.html', mode='login', student_track=request.args.get('type', ''))
+
+        if not user:
+            flash('No account was found for that email. Check the spelling or create an account.', 'danger')
+            return render_template('auth.html', mode='login', student_track=request.args.get('type', ''))
+
+        if user.lockout_until and user.lockout_until > datetime.now():
             minutes_left = max(1, int((user.lockout_until - datetime.now()).total_seconds() // 60) + 1)
             flash(f"Too many failed attempts. Please try again in {minutes_left} minute(s), or reset your password.", "danger")
             return render_template('auth.html', mode='login', student_track=request.args.get('type', ''))
 
-        if user and user.check_password(password):
+        if user.check_password(password):
             user.failed_login_attempts = 0
             user.lockout_until = None
             # Track (High school vs Campus) is locked in per account after the
@@ -914,16 +955,15 @@ def login():
             login_user(user, remember=True)
             return redirect(url_for('onboarding', step='name') if not user.onboarding_completed else url_for('home'))
 
-        if user:
-            user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
-            if user.failed_login_attempts >= LOGIN_LOCKOUT_THRESHOLD:
-                user.lockout_until = datetime.now() + timedelta(minutes=LOGIN_LOCKOUT_MINUTES)
-                user.failed_login_attempts = 0
-                db.session.commit()
-                flash(f"Too many failed attempts. Please try again in {LOGIN_LOCKOUT_MINUTES} minutes, or reset your password.", "danger")
-                return render_template('auth.html', mode='login', student_track=request.args.get('type', ''))
+        user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
+        if user.failed_login_attempts >= LOGIN_LOCKOUT_THRESHOLD:
+            user.lockout_until = datetime.now() + timedelta(minutes=LOGIN_LOCKOUT_MINUTES)
+            user.failed_login_attempts = 0
             db.session.commit()
-        flash('Invalid credentials!', 'danger')
+            flash(f"Too many failed attempts. Please try again in {LOGIN_LOCKOUT_MINUTES} minutes, or reset your password.", "danger")
+            return render_template('auth.html', mode='login', student_track=request.args.get('type', ''))
+        db.session.commit()
+        flash('That password does not match this email. Try again or use Forgot password.', 'danger')
 
     return render_template('auth.html', mode='login', student_track=request.args.get('type', ''))
 
@@ -1292,7 +1332,7 @@ def logout():
 def forgot_password():
     if request.method == 'POST':
         email = request.form.get('email', '').strip().lower()
-        user = User.query.filter_by(email=email).first()
+        user = find_user_by_email(email)
 
         if user:
             token = reset_serializer.dumps(email, salt='password-reset')
@@ -1319,7 +1359,7 @@ def reset_password(token):
         flash("That reset link isn't valid. Please request a new one.", "danger")
         return redirect(url_for('forgot_password'))
 
-    user = User.query.filter_by(email=email).first()
+    user = find_user_by_email(email)
     if not user:
         flash("That reset link isn't valid. Please request a new one.", "danger")
         return redirect(url_for('forgot_password'))
@@ -1328,8 +1368,9 @@ def reset_password(token):
         password = request.form.get('password', '')
         confirm = request.form.get('confirm_password', '')
 
-        if not password or len(password) < 8:
-            flash("Password must be at least 8 characters.", "danger")
+        password_error = password_validation_error(password)
+        if password_error:
+            flash(password_error, "danger")
             return render_template('auth.html', mode='reset', token=token)
 
         if password != confirm:
@@ -1354,7 +1395,7 @@ def verify_email(token):
         flash("That verification link isn't valid.", "danger")
         return redirect(url_for('home') if current_user.is_authenticated else url_for('login'))
 
-    user = User.query.filter_by(email=email).first()
+    user = find_user_by_email(email)
     if not user:
         flash("That verification link isn't valid.", "danger")
         return redirect(url_for('login'))

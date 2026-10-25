@@ -25,6 +25,7 @@ from app import (
     normalize_certificate_photo,
     next_promotion_level,
     onboarding_subject_choices,
+    password_validation_error,
     render_certificate_pdf,
     save_study_schedule,
     summarize_study_sessions,
@@ -37,6 +38,44 @@ from app import (
 
 
 class CurriculumLevelTests(unittest.TestCase):
+    def test_password_requires_eight_characters_a_letter_and_a_number(self):
+        self.assertEqual(
+            password_validation_error("abc123"),
+            "Password must be at least 8 characters.",
+        )
+        self.assertEqual(
+            password_validation_error("abcdefgh"),
+            "Password must include at least one number.",
+        )
+        self.assertEqual(
+            password_validation_error("12345678"),
+            "Password must include at least one letter.",
+        )
+        self.assertIsNone(password_validation_error("study1234"))
+
+    def test_login_explains_when_email_is_not_registered(self):
+        with patch("app.find_user_by_email", return_value=None):
+            response = flask_app.test_client().post(
+                "/login",
+                data={"email": "new@example.com", "password": "study1234"},
+            )
+
+        self.assertIn(b"No account was found for that email", response.data)
+
+    def test_login_explains_when_password_is_wrong(self):
+        learner = SimpleNamespace(
+            lockout_until=None,
+            failed_login_attempts=0,
+            check_password=lambda _password: False,
+        )
+        with patch("app.find_user_by_email", return_value=learner), patch("app.db.session.commit"):
+            response = flask_app.test_client().post(
+                "/login",
+                data={"email": "learner@example.com", "password": "wrongpass1"},
+            )
+
+        self.assertIn(b"That password does not match this email", response.data)
+
     def test_upper_primary_label(self):
         self.assertIn("Upper Primary", describe_level("upper_primary", "Grade 4"))
 

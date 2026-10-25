@@ -401,13 +401,14 @@
           <label for="signupEmail">Email address</label>
         </div>
         <div class="field has-toggle">
-          <input type="password" name="password" id="signupPassword" placeholder=" " required>
+          <input type="password" name="password" id="signupPassword" placeholder=" " required minlength="8" pattern="(?=.*[A-Za-z])(?=.*[0-9]).{8,}" title="Use at least 8 characters, including one letter and one number." autocomplete="new-password">
           <label for="signupPassword">Create a password</label>
           <button type="button" class="pw-toggle" data-target="signupPassword" aria-label="Show password">
             <svg class="eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
             <svg class="eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.94 10.94 0 0112 19c-7 0-11-7-11-7a21.6 21.6 0 015.06-5.94M9.9 4.24A10.94 10.94 0 0112 4c7 0 11 7 11 7a21.6 21.6 0 01-2.61 3.61M14.12 14.12a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
           </button>
         </div>
+        <p class="sub password-guidance">Use at least 8 characters with at least one letter and one number.</p>
         <button type="submit" class="submit-btn">Create Account</button>
       </form>
       <div class="switch-text">Already have an account? <a href="/login" id="signupToLoginLink">Log in here</a></div>
@@ -459,7 +460,7 @@
       <p class="sub">This link is valid for 1 hour.</p>
       <form method="POST" action="/reset-password/{{ token }}">
         <div class="field has-toggle">
-          <input type="password" name="password" id="resetPassword" placeholder=" " required minlength="8">
+          <input type="password" name="password" id="resetPassword" placeholder=" " required minlength="8" pattern="(?=.*[A-Za-z])(?=.*[0-9]).{8,}" title="Use at least 8 characters, including one letter and one number." autocomplete="new-password">
           <label for="resetPassword">New password (min 8 characters)</label>
           <button type="button" class="pw-toggle" data-target="resetPassword" aria-label="Show password">
             <svg class="eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -467,7 +468,7 @@
           </button>
         </div>
         <div class="field has-toggle">
-          <input type="password" name="confirm_password" id="resetConfirmPassword" placeholder=" " required minlength="8">
+          <input type="password" name="confirm_password" id="resetConfirmPassword" placeholder=" " required minlength="8" pattern="(?=.*[A-Za-z])(?=.*[0-9]).{8,}" title="Use at least 8 characters, including one letter and one number." autocomplete="new-password">
           <label for="resetConfirmPassword">Confirm new password</label>
           <button type="button" class="pw-toggle" data-target="resetConfirmPassword" aria-label="Show password">
             <svg class="eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
