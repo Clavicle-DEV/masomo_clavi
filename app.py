@@ -5,7 +5,6 @@ import smtplib
 import io
 import zipfile
 import hashlib
-import importlib
 import secrets
 import warnings
 from email.mime.text import MIMEText
@@ -19,7 +18,7 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for, f
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 try:
-    Limiter = importlib.import_module("flask_limiter").Limiter
+    from flask_limiter import Limiter
 except ImportError:
     class Limiter:
         """Compatibility fallback when Flask-Limiter is not installed."""
