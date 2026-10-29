@@ -24,6 +24,7 @@ from app import (
     has_completed_highest_course,
     normalize_certificate_photo,
     next_promotion_level,
+    onboarding,
     onboarding_subject_choices,
     password_validation_error,
     render_certificate_pdf,
@@ -61,6 +62,112 @@ class CurriculumLevelTests(unittest.TestCase):
             )
 
         self.assertIn(b"No account was found for that email", response.data)
+
+    def test_login_does_not_apply_a_stale_browser_track_to_a_new_learner(self):
+        learner = SimpleNamespace(
+            lockout_until=None,
+            failed_login_attempts=0,
+            onboarding_completed=False,
+            student_track=None,
+            check_password=lambda _password: True,
+        )
+        with patch("app.find_user_by_email", return_value=learner), \
+             patch("app.db.session.commit"), \
+             patch("app.login_user"), \
+             patch("app.is_full_admin", return_value=False):
+            response = flask_app.test_client().post(
+                "/login",
+                data={
+                    "email": "learner@example.com",
+                    "password": "study1234",
+                    "track": "campus",
+                },
+            )
+
+        self.assertEqual(learner.student_track, None)
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.location.endswith("/onboarding/name"))
+
+    def test_elementary_path_stays_elementary_after_path_selection(self):
+        learner = SimpleNamespace(
+            onboarding_completed=False,
+            display_name="Amina",
+            student_track=None,
+            campus_course=None,
+            campus_year=None,
+            elementary_grade=None,
+            favorite_subject=None,
+            study_schedule_json=None,
+        )
+        with flask_app.test_request_context(
+            "/onboarding/path",
+            method="POST",
+            data={"student_track": "elementary"},
+        ), patch("app.current_user", learner), \
+             patch("app.is_full_admin", return_value=False), \
+             patch("app.db.session.commit"):
+            response = onboarding.__wrapped__("path")
+
+        self.assertEqual(learner.student_track, "highschool")
+        self.assertTrue(response.location.endswith("/onboarding/level"))
+
+    def test_completed_admin_login_opens_school_path_setup(self):
+        admin = SimpleNamespace(
+            lockout_until=None,
+            failed_login_attempts=0,
+            onboarding_completed=True,
+            check_password=lambda _password: True,
+        )
+        with patch("app.find_user_by_email", return_value=admin), \
+             patch("app.db.session.commit"), \
+             patch("app.login_user"), \
+             patch("app.is_full_admin", return_value=True):
+            response = flask_app.test_client().post(
+                "/login",
+                data={"email": "admin@example.com", "password": "study1234"},
+            )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.location.endswith("/onboarding/path"))
+
+    def test_completed_admin_can_change_learning_path_and_grade(self):
+        admin = SimpleNamespace(
+            onboarding_completed=True,
+            display_name="Admin",
+            student_track="campus",
+            campus_course="Accounting",
+            campus_year="Year 1",
+            elementary_grade=None,
+            favorite_subject="Accounting",
+            challenging_subject="Accounting",
+            challenging_subjects_json='["Accounting"]',
+            study_schedule_json=None,
+            daily_goal_minutes=None,
+            starting_topic="topic_1",
+        )
+        with flask_app.test_request_context(
+            "/onboarding/path",
+            method="POST",
+            data={"student_track": "elementary"},
+        ), patch("app.current_user", admin), \
+             patch("app.is_full_admin", return_value=True), \
+             patch("app.db.session.commit"):
+            path_response = onboarding.__wrapped__("path")
+
+        with flask_app.test_request_context(
+            "/onboarding/level",
+            method="POST",
+            data={"elementary_grade": "Grade 3"},
+        ), patch("app.current_user", admin), \
+             patch("app.is_full_admin", return_value=True), \
+             patch("app.db.session.commit"):
+            level_response = onboarding.__wrapped__("level")
+
+        self.assertEqual(admin.student_track, "highschool")
+        self.assertEqual(admin.elementary_grade, "Grade 3")
+        self.assertIn(admin.favorite_subject, ELEMENTARY_SUBJECTS["Lower classes"])
+        self.assertTrue(path_response.location.endswith("/onboarding/level"))
+        self.assertTrue(level_response.location.endswith("/"))
 
     def test_login_explains_when_password_is_wrong(self):
         learner = SimpleNamespace(

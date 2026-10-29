@@ -47,7 +47,7 @@
   <main class="shell">
     <div class="brand">Clavis<span style="color:#79a83a">.</span></div>
     <section class="card">
-      <div class="progress-label"><span>Your learning setup</span><span>Step {{ step_number }} of {{ step_count }}</span></div>
+      <div class="progress-label"><span>{{ 'School level setup' if admin_path_editor else 'Your learning setup' }}</span><span>Step {{ step_number }} of {{ step_count }}</span></div>
       <div class="progress" aria-label="Step {{ step_number }} of {{ step_count }}"><span></span></div>
       {% with messages = get_flashed_messages(with_categories=true) %}
         {% for category, message in messages %}<div class="flash" role="alert">{{ message }}</div>{% endfor %}
@@ -64,11 +64,11 @@
 
       {% elif step == 'path' %}
         <h1>Where are you learning?</h1>
-        <p class="intro">Choose a path so Clavis can set up the right subjects and learning journey for you.</p>
+        <p class="intro">{% if admin_path_editor %}Choose the learning path for your admin account. You can update this again whenever you sign in.{% else %}Choose a path so Clavis can set up the right subjects and learning journey for you.{% endif %}</p>
         <form method="post">
           <div class="choice-grid">
-            <label class="choice"><input type="radio" name="student_track" value="elementary" required><strong>Elementary</strong><small>Lower, Junior, and Senior School · Grades 3–12</small></label>
-            <label class="choice"><input type="radio" name="student_track" value="campus" required><strong>Campus</strong><small>University and college subjects</small></label>
+            <label class="choice"><input type="radio" name="student_track" value="elementary" {% if user.student_track == 'highschool' %}checked{% endif %} required><strong>Elementary</strong><small>Lower, Junior, and Senior School · Grades 3–12</small></label>
+            <label class="choice"><input type="radio" name="student_track" value="campus" {% if user.student_track == 'campus' %}checked{% endif %} required><strong>Campus</strong><small>University and college subjects</small></label>
           </div>
           <button class="submit" type="submit">Choose my path →</button>
         </form>

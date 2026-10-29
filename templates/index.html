@@ -1019,9 +1019,9 @@
       <div class="settings-row">
         <div>
           <div class="settings-row-label">Studying at</div>
-          <div class="settings-row-sub">Switches your whole subject list and tutor style — takes a moment to reload.</div>
+          <div class="settings-row-sub">{% if is_full_admin_user %}Open school-level setup to change this admin account's learning path or grade.{% else %}Switches your whole subject list and tutor style — takes a moment to reload.{% endif %}</div>
         </div>
-        <div class="level-toggle" id="accountTrackToggle" data-locked="{{ 'true' if student_track_locked else 'false' }}">
+        <div class="level-toggle" id="accountTrackToggle" data-locked="{{ 'true' if student_track_locked else 'false' }}" data-admin-editable="{{ 'true' if is_full_admin_user else 'false' }}">
           <button data-track="highschool">🏫 Elementary</button>
           <button data-track="campus">🎓 Campus</button>
         </div>

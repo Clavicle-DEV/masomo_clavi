@@ -417,7 +417,6 @@
       <h2>Welcome Back</h2>
       <p class="sub">Log in to access your curriculum tutor workspace.</p>
       <form method="POST" action="/login" id="loginForm">
-        <input type="hidden" name="track" id="loginTrackInput" value="{{ student_track or '' }}">
         <div class="field">
           <input type="email" name="email" id="loginEmail" placeholder=" " required>
           <label for="loginEmail">Email address</label>
@@ -433,14 +432,6 @@
         <div class="forgot-link"><a href="/forgot-password">Forgot password?</a></div>
         <button type="submit" class="submit-btn">Log In Safely</button>
       </form>
-      <script>
-        try {
-          var savedLoginTrack = localStorage.getItem('clavi_student_type');
-          if (savedLoginTrack === 'campus' || savedLoginTrack === 'highschool') {
-            document.getElementById('loginTrackInput').value = savedLoginTrack;
-          }
-        } catch (e) {}
-      </script>
       <div class="switch-text">New to Clavis? <a href="/signup">Create an account</a></div>
 
     {% elif mode == 'forgot' %}

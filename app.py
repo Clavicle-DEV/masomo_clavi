@@ -922,7 +922,6 @@ def login():
     if request.method == 'POST':
         email = request.form.get('email', '').strip().lower()
         password = request.form.get('password', '')
-        student_track = (request.form.get('track') or '').strip().lower()
         user = find_user_by_email(email)
 
         if not email or not password:
@@ -941,17 +940,10 @@ def login():
         if user.check_password(password):
             user.failed_login_attempts = 0
             user.lockout_until = None
-            # Track (High school vs Campus) is locked in per account after the
-            # first choice — a stray ?type= link must never silently flip a
-            # student's whole subject list. Only the site owner's own account
-            # can freely change it just by tapping a different type and
-            # logging in; this does not extend to co-admins.
-            if is_full_admin(user) and student_track in ('campus', 'highschool'):
-                user.student_track = student_track
-            elif user.student_track is None and student_track in ('campus', 'highschool'):
-                user.student_track = student_track
             db.session.commit()
             login_user(user, remember=True)
+            if is_full_admin(user) and user.onboarding_completed:
+                return redirect(url_for('onboarding', step='path'))
             return redirect(url_for('onboarding', step='name') if not user.onboarding_completed else url_for('home'))
 
         user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
@@ -1155,7 +1147,12 @@ def study_timetable_for_user(user):
 def onboarding(step):
     if step not in ONBOARDING_STEPS:
         return redirect(url_for('onboarding', step='name'))
-    if current_user.onboarding_completed:
+    admin_path_editor = (
+        is_full_admin(current_user)
+        and current_user.onboarding_completed
+        and step in ('path', 'level')
+    )
+    if current_user.onboarding_completed and not admin_path_editor:
         return redirect(url_for('home'))
 
     prerequisites = {
@@ -1175,9 +1172,13 @@ def onboarding(step):
         ),
         'schedule': has_current_study_schedule(current_user),
     }
-    for required_step in ONBOARDING_STEPS[:ONBOARDING_STEPS.index(step)]:
-        if not prerequisites.get(required_step, False):
-            return redirect(url_for('onboarding', step=required_step))
+    if admin_path_editor:
+        if step == 'level' and current_user.student_track not in ('campus', 'highschool'):
+            return redirect(url_for('onboarding', step='path'))
+    else:
+        for required_step in ONBOARDING_STEPS[:ONBOARDING_STEPS.index(step)]:
+            if not prerequisites.get(required_step, False):
+                return redirect(url_for('onboarding', step=required_step))
 
     choices = onboarding_subject_choices(current_user)
     if request.method == 'POST':
@@ -1199,7 +1200,19 @@ def onboarding(step):
             if current_user.student_track and not is_full_admin(current_user):
                 flash('Your learning path is already locked for this account.', 'danger')
                 return redirect(url_for('onboarding', step='level'))
-            current_user.student_track = 'campus' if track == 'campus' else 'highschool'
+            selected_track = 'campus' if track == 'campus' else 'highschool'
+            if current_user.student_track != selected_track:
+                current_user.student_track = selected_track
+                current_user.elementary_grade = None
+                current_user.campus_course = None
+                current_user.campus_year = None
+                if admin_path_editor:
+                    current_user.favorite_subject = None
+                    current_user.challenging_subject = None
+                    current_user.challenging_subjects_json = None
+                    current_user.study_schedule_json = None
+                    current_user.daily_goal_minutes = None
+                    current_user.starting_topic = None
 
         elif step == 'level':
             if current_user.student_track == 'campus':
@@ -1223,6 +1236,16 @@ def onboarding(step):
                 current_user.elementary_grade = grade
                 current_user.campus_course = None
                 current_user.campus_year = None
+            if admin_path_editor:
+                choices = onboarding_subject_choices(current_user)
+                if choices:
+                    current_user.favorite_subject = choices[0]
+                    current_user.challenging_subject = choices[0]
+                    current_user.challenging_subjects_json = json.dumps([choices[0]])
+                    schedule = default_study_schedule(current_user)
+                    current_user.study_schedule_json = json.dumps(schedule)
+                    current_user.daily_goal_minutes = int(schedule['daily_hours'] * 60)
+                current_user.starting_topic = 'topic_1'
 
         elif step == 'subjects':
             choices = onboarding_subject_choices(current_user)
@@ -1258,6 +1281,8 @@ def onboarding(step):
         db.session.commit()
         if step == 'goals':
             return redirect(url_for('home'))
+        if step == 'level' and admin_path_editor:
+            return redirect(url_for('home'))
         next_step = ONBOARDING_STEPS[ONBOARDING_STEPS.index(step) + 1]
         return redirect(url_for('onboarding', step=next_step))
 
@@ -1267,8 +1292,9 @@ def onboarding(step):
     return render_template(
         'onboarding.html',
         step=step,
-        step_number=ONBOARDING_STEPS.index(step) + 1,
-        step_count=len(ONBOARDING_STEPS),
+        step_number=(1 if step == 'path' else 2) if admin_path_editor else ONBOARDING_STEPS.index(step) + 1,
+        step_count=2 if admin_path_editor else len(ONBOARDING_STEPS),
+        admin_path_editor=admin_path_editor,
         elementary_grades=ELEMENTARY_GRADES,
         campus_courses=DAILY_CHALLENGE_SUBJECTS['campus'],
         campus_years=CAMPUS_YEARS,

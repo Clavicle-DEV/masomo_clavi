@@ -337,6 +337,7 @@
   const accountTrackToggle = document.getElementById('accountTrackToggle');
   if (accountTrackToggle) {
     const trackLocked = accountTrackToggle.dataset.locked === 'true';
+    const adminEditable = accountTrackToggle.dataset.adminEditable === 'true';
     [...accountTrackToggle.children].forEach(b => b.classList.toggle('active', b.dataset.track === ACCOUNT_TRACK));
     if (trackLocked) {
       accountTrackToggle.classList.add('disabled');
@@ -345,6 +346,10 @@
     accountTrackToggle.addEventListener('click', (e) => {
       if (trackLocked) return;
       const btn = e.target.closest('button');
+      if (adminEditable && btn) {
+        window.location.href = '/onboarding/path';
+        return;
+      }
       if (!btn || btn.dataset.track === ACCOUNT_TRACK) return;
       const label = btn.dataset.track === 'campus' ? 'Campus' : 'Elementary';
       if (!confirm(`Switch to ${label}? This changes your whole subject list and reloads the app.`)) return;
