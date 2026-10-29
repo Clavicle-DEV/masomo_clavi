@@ -70,7 +70,11 @@
     </div>
     <button data-screen="homeScreen" class="active">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11l9-7 9 7M5 10v9a1 1 0 001 1h4v-6h4v6h4a1 1 0 001-1v-9" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <span class="nav-label">Home</span>
+      <span class="nav-label">Learning</span>
+    </button>
+    <button data-screen="schoolsScreen">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6M9 10h.01M15 10h.01M9 13h.01M15 13h.01" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span class="nav-label">Schools</span>
     </button>
     <button data-screen="dashboardScreen">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
@@ -1174,6 +1178,54 @@
         <button class="danger-btn" id="resetStatsBtn">Reset stats</button>
       </div>
     </div>
+  </div>
+
+  <!-- ============ SCHOOLS SCREEN ============ -->
+  <div class="screen" id="schoolsScreen">
+    <div class="schools-page-heading">
+      <div>
+        <p class="schools-eyebrow">LEARN TOGETHER</p>
+        <h2 class="dash-title">Schools on Clavis</h2>
+        <p class="schools-intro">Find your school, request to join, and connect with learners after the school admin approves you.</p>
+      </div>
+      <span class="schools-privacy-note">School communities are visible only to approved members.</span>
+    </div>
+
+    <div class="school-action-status" id="schoolActionStatus" role="status" hidden></div>
+
+    <section class="school-panel" aria-labelledby="schoolRequestTitle">
+      <h3 id="schoolRequestTitle">Request a school listing</h3>
+      <p class="school-panel-copy">A Clavis platform admin reviews each request. The person submitting becomes the school admin if it is approved.</p>
+      <p class="school-panel-copy" id="schoolVerificationNote" hidden>Verify your account email before requesting a school listing or joining a community.</p>
+      <form id="schoolListingForm" class="school-request-form">
+        <label>School name<input name="name" type="text" minlength="2" maxlength="120" required></label>
+        <label>County<input name="county" type="text" maxlength="80" required></label>
+        <label>Town (optional)<input name="town" type="text" maxlength="80"></label>
+        <label>Official school contact email<input name="officialEmail" type="email" maxlength="150" required></label>
+        <label class="school-description-field">Short description (optional)<textarea name="description" rows="3" maxlength="500"></textarea></label>
+        <button type="submit" class="school-primary-btn" id="schoolListingSubmit">Submit for review</button>
+      </form>
+    </section>
+
+    <section class="school-admin-section" id="schoolListingReviewSection" hidden>
+      <h3>School listings awaiting Clavis review</h3>
+      <div class="school-request-list" id="schoolListingReviewList"></div>
+    </section>
+
+    <section class="school-admin-section" id="managedSchoolsSection" hidden>
+      <h3>School admin workspace</h3>
+      <div class="managed-school-list" id="managedSchoolList"></div>
+    </section>
+
+    <section class="school-directory-section">
+      <div class="school-directory-heading">
+        <div><h3>Browse approved schools</h3><p>Only Clavis-approved school listings appear here.</p></div>
+        <button type="button" class="school-refresh-btn" id="refreshSchoolsBtn">Refresh</button>
+      </div>
+      <div class="school-directory-grid" id="schoolDirectory" aria-live="polite">
+        <p class="school-panel-copy">Loading approved schools…</p>
+      </div>
+    </section>
   </div>
 
   <!-- ============ BOOK FINDER SCREEN ============ -->

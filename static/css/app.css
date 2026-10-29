@@ -904,6 +904,63 @@
   .study-session-history h5 { margin:0 0 5px; color:var(--muted); font-size:10px; text-transform:uppercase; letter-spacing:.06em; }
   .study-history-row { color:var(--muted); }
   .study-progress-note { margin:8px 0 0; color:var(--muted); font-size:11px; line-height:1.45; }
+  .schools-page-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:18px; margin-bottom:20px; }
+  .schools-eyebrow { margin:0 0 5px; color:var(--gold); font-size:11px; font-weight:800; letter-spacing:.12em; }
+  .schools-page-heading .dash-title { margin:0 0 7px; }
+  .schools-intro,.school-directory-heading p,.school-panel-copy { margin:0; color:var(--muted); font-size:13px; line-height:1.5; }
+  .schools-privacy-note { max-width:210px; padding:9px 12px; border:1px solid var(--line); border-radius:999px; color:var(--muted); font-size:11px; line-height:1.4; text-align:center; }
+  .school-panel,.school-admin-section { margin-bottom:18px; padding:18px; border:1px solid var(--line); border-radius:14px; background:var(--paper); }
+  .school-panel h3,.school-admin-section h3,.school-directory-heading h3 { margin:0 0 7px; color:var(--chalk); font-family:'Fraunces',serif; font-size:19px; }
+  .school-request-form { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:14px; }
+  .school-request-form label { display:flex; flex-direction:column; gap:6px; color:var(--muted); font-size:12px; font-weight:600; }
+  .school-request-form input,.school-request-form textarea { width:100%; min-width:0; padding:10px 12px; border:1px solid var(--line); border-radius:9px; background:var(--bg); color:var(--ink); font:inherit; font-size:13px; }
+  .school-description-field { grid-column:1 / -1; }
+  .school-primary-btn,.school-secondary-btn,.school-refresh-btn { display:inline-flex; align-items:center; justify-content:center; min-height:36px; padding:8px 12px; border:1px solid var(--line); border-radius:9px; font:inherit; font-size:12px; font-weight:700; cursor:pointer; }
+  .school-primary-btn { border-color:var(--chalk); background:var(--chalk); color:var(--paper); }
+  .school-secondary-btn,.school-refresh-btn { background:var(--paper); color:var(--ink); }
+  .school-primary-btn:disabled,.school-secondary-btn:disabled { opacity:.55; cursor:not-allowed; }
+  .school-admin-section { padding:18px; }
+  .school-request-list,.managed-school-list { display:grid; gap:10px; }
+  .school-request-card,.managed-school-card,.school-directory-card { min-width:0; padding:15px; border:1px solid var(--line); border-radius:12px; background:var(--paper); }
+  .school-request-card { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
+  .school-card-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+  .school-card-heading h4,.school-request-card h4 { margin:0 0 4px; color:var(--ink); font-size:15px; }
+  .school-card-heading p,.school-request-card p { margin:3px 0; color:var(--muted); font-size:12px; line-height:1.45; overflow-wrap:anywhere; }
+  .school-card-actions { display:flex; flex-wrap:wrap; gap:7px; }
+  .school-directory-section { margin-top:22px; }
+  .school-directory-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
+  .school-directory-heading h3 { margin-bottom:4px; }
+  .school-directory-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:11px; }
+  .school-directory-card .school-card-heading { align-items:center; }
+  .school-description { margin:12px 0 0; color:var(--muted); font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
+  .school-status-pill { flex-shrink:0; padding:5px 9px; border:1px solid var(--line); border-radius:999px; color:var(--muted); font-size:10px; font-weight:700; text-transform:capitalize; }
+  .school-status-member { border-color:rgba(92,141,54,.35); color:var(--chalk); }
+  .school-admin-subsection,.school-community { margin-top:14px; padding-top:11px; border-top:1px solid var(--line); }
+  .school-admin-subsection h5,.school-community h5 { margin:0 0 7px; color:var(--chalk); font-size:11px; }
+  .school-admin-subsection h5:not(:first-child) { margin-top:14px; }
+  .school-member-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:7px 0; border-bottom:1px solid var(--line); color:var(--ink); font-size:12px; }
+  .school-member-row:last-child { border-bottom:0; }
+  .school-member-row small { color:var(--muted); font-size:10px; }
+  .school-member-row .school-card-actions { justify-content:flex-end; }
+  .school-member-row .school-primary-btn,.school-member-row .school-secondary-btn { min-height:30px; padding:5px 9px; font-size:10px; }
+  .school-pending-note,.school-load-error,.school-action-status { padding:10px 12px; border:1px solid var(--line); border-radius:9px; color:var(--muted); background:var(--bg); font-size:12px; line-height:1.5; }
+  .school-load-error,.school-action-status.is-error { border-color:rgba(184,71,55,.35); color:#b84737; }
+  .school-action-status { margin-bottom:14px; }
+  .school-empty-state { display:flex; flex-direction:column; gap:5px; padding:20px; border:1px dashed var(--line); border-radius:12px; color:var(--muted); font-size:13px; }
+  .school-empty-state strong { color:var(--ink); }
+  #schoolVerificationNote { margin-top:12px; }
+  [data-theme="dark"] .school-panel,
+  [data-theme="dark"] .school-request-card,
+  [data-theme="dark"] .managed-school-card,
+  [data-theme="dark"] .school-directory-card { background:var(--paper); }
+  @media(max-width:620px) {
+    .schools-page-heading { flex-direction:column; }
+    .schools-privacy-note { max-width:none; }
+    .school-request-form { grid-template-columns:1fr; }
+    .school-description-field { grid-column:auto; }
+    .school-request-card { flex-direction:column; }
+    .school-directory-grid { grid-template-columns:1fr; }
+  }
   .learning-progress-error { padding:11px 13px; border:1px solid var(--line); border-radius:10px; color:var(--muted); background:var(--bg); font-size:13px; line-height:1.5; }
   [data-theme="dark"] .learning-journey,
   [data-theme="dark"] .learning-subject-card,

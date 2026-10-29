@@ -155,8 +155,182 @@
     screens.forEach(s => s.classList.toggle('active', s.id === id));
     [...mainNav.children].forEach(b => b.classList.toggle('active', b.dataset.screen === id));
     if (id === 'dashboardScreen') renderDashboard();
+    if (id === 'schoolsScreen') renderSchools();
     if (id === 'leaderboardScreen') renderLeaderboard();
   }
+
+  let schoolsRequestId = 0;
+  async function renderSchools() {
+    const requestId = ++schoolsRequestId;
+    const directory = document.getElementById('schoolDirectory');
+    directory.innerHTML = '<p class="school-panel-copy">Loading approved schools…</p>';
+    try {
+      const response = await fetch('/api/schools');
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Could not load schools.');
+      if (requestId !== schoolsRequestId) return;
+
+      const form = document.getElementById('schoolListingForm');
+      const submit = document.getElementById('schoolListingSubmit');
+      const verificationNote = document.getElementById('schoolVerificationNote');
+      form.hidden = !data.canRequestListing;
+      verificationNote.hidden = data.canRequestListing;
+      submit.disabled = !data.canRequestListing;
+
+      const reviewSection = document.getElementById('schoolListingReviewSection');
+      const reviewList = document.getElementById('schoolListingReviewList');
+      reviewSection.hidden = !data.pendingSchoolRequests.length;
+      reviewList.innerHTML = data.pendingSchoolRequests.map(school => `
+        <article class="school-request-card">
+          <div>
+            <h4>${escapeHtml(school.name)}</h4>
+            <p>${escapeHtml([school.town, school.county].filter(Boolean).join(', '))}</p>
+            <p>School contact: ${escapeHtml(school.officialEmail)}</p>
+            <p>Requested by: ${escapeHtml(school.requesterEmail || 'Account unavailable')}</p>
+            ${school.description ? `<p>${escapeHtml(school.description)}</p>` : ''}
+          </div>
+          <div class="school-card-actions">
+            <button type="button" class="school-primary-btn" data-school-action="listing-approve" data-school-id="${school.id}">Approve listing</button>
+            <button type="button" class="school-secondary-btn" data-school-action="listing-reject" data-school-id="${school.id}">Reject</button>
+          </div>
+        </article>
+      `).join('');
+
+      const managedSection = document.getElementById('managedSchoolsSection');
+      const managedList = document.getElementById('managedSchoolList');
+      managedSection.hidden = !data.managedSchools.length;
+      managedList.innerHTML = data.managedSchools.map(school => {
+        const content = school.status !== 'approved'
+          ? `<p class="school-pending-note">Your listing is awaiting Clavis review.</p>`
+          : `
+            <div class="school-admin-subsection">
+              <h5>Join requests (${school.joinRequests.length})</h5>
+              ${school.joinRequests.length ? school.joinRequests.map(learner => `
+                <div class="school-member-row">
+                  <span>${escapeHtml(learner.displayName)} <small>${escapeHtml(learner.grade)}</small></span>
+                  <span class="school-card-actions">
+                    <button type="button" class="school-primary-btn" data-school-action="member-approve" data-school-id="${school.id}" data-membership-id="${learner.id}">Approve</button>
+                    <button type="button" class="school-secondary-btn" data-school-action="member-reject" data-school-id="${school.id}" data-membership-id="${learner.id}">Reject</button>
+                  </span>
+                </div>
+              `).join('') : '<p class="school-panel-copy">No join requests right now.</p>'}
+              <h5>Approved learners (${school.members.length})</h5>
+              ${school.members.length ? school.members.map(learner => `
+                <div class="school-member-row"><span>${escapeHtml(learner.displayName)}</span><small>${escapeHtml(learner.grade)}</small></div>
+              `).join('') : '<p class="school-panel-copy">Approved members will appear here.</p>'}
+            </div>
+          `;
+        return `
+          <article class="managed-school-card">
+            <div class="school-card-heading">
+              <div><h4>${escapeHtml(school.name)}</h4><p>${escapeHtml([school.town, school.county].filter(Boolean).join(', '))}</p></div>
+              <span class="school-status-pill">${escapeHtml(school.status)}</span>
+            </div>
+            ${content}
+          </article>
+        `;
+      }).join('');
+
+      directory.innerHTML = data.schools.length
+        ? data.schools.map(school => {
+            let joinAction = '';
+            if (school.managedByMe) {
+              joinAction = '<span class="school-status-pill">You manage this school</span>';
+            } else if (school.membershipStatus === 'approved') {
+              joinAction = '<span class="school-status-pill school-status-member">Member</span>';
+            } else if (school.membershipStatus === 'pending') {
+              joinAction = '<button type="button" class="school-secondary-btn" disabled>Request pending</button>';
+            } else {
+              joinAction = `<button type="button" class="school-primary-btn" data-school-action="join" data-school-id="${school.id}" ${data.canRequestListing ? '' : 'disabled'}>Request to join</button>`;
+            }
+            const community = school.membershipStatus === 'approved'
+              ? `<div class="school-community"><h5>School learners (${school.members.length})</h5>${school.members.length ? school.members.map(learner => `
+                  <div class="school-member-row"><span>${escapeHtml(learner.displayName)}</span><small>${escapeHtml(learner.grade)}</small></div>
+                `).join('') : '<p class="school-panel-copy">You’re the first listed learner here.</p>'}</div>`
+              : '';
+            return `
+              <article class="school-directory-card">
+                <div class="school-card-heading">
+                  <div><h4>${escapeHtml(school.name)}</h4><p>${escapeHtml([school.town, school.county].filter(Boolean).join(', '))}</p></div>
+                  ${joinAction}
+                </div>
+                ${school.description ? `<p class="school-description">${escapeHtml(school.description)}</p>` : ''}
+                ${community}
+              </article>
+            `;
+          }).join('')
+        : '<div class="school-empty-state"><strong>No schools listed yet.</strong><span>School listings appear here after Clavis approves their request.</span></div>';
+    } catch (error) {
+      if (requestId !== schoolsRequestId) return;
+      directory.innerHTML = `<p class="school-load-error">${escapeHtml(error.message)} Refresh the page to try again.</p>`;
+      console.error('Could not load school directory:', error);
+    }
+  }
+
+  function showSchoolActionStatus(message, isError) {
+    const status = document.getElementById('schoolActionStatus');
+    status.textContent = message;
+    status.classList.toggle('is-error', !!isError);
+    status.hidden = !message;
+  }
+
+  document.getElementById('schoolListingForm').addEventListener('submit', async event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const submit = document.getElementById('schoolListingSubmit');
+    submit.disabled = true;
+    showSchoolActionStatus('Submitting your school request…', false);
+    try {
+      const formData = new FormData(form);
+      const response = await fetch('/api/schools', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(Object.fromEntries(formData.entries())),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Could not submit the school listing.');
+      form.reset();
+      showSchoolActionStatus(data.message, false);
+      await renderSchools();
+    } catch (error) {
+      showSchoolActionStatus(error.message, true);
+    } finally {
+      submit.disabled = false;
+    }
+  });
+
+  document.getElementById('refreshSchoolsBtn').addEventListener('click', renderSchools);
+  document.getElementById('schoolsScreen').addEventListener('click', async event => {
+    const button = event.target.closest('[data-school-action]');
+    if (!button || button.disabled) return;
+    const action = button.dataset.schoolAction;
+    const schoolId = button.dataset.schoolId;
+    const membershipId = button.dataset.membershipId;
+    const isJoin = action === 'join';
+    const isListingReview = action === 'listing-approve' || action === 'listing-reject';
+    const endpoint = isJoin
+      ? `/api/schools/${schoolId}/join`
+      : isListingReview
+        ? `/api/schools/${schoolId}/listing-review`
+        : `/api/schools/${schoolId}/members/${membershipId}/review`;
+    const decision = action.endsWith('approve') ? 'approve' : action.endsWith('reject') ? 'reject' : null;
+    button.disabled = true;
+    showSchoolActionStatus('Updating school access…', false);
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: isJoin ? '{}' : JSON.stringify({ action: decision }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Could not update school access.');
+      showSchoolActionStatus(data.message, false);
+      await renderSchools();
+    } catch (error) {
+      button.disabled = false;
+      showSchoolActionStatus(error.message, true);
+    }
+  });
 
   mainNav.addEventListener('click', (e) => {
     const isDesktop = window.matchMedia('(min-width: 721px)').matches;

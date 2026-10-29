@@ -568,6 +568,39 @@ class PromotionExam(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
 
 
+class School(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False)
+    county = db.Column(db.String(80), nullable=False)
+    town = db.Column(db.String(80), nullable=True)
+    description = db.Column(db.String(500), nullable=True)
+    official_email = db.Column(db.String(150), nullable=False)
+    admin_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    status = db.Column(db.String(20), nullable=False, default='pending')
+    requested_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
+    reviewed_at = db.Column(db.DateTime, nullable=True)
+    reviewed_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+
+    __table_args__ = (
+        db.Index('ix_school_status_requested', 'status', 'requested_at'),
+    )
+
+
+class SchoolMembership(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey('school.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    status = db.Column(db.String(20), nullable=False, default='pending')
+    requested_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
+    reviewed_at = db.Column(db.DateTime, nullable=True)
+    reviewed_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+
+    __table_args__ = (
+        db.UniqueConstraint('school_id', 'user_id', name='uq_school_membership'),
+        db.Index('ix_school_membership_school_status', 'school_id', 'status'),
+    )
+
+
 class CertificateApplication(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -2159,6 +2192,287 @@ def recent_study_sessions_for_user(user_id):
         .limit(8)
         .all()
     )
+
+
+def school_listing_validation_error(data):
+    if not isinstance(data, dict):
+        return "Enter the school details before submitting."
+    name = data.get('name')
+    county = data.get('county')
+    town = data.get('town', '')
+    description = data.get('description', '')
+    official_email = data.get('officialEmail')
+    if not all(isinstance(value, str) for value in (name, county, town, description, official_email)):
+        return "Enter valid school details."
+    name = name.strip()
+    county = county.strip()
+    town = town.strip()
+    description = description.strip()
+    official_email = official_email.strip().lower()
+    if not 2 <= len(name) <= 120:
+        return "School name must be between 2 and 120 characters."
+    if not 2 <= len(county) <= 80:
+        return "Enter the county where the school is located."
+    if len(town) > 80 or len(description) > 500:
+        return "Town or description is too long."
+    if not re.fullmatch(r'[^@\s]+@[^@\s]+\.[^@\s]+', official_email) or len(official_email) > 150:
+        return "Enter a valid official school contact email."
+    return None
+
+
+def serialize_school_membership(membership, user):
+    grade = user.campus_year if user.student_track == 'campus' else user.elementary_grade
+    return {
+        "id": membership.id,
+        "displayName": user.display_name or "Learner",
+        "grade": grade or "Level not set",
+        "requestedAt": membership.requested_at.isoformat() if membership.requested_at else None,
+    }
+
+
+def school_directory_payload(user):
+    schools = School.query.filter_by(status='approved').order_by(func.lower(School.name)).all()
+    school_ids = [school.id for school in schools]
+    memberships = SchoolMembership.query.filter(
+        SchoolMembership.user_id == user.id,
+        SchoolMembership.school_id.in_(school_ids),
+    ).all() if school_ids else []
+    memberships_by_school = {membership.school_id: membership for membership in memberships}
+    directory = [
+        {
+            "id": school.id,
+            "name": school.name,
+            "county": school.county,
+            "town": school.town,
+            "description": school.description,
+            "managedByMe": school.admin_user_id == user.id,
+            "membershipStatus": (
+                memberships_by_school[school.id].status if school.id in memberships_by_school else None
+            ),
+        }
+        for school in schools
+    ]
+    approved_school_ids = [
+        school_id for school_id, membership in memberships_by_school.items()
+        if membership.status == 'approved'
+    ]
+    communities = {}
+    if approved_school_ids:
+        community_rows = (
+            SchoolMembership.query
+            .filter(
+                SchoolMembership.school_id.in_(approved_school_ids),
+                SchoolMembership.status == 'approved',
+            )
+            .order_by(SchoolMembership.requested_at.asc())
+            .all()
+        )
+        member_users = {
+            learner.id: learner
+            for learner in User.query.filter(
+                User.id.in_([membership.user_id for membership in community_rows])
+            ).all()
+        } if community_rows else {}
+        for membership in community_rows:
+            learner = member_users.get(membership.user_id)
+            if learner:
+                communities.setdefault(membership.school_id, []).append(
+                    serialize_school_membership(membership, learner)
+                )
+    for school_item in directory:
+        if school_item["membershipStatus"] == 'approved':
+            school_item["members"] = communities.get(school_item["id"], [])
+
+    managed_schools = School.query.filter_by(admin_user_id=user.id).all()
+    managed = []
+    for school in managed_schools:
+        entry = {
+            "id": school.id,
+            "name": school.name,
+            "county": school.county,
+            "town": school.town,
+            "status": school.status,
+            "joinRequests": [],
+            "members": [],
+        }
+        if school.status == 'approved':
+            pending_memberships = (
+                SchoolMembership.query
+                .filter_by(school_id=school.id, status='pending')
+                .order_by(SchoolMembership.requested_at.asc())
+                .all()
+            )
+            member_rows = (
+                SchoolMembership.query
+                .filter_by(school_id=school.id, status='approved')
+                .order_by(SchoolMembership.requested_at.asc())
+                .all()
+            )
+            pending_users = {
+                learner.id: learner
+                for learner in User.query.filter(
+                    User.id.in_([membership.user_id for membership in pending_memberships])
+                ).all()
+            } if pending_memberships else {}
+            approved_users = {
+                learner.id: learner
+                for learner in User.query.filter(
+                    User.id.in_([membership.user_id for membership in member_rows])
+                ).all()
+            } if member_rows else {}
+            entry["joinRequests"] = [
+                serialize_school_membership(membership, pending_users[membership.user_id])
+                for membership in pending_memberships
+                if membership.user_id in pending_users
+            ]
+            entry["members"] = [
+                serialize_school_membership(membership, approved_users[membership.user_id])
+                for membership in member_rows
+                if membership.user_id in approved_users
+            ]
+        managed.append(entry)
+
+    pending_school_requests = []
+    if is_full_admin(user):
+        requests = (
+            School.query.filter_by(status='pending')
+            .order_by(School.requested_at.asc())
+            .all()
+        )
+        requesters = {
+            requester.id: requester
+            for requester in User.query.filter(
+                User.id.in_([school.admin_user_id for school in requests])
+            ).all()
+        } if requests else {}
+        pending_school_requests = [
+            {
+                "id": school.id,
+                "name": school.name,
+                "county": school.county,
+                "town": school.town,
+                "description": school.description,
+                "officialEmail": school.official_email,
+                "requesterEmail": requesters[school.admin_user_id].email if school.admin_user_id in requesters else None,
+                "requestedAt": school.requested_at.isoformat() if school.requested_at else None,
+            }
+            for school in requests
+        ]
+    return {
+        "schools": directory,
+        "managedSchools": managed,
+        "pendingSchoolRequests": pending_school_requests,
+        "canRequestListing": bool(user.email_verified),
+    }
+
+
+@app.route('/api/schools', methods=['GET', 'POST'])
+@login_required
+def api_schools():
+    if request.method == 'GET':
+        return jsonify(school_directory_payload(current_user))
+
+    if not current_user.email_verified:
+        return jsonify({"error": "Verify your email before requesting a school listing."}), 403
+    data = request.get_json(silent=True) or {}
+    validation_error = school_listing_validation_error(data)
+    if validation_error:
+        return jsonify({"error": validation_error}), 400
+
+    name = data["name"].strip()
+    county = data["county"].strip()
+    duplicate = School.query.filter(
+        School.status.in_(('pending', 'approved')),
+        func.lower(func.trim(School.name)) == name.lower(),
+        func.lower(func.trim(School.county)) == county.lower(),
+    ).first()
+    if duplicate:
+        return jsonify({"error": "A listing for this school is already pending or approved. Contact Clavis support if it needs updating."}), 409
+    existing_request = School.query.filter_by(
+        admin_user_id=current_user.id,
+        status='pending',
+    ).first()
+    if existing_request:
+        return jsonify({"error": "You already have a school listing request awaiting review."}), 409
+
+    school = School(
+        name=name,
+        county=county,
+        town=data.get('town', '').strip(),
+        description=data.get('description', '').strip(),
+        official_email=data['officialEmail'].strip().lower(),
+        admin_user_id=current_user.id,
+    )
+    db.session.add(school)
+    db.session.commit()
+    return jsonify({"message": "School request submitted for Clavis review.", "schoolId": school.id}), 201
+
+
+@app.route('/api/schools/<int:school_id>/listing-review', methods=['POST'])
+@login_required
+def api_review_school_listing(school_id):
+    if not is_full_admin(current_user):
+        return jsonify({"error": "Clavis platform admin access is required."}), 403
+    school = School.query.get_or_404(school_id)
+    if school.status != 'pending':
+        return jsonify({"error": "This school request has already been reviewed."}), 409
+    data = request.get_json(silent=True) or {}
+    action = data.get('action')
+    if action not in ('approve', 'reject'):
+        return jsonify({"error": "Choose approve or reject."}), 400
+    school.status = 'approved' if action == 'approve' else 'rejected'
+    school.reviewed_at = datetime.now()
+    school.reviewed_by_id = current_user.id
+    db.session.commit()
+    return jsonify({"message": f"School listing {school.status}.", "status": school.status})
+
+
+@app.route('/api/schools/<int:school_id>/join', methods=['POST'])
+@login_required
+def api_request_school_membership(school_id):
+    if not current_user.email_verified:
+        return jsonify({"error": "Verify your email before requesting to join a school."}), 403
+    school = School.query.filter_by(id=school_id, status='approved').first_or_404()
+    if school.admin_user_id == current_user.id:
+        return jsonify({"error": "You already manage this school."}), 409
+    membership = SchoolMembership.query.filter_by(
+        school_id=school.id,
+        user_id=current_user.id,
+    ).first()
+    if membership and membership.status in ('pending', 'approved'):
+        return jsonify({"error": "You already have a pending request or membership at this school."}), 409
+    if membership is None:
+        membership = SchoolMembership(school_id=school.id, user_id=current_user.id)
+        db.session.add(membership)
+    else:
+        membership.status = 'pending'
+        membership.requested_at = datetime.now()
+        membership.reviewed_at = None
+        membership.reviewed_by_id = None
+    db.session.commit()
+    return jsonify({"message": "Join request sent to the school admin."}), 201
+
+
+@app.route('/api/schools/<int:school_id>/members/<int:membership_id>/review', methods=['POST'])
+@login_required
+def api_review_school_membership(school_id, membership_id):
+    school = School.query.filter_by(id=school_id, status='approved').first_or_404()
+    if school.admin_user_id != current_user.id:
+        return jsonify({"error": "Only this school's admin can review join requests."}), 403
+    membership = SchoolMembership.query.filter_by(
+        id=membership_id,
+        school_id=school.id,
+        status='pending',
+    ).first_or_404()
+    data = request.get_json(silent=True) or {}
+    action = data.get('action')
+    if action not in ('approve', 'reject'):
+        return jsonify({"error": "Choose approve or reject."}), 400
+    membership.status = 'approved' if action == 'approve' else 'rejected'
+    membership.reviewed_at = datetime.now()
+    membership.reviewed_by_id = current_user.id
+    db.session.commit()
+    return jsonify({"message": f"Join request {membership.status}."})
 
 
 @app.route('/api/learning-progress')

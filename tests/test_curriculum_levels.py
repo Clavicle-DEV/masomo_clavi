@@ -29,6 +29,7 @@ from app import (
     password_validation_error,
     render_certificate_pdf,
     save_study_schedule,
+    school_listing_validation_error,
     summarize_study_sessions,
     summarize_learning_topics,
     study_schedule_for_user,
@@ -53,6 +54,21 @@ class CurriculumLevelTests(unittest.TestCase):
             "Password must include at least one letter.",
         )
         self.assertIsNone(password_validation_error("study1234"))
+
+    def test_school_listing_requires_name_county_and_valid_official_email(self):
+        valid_request = {
+            "name": "  Green Valley School ",
+            "county": " Kiambu ",
+            "town": "Ruiru",
+            "description": "A school community.",
+            "officialEmail": " OFFICE@GREENVALLEY.EDU ",
+        }
+        self.assertIsNone(school_listing_validation_error(valid_request))
+        invalid_request = {**valid_request, "officialEmail": "not-an-email"}
+        self.assertEqual(
+            school_listing_validation_error(invalid_request),
+            "Enter a valid official school contact email.",
+        )
 
     def test_login_explains_when_email_is_not_registered(self):
         with patch("app.find_user_by_email", return_value=None):
@@ -486,6 +502,14 @@ class CurriculumLevelTests(unittest.TestCase):
             self.assertEqual(client.get("/api/learning-progress").status_code, 302)
             self.assertEqual(client.get("/api/study-sessions").status_code, 302)
             self.assertEqual(client.post("/api/study-sessions").status_code, 302)
+            self.assertEqual(client.get("/api/schools").status_code, 302)
+            self.assertEqual(client.post("/api/schools").status_code, 302)
+            self.assertEqual(client.post("/api/schools/1/join").status_code, 302)
+            self.assertEqual(client.post("/api/schools/1/listing-review").status_code, 302)
+            self.assertEqual(
+                client.post("/api/schools/1/members/1/review").status_code,
+                302,
+            )
             self.assertEqual(client.get("/certificate/application").status_code, 302)
             self.assertEqual(client.get("/admin/certificates").status_code, 302)
             self.assertEqual(client.get("/admin/certificates/preview").status_code, 302)
