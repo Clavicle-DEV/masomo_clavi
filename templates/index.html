@@ -1353,14 +1353,22 @@
 </div>
 </div>
 
-<script type="application/json" id="referralLinkConfig">{{ referral_link|default('', true)|tojson|safe }}</script>
+<div id="appConfig"
+     hidden
+     data-account-track="{{ student_track|tojson|forceescape }}"
+     data-account-grade="{{ learning_level|default('', true)|tojson|forceescape }}"
+     data-account-user-id="{{ user.id|tojson|forceescape }}"
+     data-account-course-completed="{{ course_completed|default(false)|tojson|forceescape }}"
+     data-study-timetable="{{ timetable|tojson|forceescape }}"
+     data-referral-link="{{ referral_link|default('', true)|tojson|forceescape }}"></div>
 <script>
-  const ACCOUNT_TRACK = "{{ student_track }}" === 'campus' ? 'campus' : 'highschool';
-  const ACCOUNT_GRADE = {{ learning_level|default('', true)|tojson }};
-  const ACCOUNT_USER_ID = {{ user.id|tojson }};
-  const ACCOUNT_COURSE_COMPLETED = {{ course_completed|default(false)|tojson }};
-  const STUDY_TIMETABLE = {{ timetable|tojson }};
-  const REFERRAL_LINK = JSON.parse(document.getElementById('referralLinkConfig').textContent);
+  const appConfig = document.getElementById('appConfig');
+  const ACCOUNT_TRACK = JSON.parse(appConfig.dataset.accountTrack) === 'campus' ? 'campus' : 'highschool';
+  const ACCOUNT_GRADE = JSON.parse(appConfig.dataset.accountGrade);
+  const ACCOUNT_USER_ID = JSON.parse(appConfig.dataset.accountUserId);
+  const ACCOUNT_COURSE_COMPLETED = JSON.parse(appConfig.dataset.accountCourseCompleted);
+  const STUDY_TIMETABLE = JSON.parse(appConfig.dataset.studyTimetable);
+  const REFERRAL_LINK = JSON.parse(appConfig.dataset.referralLink);
 
   /* Splash hide lives here, independent of app.js, so a slow network or an
      error anywhere in that much larger file can never leave the splash
