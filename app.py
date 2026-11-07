@@ -300,8 +300,7 @@ def send_whatsapp(phone_number, message):
 
 def send_reset_email(to_email, reset_url):
     if not SMTP_HOST:
-        app.logger.info(f"[password reset] SMTP not configured — reset link for {to_email}: {reset_url}")
-        return
+        raise RuntimeError("SMTP_HOST is not configured; password reset email was not sent")
 
     msg = MIMEText(
         f"Someone requested a password reset for your Clavis account.\n\n"
@@ -317,12 +316,12 @@ def send_reset_email(to_email, reset_url):
         if SMTP_USER and SMTP_PASS:
             server.login(SMTP_USER, SMTP_PASS)
         server.sendmail(MAIL_FROM, [to_email], msg.as_string())
+    return True
 
 
 def send_verification_email(to_email, verify_url):
     if not SMTP_HOST:
-        app.logger.info(f"[email verify] SMTP not configured — verify link for {to_email}: {verify_url}")
-        return
+        raise RuntimeError("SMTP_HOST is not configured; verification email was not sent")
 
     msg = MIMEText(
         f"Welcome to Clavis!\n\n"
@@ -338,6 +337,7 @@ def send_verification_email(to_email, verify_url):
         if SMTP_USER and SMTP_PASS:
             server.login(SMTP_USER, SMTP_PASS)
         server.sendmail(MAIL_FROM, [to_email], msg.as_string())
+    return True
 
 
 def send_school_application_decision_email(to_email, school_name, approved, reason=None):
@@ -1096,6 +1096,7 @@ def signup():
                 send_verification_email(email, verify_url)
             except Exception as e:
                 app.logger.error(f"Failed to send verification email to {email}: {e}")
+                flash('Your account was created, but we could not send the verification email. Please contact Clavis support or try again later.', 'warning')
 
         if account_type == 'school':
             flash('School application submitted. Verify your email and check back after Clavis admins review it.', 'success')
@@ -1562,6 +1563,11 @@ def logout():
 @app.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
     if request.method == 'POST':
+        if not SMTP_HOST:
+            app.logger.error("Password reset requested while SMTP_HOST is not configured")
+            flash("Password reset email is temporarily unavailable. Please contact Clavis support.", "danger")
+            return redirect(url_for('login'))
+
         email = request.form.get('email', '').strip().lower()
         user = find_user_by_email(email)
 
@@ -1573,7 +1579,7 @@ def forgot_password():
             except Exception as e:
                 app.logger.error(f"Failed to send reset email to {email}: {e}")
 
-        flash("If that email is registered, a reset link is on its way. Check your inbox.", "success")
+        flash("If that email belongs to an account and email delivery is available, a reset link will be sent. If you don't receive it, contact Clavis support.", "warning")
         return redirect(url_for('login'))
 
     return render_template('auth.html', mode='forgot')

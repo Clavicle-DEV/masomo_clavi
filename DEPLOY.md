@@ -151,7 +151,19 @@ web service's temporary filesystem. A full Clavis admin can review applications
 at **School requests** from the admin area and approve or reject them. Approval
 activates the applicant's school-admin account; rejection can include a reason.
 
-Configure `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`, `SMTP_PORT`, and `MAIL_FROM` if
-you want applicants to receive verification and decision emails. Without SMTP,
-the app logs email-related events instead. Database backups include school
-badges, encoded into the JSON backup, so backup size grows with uploaded badges.
+Configure email delivery in the Render service's **Environment** settings.
+At minimum, set `SMTP_HOST` and `MAIL_FROM`; for authenticated SMTP, also set
+`SMTP_USER` and `SMTP_PASS`. `SMTP_PORT` defaults to `587` and the app uses
+STARTTLS. For Gmail, use `smtp.gmail.com`, port `587`, your Gmail address as
+`SMTP_USER` and `MAIL_FROM`, and a Google app password as `SMTP_PASS` (not your
+normal account password). Keep SMTP credentials in Render's environment
+settings, never in source code.
+
+Password-reset and account-verification emails are only reported as sent after
+the SMTP server accepts them. Without `SMTP_HOST`, password reset is reported
+as unavailable and verification attempts fail visibly; the app no longer logs
+password-reset or verification links. Verification uses a signed email link
+that expires after 24 hours.
+
+Database backups include school badges, encoded into the JSON backup, so
+backup size grows with uploaded badges.

@@ -30,6 +30,8 @@ from app import (
     render_certificate_pdf,
     save_study_schedule,
     school_listing_validation_error,
+    send_reset_email,
+    send_verification_email,
     summarize_study_sessions,
     summarize_learning_topics,
     study_schedule_for_user,
@@ -54,6 +56,39 @@ class CurriculumLevelTests(unittest.TestCase):
             "Password must include at least one letter.",
         )
         self.assertIsNone(password_validation_error("study1234"))
+
+    def test_password_and_verification_emails_fail_without_smtp(self):
+        with patch("app.SMTP_HOST", None):
+            with self.assertRaisesRegex(RuntimeError, "SMTP_HOST is not configured"):
+                send_reset_email("learner@example.com", "https://example.com/reset/token")
+            with self.assertRaisesRegex(RuntimeError, "SMTP_HOST is not configured"):
+                send_verification_email("learner@example.com", "https://example.com/verify/token")
+
+    def test_password_and_verification_emails_are_sent_through_smtp(self):
+        with patch("app.SMTP_HOST", "smtp.example.com"), \
+             patch("app.SMTP_PORT", 587), \
+             patch("app.SMTP_USER", "mailer@example.com"), \
+             patch("app.SMTP_PASS", "smtp-password"), \
+             patch("app.MAIL_FROM", "mailer@example.com"), \
+             patch("app.smtplib.SMTP") as smtp_factory:
+            smtp = smtp_factory.return_value.__enter__.return_value
+            send_reset_email("learner@example.com", "https://example.com/reset/token")
+            send_verification_email("learner@example.com", "https://example.com/verify/token")
+
+        self.assertEqual(smtp.starttls.call_count, 2)
+        self.assertEqual(smtp.login.call_count, 2)
+        self.assertEqual(smtp.sendmail.call_count, 2)
+
+    def test_forgot_password_reports_unavailable_without_smtp(self):
+        with patch("app.SMTP_HOST", None), patch("app.find_user_by_email") as find_user:
+            response = flask_app.test_client().post(
+                "/forgot-password",
+                data={"email": "learner@example.com"},
+                follow_redirects=True,
+            )
+
+        find_user.assert_not_called()
+        self.assertIn(b"Password reset email is temporarily unavailable", response.data)
 
     def test_school_listing_requires_name_county_and_valid_official_email(self):
         valid_request = {
