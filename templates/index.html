@@ -132,6 +132,8 @@
         <span class="status-tag" style="background: var(--chalk); color: var(--paper); padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase;">Admin / Owner</span>
       {% elif is_admin_user %}
         <span class="status-tag" style="background: var(--chalk); color: var(--paper); padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase;">Co-Admin</span>
+      {% elif user.account_type == 'school_admin' %}
+        <span class="status-tag" style="background: var(--chalk); color: var(--paper); padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase;">School Admin</span>
       {% elif user.is_premium %}
         <span class="status-tag" style="background: var(--chalk); color: var(--paper); padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase;">Premium</span>
       {% else %}
@@ -141,6 +143,7 @@
     <div style="display: flex; align-items: center; gap: 14px;">
       {% if is_full_admin_user %}
       <a href="{{ url_for('admin_analytics') }}" style="color: var(--chalk); font-weight: 700; text-decoration: none; font-size: 13px;">📊 Admin</a>
+      <a href="{{ url_for('admin_school_applications') }}" style="color: var(--chalk); font-weight: 700; text-decoration: none; font-size: 13px;">🏫 School requests</a>
       {% elif is_admin_user %}
       <a href="{{ url_for('admin_mpesa_requests') }}" style="color: var(--chalk); font-weight: 700; text-decoration: none; font-size: 13px;">✅ M-Pesa requests</a>
       {% endif %}

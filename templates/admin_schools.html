@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Clavis — School Applications</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F6F1E5; --paper: #FFFDF8; --chalk: #1F3B30;
+    --gold: #D9A62E; --red: #B8433A; --ink: #21281F;
+    --muted: #6E7A6C; --line: #E4DCC8;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: 'Inter', sans-serif; padding: 32px 16px; }
+  .wrap { max-width: 900px; margin: 0 auto; }
+  h1 { font-family: 'Fraunces', serif; color: var(--chalk); font-size: 26px; margin-bottom: 6px; }
+  .sub { color: var(--muted); margin: 0 0 20px; font-size: 14px; line-height: 1.6; }
+  .card { display: grid; grid-template-columns: minmax(100px, 150px) 1fr; gap: 20px; background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 18px; margin-bottom: 16px; }
+  .badge { width: 100%; max-height: 150px; object-fit: contain; background: white; border: 1px solid var(--line); border-radius: 10px; }
+  .details { font-size: 14px; line-height: 1.65; overflow-wrap: anywhere; }
+  .details h2 { color: var(--chalk); font-family: 'Fraunces', serif; font-size: 20px; margin: 0 0 6px; }
+  .muted { color: var(--muted); }
+  .actions { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+  button { padding: 9px 14px; border-radius: 8px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .approve { background: var(--chalk); color: var(--paper); }
+  .reject { background: transparent; color: var(--red); border: 1px solid var(--red); }
+  textarea { min-width: 210px; min-height: 38px; padding: 9px; border: 1px solid var(--line); border-radius: 8px; font: inherit; }
+  .flash { padding: 10px 14px; border-radius: 8px; margin-bottom: 12px; background: rgba(217,166,46,0.15); }
+  .empty { color: var(--muted); padding: 24px 0; text-align: center; }
+  @media (max-width: 600px) {
+    .card { grid-template-columns: 1fr; }
+    .badge { max-width: 150px; }
+  }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <p class="sub"><a href="{{ url_for('home') }}">← Back to app</a> · <a href="{{ url_for('admin_analytics') }}">Analytics</a> · <a href="{{ url_for('admin_users') }}">Users</a> · <a href="{{ url_for('admin_mpesa_requests') }}">M-Pesa requests</a></p>
+  <h1>School registration requests</h1>
+  <p class="sub">Review the school details and badge before approving its administrator.</p>
+
+  {% with flashed = get_flashed_messages(with_categories=true) %}
+    {% for category, message in flashed %}
+      <div class="flash">{{ message }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  {% for school in schools %}
+    <article class="card">
+      <img class="badge" src="{{ url_for('admin_school_badge', school_id=school.id) }}" alt="Badge submitted by {{ school.name }}">
+      <div class="details">
+        <h2>{{ school.name }}</h2>
+        {% set applicant = applicants.get(school.admin_user_id) %}
+        <div><strong>Requested admin account:</strong> {{ applicant.email if applicant else 'Applicant account unavailable' }}</div>
+        <div><strong>Type:</strong> {{ school.school_type.replace('_', ' ')|title if school.school_type else '—' }}</div>
+        <div><strong>County:</strong> {{ school.county }}</div>
+        {% if school.address or school.town %}<div><strong>Address:</strong> {{ school.address or school.town }}</div>{% endif %}
+        {% if school.registration_number %}<div><strong>Registration number:</strong> {{ school.registration_number }}</div>{% endif %}
+        <div><strong>Contact:</strong> {{ school.official_email }}{% if school.contact_phone %} · {{ school.contact_phone }}{% endif %}</div>
+        <div class="muted">Submitted {{ school.requested_at.strftime('%d %b %Y, %H:%M') if school.requested_at else '—' }}</div>
+        {% if applicant and not applicant.email_verified %}
+          <div class="muted">Applicant email is not verified yet.</div>
+        {% endif %}
+        <div class="actions">
+          <form method="POST" action="{{ url_for('admin_approve_school', school_id=school.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="approve">Approve school</button>
+          </form>
+          <form method="POST" action="{{ url_for('admin_reject_school', school_id=school.id) }}" class="actions">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <textarea name="reason" maxlength="500" aria-label="Optional rejection reason" placeholder="Optional reason for rejection"></textarea>
+            <button type="submit" class="reject">Reject</button>
+          </form>
+        </div>
+      </div>
+    </article>
+  {% else %}
+    <div class="empty">No school registration requests are waiting for review.</div>
+  {% endfor %}
+</main>
+</body>
+</html>

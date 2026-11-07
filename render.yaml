@@ -5,7 +5,7 @@ services:
     plan: free
     region: oregon
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app
+    startCommand: gunicorn --worker-class gthread --threads 4 --timeout 90 app:app
     autoDeploy: true
     envVars:
       - key: FLASK_ENV

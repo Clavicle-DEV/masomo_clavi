@@ -329,7 +329,15 @@
   }
   .flash-danger { background: rgba(232, 135, 74, 0.14); border: 1px solid rgba(232, 135, 74, 0.35); color: #F0A876; }
   .flash-success { background: rgba(127, 214, 196, 0.14); border: 1px solid rgba(127, 214, 196, 0.35); color: #9fe3d2; }
+  .flash-warning { background: rgba(240, 194, 74, 0.14); border: 1px solid rgba(240, 194, 74, 0.35); color: #F0C24A; }
   .flash-dismiss { background: none; border: none; font-size: 16px; cursor: pointer; color: inherit; opacity: 0.6; }
+  .signup-kind { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .signup-kind label { display: flex; align-items: center; gap: 8px; padding: 12px; border: 1px solid var(--glass-line); border-radius: 9px; cursor: pointer; font-size: 13px; }
+  .school-field { margin: 0 0 14px; text-align: left; }
+  .school-field label { display: block; margin: 0 0 6px; color: var(--muted); font-size: 12px; }
+  .school-field input, .school-field select { width: 100%; padding: 12px 14px; border: 1px solid var(--glass-line); border-radius: 8px; background: rgba(255,255,255,0.06); color: var(--ink); font: inherit; }
+  .school-field select option { color: #21281F; }
+  .school-note { margin: 0 0 14px; color: var(--muted); font-size: 12px; line-height: 1.5; text-align: left; }
 </style>
 </head>
 <body>
@@ -394,8 +402,55 @@
     {% if mode == 'signup' %}
       <h2 id="signupHeading">Start your learning journey</h2>
       <p class="sub" id="signupSub">Create your account, then Clavis will help you build a learning path that fits you.</p>
-      <form method="POST" action="/signup" id="signupForm">
+      <form method="POST" action="/signup" id="signupForm" enctype="multipart/form-data">
         <input type="hidden" name="ref" value="{{ ref_code or '' }}">
+        <input type="hidden" name="track" id="signupTrackInput" value="{{ student_track or '' }}">
+        <div class="signup-kind" role="group" aria-label="Registration type">
+          <label><input type="radio" name="account_type" value="individual" checked> Individual</label>
+          <label><input type="radio" name="account_type" value="school"> School</label>
+        </div>
+        <div id="schoolRegistrationFields" hidden>
+          <p class="school-note">School registrations are reviewed by the Clavis team before the school account is activated.</p>
+          <div class="field">
+            <input type="text" name="school_name" id="schoolName" placeholder=" ">
+            <label for="schoolName">School name</label>
+          </div>
+          <div class="school-field">
+            <label for="schoolType">School type</label>
+            <select name="school_type" id="schoolType">
+              <option value="">Choose a school type</option>
+              <option value="primary">Primary school</option>
+              <option value="junior_secondary">Junior secondary school</option>
+              <option value="senior_secondary">Senior secondary school</option>
+              <option value="tertiary">College or university</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="field">
+            <input type="text" name="county" id="schoolCounty" placeholder=" ">
+            <label for="schoolCounty">County</label>
+          </div>
+          <div class="field">
+            <input type="text" name="address" id="schoolAddress" placeholder=" ">
+            <label for="schoolAddress">School address (optional)</label>
+          </div>
+          <div class="field">
+            <input type="text" name="registration_number" id="schoolRegistrationNumber" placeholder=" ">
+            <label for="schoolRegistrationNumber">Official registration number (optional)</label>
+          </div>
+          <div class="field">
+            <input type="email" name="contact_email" id="schoolContactEmail" placeholder=" ">
+            <label for="schoolContactEmail">School contact email</label>
+          </div>
+          <div class="field">
+            <input type="tel" name="contact_phone" id="schoolContactPhone" placeholder=" ">
+            <label for="schoolContactPhone">School contact phone</label>
+          </div>
+          <div class="school-field">
+            <label for="schoolBadge">School badge (PNG or JPEG, max 2 MB)</label>
+            <input type="file" name="school_badge" id="schoolBadge" accept="image/png,image/jpeg">
+          </div>
+        </div>
         <div class="field">
           <input type="email" name="email" id="signupEmail" placeholder=" " required>
           <label for="signupEmail">Email address</label>
@@ -412,6 +467,42 @@
         <button type="submit" class="submit-btn">Create Account</button>
       </form>
       <div class="switch-text">Already have an account? <a href="/login" id="signupToLoginLink">Log in here</a></div>
+      <script>
+        try {
+          var signupForm = document.getElementById('signupForm');
+          var schoolFields = document.getElementById('schoolRegistrationFields');
+          var schoolInputs = schoolFields.querySelectorAll('input, select');
+          var signupHeading = document.getElementById('signupHeading');
+          var signupSub = document.getElementById('signupSub');
+          var savedTrack = localStorage.getItem('clavi_student_type');
+          if (savedTrack === 'campus' || savedTrack === 'highschool') {
+            document.getElementById('signupTrackInput').value = savedTrack;
+            if (savedTrack === 'campus') {
+              signupHeading.textContent = 'Start Acing Your Units';
+              signupSub.textContent = 'Create an account to start your free 24-hour trial — built for campus units, not just KCSE.';
+            }
+            var loginLink = document.getElementById('signupToLoginLink');
+            if (loginLink) loginLink.href = '/login?type=' + savedTrack;
+          }
+          var individualHeading = signupHeading.textContent;
+          var individualSub = signupSub.textContent;
+          function updateRegistrationType() {
+            var isSchool = signupForm.querySelector('input[name="account_type"]:checked').value === 'school';
+            schoolFields.hidden = !isSchool;
+            schoolInputs.forEach(function (input) {
+              input.required = isSchool && input.id !== 'schoolAddress' && input.id !== 'schoolRegistrationNumber';
+            });
+            signupHeading.textContent = isSchool ? 'Register Your School' : individualHeading;
+            signupSub.textContent = isSchool
+              ? 'Submit your school details for Clavis admin review.'
+              : individualSub;
+          }
+          signupForm.querySelectorAll('input[name="account_type"]').forEach(function (input) {
+            input.addEventListener('change', updateRegistrationType);
+          });
+          updateRegistrationType();
+        } catch (e) {}
+      </script>
 
     {% elif mode == 'login' %}
       <h2>Welcome Back</h2>

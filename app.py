@@ -1,12 +1,15 @@
 import os
 import json
+import base64
+import hmac
 import re
+import secrets
 import smtplib
 import io
 import zipfile
 import hashlib
-import secrets
 import warnings
+import threading
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
@@ -78,6 +81,26 @@ def static_versioned(filename):
 @app.context_processor
 def inject_static_versioned():
     return {'static_versioned': static_versioned}
+
+
+def csrf_token():
+    token = session.get('_csrf_token')
+    if token is None:
+        token = secrets.token_urlsafe(32)
+        session['_csrf_token'] = token
+    return token
+
+
+def valid_csrf_token():
+    expected = session.get('_csrf_token')
+    submitted = request.form.get('csrf_token', '')
+    return bool(expected and submitted and hmac.compare_digest(expected, submitted))
+
+
+@app.context_processor
+def inject_csrf_token():
+    return {'csrf_token': csrf_token}
+
 
 _database_url = os.environ.get('DATABASE_URL', 'sqlite:///clavi.db')
 if _database_url.startswith('postgres://'):
@@ -317,6 +340,41 @@ def send_verification_email(to_email, verify_url):
         server.sendmail(MAIL_FROM, [to_email], msg.as_string())
 
 
+def send_school_application_decision_email(to_email, school_name, approved, reason=None):
+    if not SMTP_HOST:
+        app.logger.info(
+            f"[school application] SMTP not configured — {school_name} was "
+            f"{'approved' if approved else 'rejected'} for {to_email}"
+        )
+        return
+
+    if approved:
+        subject = f"{school_name} is now registered on Clavis"
+        body = (
+            f"Good news — {school_name} has been approved on Clavis.\n\n"
+            "You can now log in using the email and password you chose during registration."
+        )
+    else:
+        reason_text = f"Review note: {reason}\n\n" if reason else ''
+        subject = f"Clavis school registration update for {school_name}"
+        body = (
+            f"We couldn't approve the registration for {school_name} at this time.\n\n"
+            f"{reason_text}"
+            "If you have questions, please contact Clavis support."
+        )
+
+    msg = MIMEText(body)
+    msg['Subject'] = subject
+    msg['From'] = MAIL_FROM
+    msg['To'] = to_email
+
+    with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+        server.starttls()
+        if SMTP_USER and SMTP_PASS:
+            server.login(SMTP_USER, SMTP_PASS)
+        server.sendmail(MAIL_FROM, [to_email], msg.as_string())
+
+
 def send_expiry_reminder_email(to_email, is_premium, expiry_date):
     if not SMTP_HOST:
         app.logger.info(f"[expiry reminder] SMTP not configured — would remind {to_email}, expiry {expiry_date}")
@@ -408,6 +466,8 @@ class User(UserMixin, db.Model):
     daily_goal_minutes = db.Column(db.Integer, nullable=True)
     starting_topic = db.Column(db.String(100), nullable=True)
     onboarding_completed = db.Column(db.Boolean, default=True, nullable=False)
+    account_type = db.Column(db.String(20), nullable=False, default='individual')
+    school_id = db.Column(db.Integer, nullable=True)
     failed_login_attempts = db.Column(db.Integer, default=0)
     lockout_until = db.Column(db.DateTime, nullable=True)
     daily_challenge_date = db.Column(db.String(10), nullable=True)  # date the cached question is for
@@ -425,6 +485,8 @@ class User(UserMixin, db.Model):
 
     @property
     def subscription_expired(self):
+        if self.account_type == 'school_admin':
+            return False
         if has_unlimited_access(self):
             return False
         if not self.expiry_date:
@@ -575,8 +637,15 @@ class School(db.Model):
     town = db.Column(db.String(80), nullable=True)
     description = db.Column(db.String(500), nullable=True)
     official_email = db.Column(db.String(150), nullable=False)
+    school_type = db.Column(db.String(40), nullable=True)
+    registration_number = db.Column(db.String(80), nullable=True)
+    address = db.Column(db.String(200), nullable=True)
+    contact_phone = db.Column(db.String(30), nullable=True)
+    badge_data = deferred(db.Column(db.LargeBinary, nullable=True))
+    badge_mimetype = db.Column(db.String(30), nullable=True)
     admin_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     status = db.Column(db.String(20), nullable=False, default='pending')
+    rejection_reason = db.Column(db.String(500), nullable=True)
     requested_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
     reviewed_at = db.Column(db.DateTime, nullable=True)
     reviewed_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
@@ -868,9 +937,21 @@ def build_system_prompt(subject, level, grade_form=None):
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
+        if request.content_length and request.content_length > 3 * 1024 * 1024:
+            flash('School registration uploads must be no larger than 2 MB.', 'danger')
+            return redirect(url_for('signup'))
+
         email = request.form.get('email', '').strip().lower()
         password = request.form.get('password', '')
+        account_type = (request.form.get('account_type') or 'individual').strip().lower()
         ref_code = (request.form.get('ref') or '').strip().upper()
+        student_track = (request.form.get('track') or '').strip().lower()
+        if student_track not in ('campus', 'highschool'):
+            student_track = None
+
+        if account_type not in ('individual', 'school'):
+            flash('Choose whether you are registering as an individual or a school.', 'danger')
+            return redirect(url_for('signup'))
         if not email or not password:
             flash('Email and password are required.', 'danger')
             return redirect(url_for('signup'))
@@ -883,6 +964,65 @@ def signup():
         if find_user_by_email(email):
             flash('An account already exists for this email. Log in or use Forgot password.', 'danger')
             return redirect(url_for('signup'))
+
+        school_application = None
+        if account_type == 'school':
+            school_name = request.form.get('school_name', '').strip()
+            school_type = request.form.get('school_type', '').strip()
+            county = request.form.get('county', '').strip()
+            address = request.form.get('address', '').strip()
+            registration_number = request.form.get('registration_number', '').strip()
+            contact_email = request.form.get('contact_email', '').strip().lower()
+            contact_phone = request.form.get('contact_phone', '').strip()
+            badge = request.files.get('school_badge')
+
+            if not all((school_name, school_type, county, contact_email, contact_phone, badge and badge.filename)):
+                flash('Complete the required school details and upload the school badge.', 'danger')
+                return redirect(url_for('signup'))
+            if school_type not in ('primary', 'junior_secondary', 'senior_secondary', 'tertiary', 'other'):
+                flash('Choose a valid school type.', 'danger')
+                return redirect(url_for('signup'))
+            if len(school_name) > 120 or len(county) > 80 or len(address) > 200:
+                flash('One or more school details are too long.', 'danger')
+                return redirect(url_for('signup'))
+            if len(contact_email) > 150 or len(contact_phone) > 30 or len(registration_number) > 80:
+                flash('One or more contact details are too long.', 'danger')
+                return redirect(url_for('signup'))
+            if not re.fullmatch(r'[^@\s]+@[^@\s]+\.[^@\s]+', contact_email):
+                flash('Enter a valid school contact email address.', 'danger')
+                return redirect(url_for('signup'))
+            existing_school = School.query.filter(
+                School.status.in_(('pending', 'approved')),
+                func.lower(func.trim(School.name)) == school_name.lower(),
+                func.lower(func.trim(School.county)) == county.lower(),
+            ).first()
+            if existing_school:
+                flash('A registration or listing for this school is already pending or approved. Contact Clavis support if it needs updating.', 'danger')
+                return redirect(url_for('signup'))
+
+            badge_data = badge.stream.read(2 * 1024 * 1024 + 1)
+            if not badge_data or len(badge_data) > 2 * 1024 * 1024:
+                flash('The school badge must be no larger than 2 MB.', 'danger')
+                return redirect(url_for('signup'))
+            if badge_data.startswith(b'\x89PNG\r\n\x1a\n'):
+                badge_mimetype = 'image/png'
+            elif badge_data.startswith(b'\xff\xd8\xff'):
+                badge_mimetype = 'image/jpeg'
+            else:
+                flash('Upload the school badge as a PNG or JPEG image.', 'danger')
+                return redirect(url_for('signup'))
+
+            school_application = {
+                'name': school_name,
+                'school_type': school_type,
+                'registration_number': registration_number or None,
+                'county': county,
+                'address': address or None,
+                'contact_email': contact_email,
+                'contact_phone': contact_phone,
+                'badge_data': badge_data,
+                'badge_mimetype': badge_mimetype,
+            }
 
         trial_end = datetime.now() + timedelta(days=1)
 
@@ -900,21 +1040,39 @@ def signup():
 
         new_user = User(
             email=email,
-            is_admin=is_owner,
-            is_premium=gets_free_unlimited,
-            expiry_date=None if gets_free_unlimited else trial_end,
+            is_admin=is_owner if account_type == 'individual' else False,
+            is_premium=gets_free_unlimited if account_type == 'individual' else False,
+            expiry_date=(None if gets_free_unlimited else trial_end) if account_type == 'individual' else None,
             created_at=datetime.now(),
             referral_code=generate_referral_code(),
-            referred_by_id=referrer.id if referrer else None,
-            email_verified=gets_free_unlimited,
+            referred_by_id=referrer.id if referrer and account_type == 'individual' else None,
+            email_verified=gets_free_unlimited if account_type == 'individual' else False,
             display_name=None,
-            student_track=None,
+            student_track=student_track if account_type == 'individual' else None,
             onboarding_completed=False,
+            account_type='school_pending' if account_type == 'school' else 'individual',
         )
         new_user.set_password(password)
         db.session.add(new_user)
+        db.session.flush()
 
-        if referrer and not has_unlimited_access(referrer):
+        if school_application:
+            db.session.add(School(
+                name=school_application['name'],
+                county=school_application['county'],
+                town=school_application['address'][:80] if school_application['address'] else None,
+                description=None,
+                official_email=school_application['contact_email'],
+                admin_user_id=new_user.id,
+                school_type=school_application['school_type'],
+                registration_number=school_application['registration_number'],
+                address=school_application['address'],
+                contact_phone=school_application['contact_phone'],
+                badge_data=school_application['badge_data'],
+                badge_mimetype=school_application['badge_mimetype'],
+            ))
+
+        if referrer and account_type == 'individual' and not has_unlimited_access(referrer):
             # Reward the referrer too — extend from whichever is later: their
             # current expiry, or now (covers an already-expired trial).
             base = referrer.expiry_date if (referrer.expiry_date and referrer.expiry_date > datetime.now()) else datetime.now()
@@ -938,6 +1096,10 @@ def signup():
                 send_verification_email(email, verify_url)
             except Exception as e:
                 app.logger.error(f"Failed to send verification email to {email}: {e}")
+
+        if account_type == 'school':
+            flash('School application submitted. Verify your email and check back after Clavis admins review it.', 'success')
+            return redirect(url_for('login'))
 
         login_user(new_user, remember=True)
         flash('Your account is ready. Let’s set up your learning path.', 'success')
@@ -971,6 +1133,17 @@ def login():
             return render_template('auth.html', mode='login', student_track=request.args.get('type', ''))
 
         if user.check_password(password):
+            if user.account_type == 'school_pending':
+                application = School.query.filter_by(admin_user_id=user.id).first()
+                if application and application.status == 'pending':
+                    flash('Your school registration is awaiting Clavis admin approval.', 'warning')
+                elif application and application.status == 'rejected':
+                    reason = f" Reason: {application.rejection_reason}" if application.rejection_reason else ''
+                    flash(f'Your school registration was not approved.{reason} Contact Clavis support for details.', 'danger')
+                else:
+                    app.logger.error(f"School account {user.id} has no registration record")
+                    flash('We could not load your school registration. Please contact Clavis support.', 'danger')
+                return render_template('auth.html', mode='login', student_track=request.args.get('type', ''))
             user.failed_login_attempts = 0
             user.lockout_until = None
             db.session.commit()
@@ -1461,7 +1634,10 @@ def verify_email(token):
     if not user.email_verified:
         user.email_verified = True
         db.session.commit()
-    flash("Email verified — you're all set!", "success")
+    if user.account_type == 'school_pending':
+        flash("Email verified. Your school registration is awaiting Clavis admin approval.", "success")
+    else:
+        flash("Email verified — you're all set!", "success")
     return redirect(url_for('home') if current_user.is_authenticated else url_for('login'))
 
 
@@ -1703,6 +1879,121 @@ def admin_analytics():
         recent_payments=recent_payments,
         top_referrers=top_referrer_rows,
     )
+
+
+@app.route('/admin/schools')
+@login_required
+def admin_school_applications():
+    if not is_full_admin(current_user):
+        flash("Admin access required.", "danger")
+        return redirect(url_for('home'))
+
+    pending_schools = (
+        School.query
+        .filter(School.status == 'pending', School.badge_data.isnot(None))
+        .order_by(School.requested_at.asc())
+        .all()
+    )
+    applicants = {
+        user.id: user
+        for user in User.query.filter(
+            User.id.in_([school.admin_user_id for school in pending_schools])
+        ).all()
+    } if pending_schools else {}
+    return render_template(
+        'admin_schools.html',
+        schools=pending_schools,
+        applicants=applicants,
+        is_full_admin_user=True,
+    )
+
+
+@app.route('/admin/schools/<int:school_id>/badge')
+@login_required
+def admin_school_badge(school_id):
+    if not is_full_admin(current_user):
+        return jsonify({"error": "Admin access required."}), 403
+    school = School.query.filter(
+        School.id == school_id,
+        School.badge_data.isnot(None),
+    ).first_or_404()
+    response = Response(school.badge_data, mimetype=school.badge_mimetype)
+    response.headers['Content-Disposition'] = 'inline; filename="school-badge"'
+    response.headers['Cache-Control'] = 'private, no-store'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    return response
+
+
+@app.route('/admin/schools/<int:school_id>/approve', methods=['POST'])
+@login_required
+def admin_approve_school(school_id):
+    if not is_full_admin(current_user):
+        flash("Admin access required.", "danger")
+        return redirect(url_for('home'))
+    if not valid_csrf_token():
+        flash("That request could not be verified. Please try again.", "danger")
+        return redirect(url_for('admin_school_applications'))
+
+    school = School.query.filter(
+        School.id == school_id,
+        School.status == 'pending',
+        School.badge_data.isnot(None),
+    ).first_or_404()
+    user = User.query.get(school.admin_user_id)
+    if user is None:
+        app.logger.error(f"Cannot approve school {school.id}: applicant {school.admin_user_id} is missing")
+        flash("The applicant account could not be found; the school was not approved.", "danger")
+        return redirect(url_for('admin_school_applications'))
+
+    now = datetime.now()
+    school.status = 'approved'
+    school.reviewed_at = now
+    school.reviewed_by_id = current_user.id
+    user.account_type = 'school_admin'
+    user.school_id = school.id
+    user.onboarding_completed = True
+    db.session.commit()
+    flash(f"Approved {school.name} and its school administrator.", "success")
+    try:
+        send_school_application_decision_email(user.email, school.name, approved=True)
+    except Exception as exc:
+        app.logger.error(f"Could not notify {user.email} that school {school.id} was approved: {exc}")
+    return redirect(url_for('admin_school_applications'))
+
+
+@app.route('/admin/schools/<int:school_id>/reject', methods=['POST'])
+@login_required
+def admin_reject_school(school_id):
+    if not is_full_admin(current_user):
+        flash("Admin access required.", "danger")
+        return redirect(url_for('home'))
+    if not valid_csrf_token():
+        flash("That request could not be verified. Please try again.", "danger")
+        return redirect(url_for('admin_school_applications'))
+
+    school = School.query.filter(
+        School.id == school_id,
+        School.status == 'pending',
+        School.badge_data.isnot(None),
+    ).first_or_404()
+    school.status = 'rejected'
+    school.rejection_reason = (request.form.get('reason') or '').strip()[:500] or None
+    school.reviewed_at = datetime.now()
+    school.reviewed_by_id = current_user.id
+    user = User.query.get(school.admin_user_id)
+    db.session.commit()
+    flash(f"Rejected the registration request from {school.name}.", "warning")
+    if user is not None:
+        try:
+            send_school_application_decision_email(
+                user.email,
+                school.name,
+                approved=False,
+                reason=school.rejection_reason,
+            )
+        except Exception as exc:
+            app.logger.error(f"Could not notify {user.email} that school {school.id} was rejected: {exc}")
+    return redirect(url_for('admin_school_applications'))
 
 
 @app.route('/admin/users')
@@ -2336,6 +2627,7 @@ def school_directory_payload(user):
     if is_full_admin(user):
         requests = (
             School.query.filter_by(status='pending')
+            .filter(School.badge_data.is_(None))
             .order_by(School.requested_at.asc())
             .all()
         )
@@ -2413,9 +2705,11 @@ def api_schools():
 def api_review_school_listing(school_id):
     if not is_full_admin(current_user):
         return jsonify({"error": "Clavis platform admin access is required."}), 403
-    school = School.query.get_or_404(school_id)
-    if school.status != 'pending':
-        return jsonify({"error": "This school request has already been reviewed."}), 409
+    school = School.query.filter(
+        School.id == school_id,
+        School.status == 'pending',
+        School.badge_data.is_(None),
+    ).first_or_404()
     data = request.get_json(silent=True) or {}
     action = data.get('action')
     if action not in ('approve', 'reject'):
@@ -3304,15 +3598,41 @@ def api_exam_results():
 @app.route('/api/exam-progress')
 @login_required
 def api_exam_progress():
-    rows = (
-        ExamResult.query
-        .filter_by(user_id=current_user.id)
-        .filter(ExamResult.percent != None)
-        .order_by(ExamResult.created_at.asc())
+    normalized_subject = db.func.coalesce(
+        db.func.nullif(ExamResult.subject, ''),
+        'Unknown',
+    )
+    ranked_results = (
+        db.session.query(
+            normalized_subject.label('subject'),
+            ExamResult.percent.label('percent'),
+            ExamResult.created_at.label('created_at'),
+            db.func.count(ExamResult.id).over(
+                partition_by=normalized_subject
+            ).label('attempts'),
+            db.func.avg(ExamResult.percent).over(
+                partition_by=normalized_subject
+            ).label('average'),
+            db.func.row_number().over(
+                partition_by=normalized_subject,
+                order_by=(ExamResult.created_at.desc(), ExamResult.id.desc()),
+            ).label('latest_rank'),
+            db.func.count(ExamResult.id).over().label('total_papers'),
+            db.func.avg(ExamResult.percent).over().label('overall_average'),
+        )
+        .filter(
+            ExamResult.user_id == current_user.id,
+            ExamResult.percent.isnot(None),
+        )
+        .subquery()
+    )
+    subject_rows = (
+        db.session.query(ranked_results)
+        .filter(ranked_results.c.latest_rank == 1)
         .all()
     )
 
-    if not rows:
+    if not subject_rows:
         return jsonify({
             "totalPapers": 0,
             "averagePercent": None,
@@ -3322,20 +3642,12 @@ def api_exam_progress():
             "recentTrend": [],
         })
 
-    by_subject = {}
-    for r in rows:
-        subject = r.subject or 'Unknown'
-        by_subject.setdefault(subject, []).append(r.percent)
-
-    subject_summaries = []
-    for subject, percents in by_subject.items():
-        avg = sum(percents) / len(percents)
-        subject_summaries.append({
-            "subject": subject,
-            "average": round(avg, 1),
-            "attempts": len(percents),
-            "latest": percents[-1],
-        })
+    subject_summaries = [{
+        "subject": row.subject,
+        "average": round(float(row.average), 1),
+        "attempts": row.attempts,
+        "latest": row.percent,
+    } for row in subject_rows]
     subject_summaries.sort(key=lambda s: s['average'])
 
     # Only call out a "weakest" subject once there's enough signal — a single
@@ -3344,12 +3656,21 @@ def api_exam_progress():
     weakest = eligible[0] if eligible else None
     strongest = max(eligible, key=lambda s: s['average']) if eligible else None
 
-    all_percents = [r.percent for r in rows]
-    recent = rows[-10:]
+    recent = (
+        ExamResult.query
+        .filter(
+            ExamResult.user_id == current_user.id,
+            ExamResult.percent.isnot(None),
+        )
+        .order_by(ExamResult.created_at.desc(), ExamResult.id.desc())
+        .limit(10)
+        .all()
+    )
+    recent.reverse()
 
     return jsonify({
-        "totalPapers": len(rows),
-        "averagePercent": round(sum(all_percents) / len(all_percents), 1),
+        "totalPapers": subject_rows[0].total_papers,
+        "averagePercent": round(float(subject_rows[0].overall_average), 1),
         "bySubject": sorted(subject_summaries, key=lambda s: -s['average']),
         "weakestSubject": weakest,
         "strongestSubject": strongest,
@@ -3417,6 +3738,10 @@ def generate_daily_challenge(user):
     return data
 
 
+_daily_challenge_cache = {}
+_daily_challenge_cache_lock = threading.Lock()
+
+
 @app.route('/api/daily-challenge')
 @login_required
 def api_daily_challenge():
@@ -3424,22 +3749,35 @@ def api_daily_challenge():
         return jsonify({"error": "Please verify your email to unlock the daily challenge."}), 403
 
     today = datetime.now().strftime('%Y-%m-%d')
+    cache_key = (today, current_user.student_track or 'highschool')
 
-    if current_user.daily_challenge_date != today or not current_user.daily_challenge_json:
-        allowed, remaining = check_and_consume_ai_call(current_user)
-        if not allowed:
-            return jsonify({"error": "You've hit today's message limit — it resets tomorrow."}), 429
-        try:
-            data = generate_daily_challenge(current_user)
-        except Exception as e:
-            app.logger.error(f"Failed to generate daily challenge for {current_user.email}: {e}")
-            return jsonify({"error": "Could not load today's challenge — try again in a moment."}), 502
-        current_user.daily_challenge_date = today
-        current_user.daily_challenge_json = json.dumps(data)
-        current_user.daily_challenge_answered = False
-        db.session.commit()
-    else:
-        data = json.loads(current_user.daily_challenge_json)
+    with _daily_challenge_cache_lock:
+        for key in list(_daily_challenge_cache):
+            if key[0] != today:
+                del _daily_challenge_cache[key]
+
+        if current_user.daily_challenge_date == today and current_user.daily_challenge_json:
+            data = json.loads(current_user.daily_challenge_json)
+            _daily_challenge_cache.setdefault(cache_key, data)
+        else:
+            data = _daily_challenge_cache.get(cache_key)
+            if data is not None:
+                data = json.loads(json.dumps(data))
+            else:
+                allowed, remaining = check_and_consume_ai_call(current_user)
+                if not allowed:
+                    return jsonify({"error": "You've hit today's message limit — it resets tomorrow."}), 429
+                try:
+                    data = generate_daily_challenge(current_user)
+                except Exception as e:
+                    app.logger.error(f"Failed to generate daily challenge for {current_user.email}: {e}")
+                    return jsonify({"error": "Could not load today's challenge — try again in a moment."}), 502
+                _daily_challenge_cache[cache_key] = json.loads(json.dumps(data))
+
+            current_user.daily_challenge_date = today
+            current_user.daily_challenge_json = json.dumps(data)
+            current_user.daily_challenge_answered = False
+            db.session.commit()
 
     response = {
         "subject": data['subject'],
@@ -3628,10 +3966,12 @@ def export_database_to_json():
     def serialize_value(v):
         if isinstance(v, datetime):
             return v.isoformat()
+        if isinstance(v, bytes):
+            return base64.b64encode(v).decode('ascii')
         return v
 
     data = {}
-    for model in (User, PaymentLog, UserStats, ExamResult):
+    for model in (User, PaymentLog, UserStats, ExamResult, School):
         rows = []
         for obj in model.query.all():
             rows.append({col.name: serialize_value(getattr(obj, col.name)) for col in model.__table__.columns})
@@ -3844,6 +4184,12 @@ def ensure_database_schema():
                             f'ALTER TABLE "user" ADD COLUMN "{column}" {column_type}'
                         ))
                 db.session.commit()
+                if 'account_type' not in columns:
+                    db.session.execute(text('ALTER TABLE "user" ADD COLUMN "account_type" VARCHAR(20) DEFAULT \'individual\''))
+                    db.session.commit()
+                if 'school_id' not in columns:
+                    db.session.execute(text('ALTER TABLE "user" ADD COLUMN "school_id" INTEGER'))
+                    db.session.commit()
                 if 'failed_login_attempts' not in columns:
                     db.session.execute(text('ALTER TABLE "user" ADD COLUMN "failed_login_attempts" INTEGER DEFAULT 0'))
                     db.session.execute(text('ALTER TABLE "user" ADD COLUMN "lockout_until" TIMESTAMP'))
@@ -3856,6 +4202,27 @@ def ensure_database_schema():
                     db.session.execute(text('ALTER TABLE "user" ADD COLUMN "daily_challenge_best_streak" INTEGER DEFAULT 0'))
                     db.session.execute(text('ALTER TABLE "user" ADD COLUMN "daily_challenge_last_correct_date" VARCHAR(10)'))
                     db.session.commit()
+            if 'school' in inspector.get_table_names():
+                school_columns = {column['name'] for column in inspector.get_columns('school')}
+                school_column_types = {
+                    'school_type': 'VARCHAR(40)',
+                    'registration_number': 'VARCHAR(80)',
+                    'address': 'VARCHAR(200)',
+                    'contact_phone': 'VARCHAR(30)',
+                    'badge_mimetype': 'VARCHAR(30)',
+                    'rejection_reason': 'VARCHAR(500)',
+                }
+                for column, column_type in school_column_types.items():
+                    if column not in school_columns:
+                        db.session.execute(text(
+                            f'ALTER TABLE "school" ADD COLUMN "{column}" {column_type}'
+                        ))
+                if 'badge_data' not in school_columns:
+                    binary_type = 'BYTEA' if db.engine.dialect.name == 'postgresql' else 'BLOB'
+                    db.session.execute(text(
+                        f'ALTER TABLE "school" ADD COLUMN "badge_data" {binary_type}'
+                    ))
+                db.session.commit()
             if 'user_stats' in inspector.get_table_names():
                 stats_columns = {column['name'] for column in inspector.get_columns('user_stats')}
                 if 'freezes_available' not in stats_columns:

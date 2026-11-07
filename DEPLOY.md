@@ -142,3 +142,16 @@ password brute-forcing now that real payments and personal data are
 involved. A locked-out user can still reset their password via
 "Forgot password?" to regain access immediately, without waiting out
 the lockout.
+
+## 8. School registration requests
+The signup page lets a registrant choose an individual or school account.
+School applications include the school's contact and location details plus a
+PNG/JPEG badge (up to 2 MB). The badge is stored in the database, not on the
+web service's temporary filesystem. A full Clavis admin can review applications
+at **School requests** from the admin area and approve or reject them. Approval
+activates the applicant's school-admin account; rejection can include a reason.
+
+Configure `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`, `SMTP_PORT`, and `MAIL_FROM` if
+you want applicants to receive verification and decision emails. Without SMTP,
+the app logs email-related events instead. Database backups include school
+badges, encoded into the JSON backup, so backup size grows with uploaded badges.
