@@ -57,30 +57,40 @@ class CurriculumLevelTests(unittest.TestCase):
         )
         self.assertIsNone(password_validation_error("study1234"))
 
-    def test_password_and_verification_emails_fail_without_smtp(self):
-        with patch("app.SMTP_HOST", None):
-            with self.assertRaisesRegex(RuntimeError, "SMTP_HOST is not configured"):
+    def test_password_and_verification_emails_fail_without_resend_settings(self):
+        with patch("app.RESEND_API_KEY", None), patch("app.RESEND_FROM", None):
+            with self.assertRaisesRegex(RuntimeError, "RESEND_API_KEY is not configured"):
                 send_reset_email("learner@example.com", "https://example.com/reset/token")
-            with self.assertRaisesRegex(RuntimeError, "SMTP_HOST is not configured"):
+            with self.assertRaisesRegex(RuntimeError, "RESEND_API_KEY is not configured"):
                 send_verification_email("learner@example.com", "https://example.com/verify/token")
 
-    def test_password_and_verification_emails_are_sent_through_smtp(self):
-        with patch("app.SMTP_HOST", "smtp.example.com"), \
-             patch("app.SMTP_PORT", 587), \
-             patch("app.SMTP_USER", "mailer@example.com"), \
-             patch("app.SMTP_PASS", "smtp-password"), \
-             patch("app.MAIL_FROM", "mailer@example.com"), \
-             patch("app.smtplib.SMTP") as smtp_factory:
-            smtp = smtp_factory.return_value.__enter__.return_value
+    def test_password_and_verification_emails_are_sent_through_resend(self):
+        with patch("app.RESEND_API_KEY", "re_test_key"), \
+             patch("app.RESEND_FROM", "Clavis <accounts@example.com>"), \
+             patch("app.requests.post") as post:
+            post.return_value.raise_for_status.return_value = None
             send_reset_email("learner@example.com", "https://example.com/reset/token")
             send_verification_email("learner@example.com", "https://example.com/verify/token")
 
-        self.assertEqual(smtp.starttls.call_count, 2)
-        self.assertEqual(smtp.login.call_count, 2)
-        self.assertEqual(smtp.sendmail.call_count, 2)
+        self.assertEqual(post.call_count, 2)
+        first_call = post.call_args_list[0]
+        self.assertEqual(first_call.args[0], "https://api.resend.com/emails")
+        self.assertEqual(first_call.kwargs["headers"]["Authorization"], "Bearer re_test_key")
+        self.assertEqual(first_call.kwargs["json"]["to"], ["learner@example.com"])
+        self.assertIn("1 hour", first_call.kwargs["json"]["text"])
+        self.assertIn("24 hours", post.call_args_list[1].kwargs["json"]["text"])
 
-    def test_forgot_password_reports_unavailable_without_smtp(self):
-        with patch("app.SMTP_HOST", None), patch("app.find_user_by_email") as find_user:
+    def test_resend_rejection_is_reported_as_a_send_failure(self):
+        with patch("app.RESEND_API_KEY", "re_test_key"), \
+             patch("app.RESEND_FROM", "Clavis <accounts@example.com>"), \
+             patch("app.requests.post") as post:
+            post.return_value.raise_for_status.side_effect = RuntimeError("Resend rejected request")
+            with self.assertRaisesRegex(RuntimeError, "Resend rejected request"):
+                send_reset_email("learner@example.com", "https://example.com/reset/token")
+
+    def test_forgot_password_reports_unavailable_without_resend_settings(self):
+        with patch("app.RESEND_API_KEY", None), patch("app.RESEND_FROM", None), \
+             patch("app.find_user_by_email") as find_user:
             response = flask_app.test_client().post(
                 "/forgot-password",
                 data={"email": "learner@example.com"},

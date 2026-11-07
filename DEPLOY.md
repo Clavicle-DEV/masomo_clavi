@@ -151,19 +151,26 @@ web service's temporary filesystem. A full Clavis admin can review applications
 at **School requests** from the admin area and approve or reject them. Approval
 activates the applicant's school-admin account; rejection can include a reason.
 
-Configure email delivery in the Render service's **Environment** settings.
-At minimum, set `SMTP_HOST` and `MAIL_FROM`; for authenticated SMTP, also set
-`SMTP_USER` and `SMTP_PASS`. `SMTP_PORT` defaults to `587` and the app uses
-STARTTLS. For Gmail, use `smtp.gmail.com`, port `587`, your Gmail address as
-`SMTP_USER` and `MAIL_FROM`, and a Google app password as `SMTP_PASS` (not your
-normal account password). Keep SMTP credentials in Render's environment
-settings, never in source code.
+Password-reset and account-verification emails are sent using the Resend HTTPS
+API. Follow Resend's [verified-domain setup](https://resend.com/docs/dashboard/domains/introduction)
+and [send-email API](https://resend.com/docs/api-reference/emails/send-email),
+create an API key, then set these in the Render service's **Environment**
+settings:
 
-Password-reset and account-verification emails are only reported as sent after
-the SMTP server accepts them. Without `SMTP_HOST`, password reset is reported
-as unavailable and verification attempts fail visibly; the app no longer logs
-password-reset or verification links. Verification uses a signed email link
-that expires after 24 hours.
+- `RESEND_API_KEY`: the Resend API key (keep it secret).
+- `RESEND_FROM`: a sender using the verified domain, such as
+  `Clavis <accounts@your-verified-domain.com>`.
+
+The app only reports a reset email as sent after Resend accepts the request.
+If either setting is missing or Resend rejects the request, check the service
+logs for the failure. Verification uses a signed email link that expires after
+24 hours.
+
+Other app emails (such as school decisions and renewal reminders) still use
+SMTP. Set `SMTP_HOST`, `MAIL_FROM`, and, for authenticated SMTP, `SMTP_USER` and
+`SMTP_PASS` for those messages. `SMTP_PORT` defaults to `587` with STARTTLS.
+Keep all email credentials in Render's environment settings, never in source
+code.
 
 Database backups include school badges, encoded into the JSON backup, so
 backup size grows with uploaded badges.

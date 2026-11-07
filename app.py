@@ -33,7 +33,7 @@ except ImportError:
 from werkzeug.security import generate_password_hash, check_password_hash
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from sqlalchemy import func, inspect, text
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import deferred
 from dotenv import load_dotenv
 from PIL import Image, ImageOps
@@ -107,6 +107,7 @@ if _database_url.startswith('postgres://'):
     _database_url = _database_url.replace('postgres://', 'postgresql://', 1)
 app.config['SQLALCHEMY_DATABASE_URI'] = _database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_pre_ping': True}
 db = SQLAlchemy(app)
 
 login_manager = LoginManager()
@@ -209,6 +210,8 @@ SMTP_PORT = int(os.environ.get('SMTP_PORT', '587'))
 SMTP_USER = os.environ.get('SMTP_USER')
 SMTP_PASS = os.environ.get('SMTP_PASS')
 MAIL_FROM = os.environ.get('MAIL_FROM', SMTP_USER or 'no-reply@clavi.app')
+RESEND_API_KEY = os.environ.get('RESEND_API_KEY')
+RESEND_FROM = os.environ.get('RESEND_FROM')
 
 # SMS via Africa's Talking (https://africastalking.com). Leave unset to run
 # in log-only mode — reminders still work by email either way.
@@ -298,46 +301,48 @@ def send_whatsapp(phone_number, message):
     return True
 
 
-def send_reset_email(to_email, reset_url):
-    if not SMTP_HOST:
-        raise RuntimeError("SMTP_HOST is not configured; password reset email was not sent")
+def send_transactional_email(to_email, subject, body):
+    if not RESEND_API_KEY:
+        raise RuntimeError("RESEND_API_KEY is not configured; email was not sent")
+    if not RESEND_FROM:
+        raise RuntimeError("RESEND_FROM is not configured; email was not sent")
 
-    msg = MIMEText(
+    response = requests.post(
+        'https://api.resend.com/emails',
+        headers={
+            'Authorization': f'Bearer {RESEND_API_KEY}',
+            'Content-Type': 'application/json',
+        },
+        json={
+            'from': RESEND_FROM,
+            'to': [to_email],
+            'subject': subject,
+            'text': body,
+        },
+        timeout=(5, 20),
+    )
+    response.raise_for_status()
+    return True
+
+
+def send_reset_email(to_email, reset_url):
+    return send_transactional_email(
+        to_email,
+        'Reset your Clavis password',
         f"Someone requested a password reset for your Clavis account.\n\n"
         f"Reset your password here (link expires in 1 hour):\n{reset_url}\n\n"
-        f"If you didn't request this, you can safely ignore this email."
+        f"If you didn't request this, you can safely ignore this email.",
     )
-    msg['Subject'] = 'Reset your Clavis password'
-    msg['From'] = MAIL_FROM
-    msg['To'] = to_email
-
-    with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
-        server.starttls()
-        if SMTP_USER and SMTP_PASS:
-            server.login(SMTP_USER, SMTP_PASS)
-        server.sendmail(MAIL_FROM, [to_email], msg.as_string())
-    return True
 
 
 def send_verification_email(to_email, verify_url):
-    if not SMTP_HOST:
-        raise RuntimeError("SMTP_HOST is not configured; verification email was not sent")
-
-    msg = MIMEText(
+    return send_transactional_email(
+        to_email,
+        'Verify your Clavis account',
         f"Welcome to Clavis!\n\n"
         f"Please verify your email to unlock full tutor access (link expires in 24 hours):\n{verify_url}\n\n"
-        f"If you didn't create this account, you can safely ignore this email."
+        f"If you didn't create this account, you can safely ignore this email.",
     )
-    msg['Subject'] = 'Verify your Clavis account'
-    msg['From'] = MAIL_FROM
-    msg['To'] = to_email
-
-    with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
-        server.starttls()
-        if SMTP_USER and SMTP_PASS:
-            server.login(SMTP_USER, SMTP_PASS)
-        server.sendmail(MAIL_FROM, [to_email], msg.as_string())
-    return True
 
 
 def send_school_application_decision_email(to_email, school_name, approved, reason=None):
@@ -1563,13 +1568,19 @@ def logout():
 @app.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
     if request.method == 'POST':
-        if not SMTP_HOST:
-            app.logger.error("Password reset requested while SMTP_HOST is not configured")
+        if not RESEND_API_KEY or not RESEND_FROM:
+            app.logger.error("Password reset requested while Resend email settings are incomplete")
             flash("Password reset email is temporarily unavailable. Please contact Clavis support.", "danger")
             return redirect(url_for('login'))
 
         email = request.form.get('email', '').strip().lower()
-        user = find_user_by_email(email)
+        try:
+            user = find_user_by_email(email)
+        except SQLAlchemyError:
+            db.session.rollback()
+            app.logger.exception("Database lookup failed while handling a password reset request")
+            flash("Password reset is temporarily unavailable. Please try again shortly.", "danger")
+            return redirect(url_for('login'))
 
         if user:
             token = reset_serializer.dumps(email, salt='password-reset')
