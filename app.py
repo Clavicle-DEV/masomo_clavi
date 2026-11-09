@@ -504,6 +504,8 @@ class User(UserMixin, db.Model):
     daily_ai_calls_date = db.Column(db.String(10), nullable=True)
     expiry_reminder_for = db.Column(db.DateTime, nullable=True)
     display_name = db.Column(db.String(40), nullable=True)
+    profile_photo_data = deferred(db.Column(db.LargeBinary, nullable=True))
+    profile_photo_mime = db.Column(db.String(30), nullable=True)
     leaderboard_opt_in = db.Column(db.Boolean, default=True)
     phone_number = db.Column(db.String(20), nullable=True)
     student_track = db.Column(db.String(20), nullable=True)  # 'campus' or 'highschool'
@@ -1763,6 +1765,7 @@ def home():
             timetable=timetable,
             challenging_subjects=challenging_subjects_for_user(current_user),
             admin_directory=admin_directory,
+            profile_name=current_user.display_name or default_display_name(current_user.email),
         )
 
     return render_template(
@@ -3901,6 +3904,41 @@ def api_daily_challenge_answer():
     })
 
 
+MAX_PROFILE_PHOTO_BYTES = 3 * 1024 * 1024
+
+
+@app.route('/api/profile/avatar', methods=['GET', 'POST', 'DELETE'])
+@login_required
+def profile_avatar():
+    if request.method == 'GET':
+        if not current_user.profile_photo_data or not current_user.profile_photo_mime:
+            return '', 404
+        response = Response(current_user.profile_photo_data, mimetype=current_user.profile_photo_mime)
+        response.headers['Cache-Control'] = 'private, no-store'
+        return response
+
+    if request.method == 'DELETE':
+        current_user.profile_photo_data = None
+        current_user.profile_photo_mime = None
+    else:
+        uploaded_photo = request.files.get('avatar')
+        if not uploaded_photo or not uploaded_photo.filename:
+            return jsonify({"error": "Choose a photo to upload."}), 400
+        if request.content_length and request.content_length > MAX_PROFILE_PHOTO_BYTES + 64 * 1024:
+            return jsonify({"error": "Choose an image smaller than 3 MB."}), 413
+        photo_data = uploaded_photo.stream.read(MAX_PROFILE_PHOTO_BYTES + 1)
+        if len(photo_data) > MAX_PROFILE_PHOTO_BYTES:
+            return jsonify({"error": "Choose an image smaller than 3 MB."}), 413
+        try:
+            current_user.profile_photo_data = normalize_certificate_photo(photo_data)
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        current_user.profile_photo_mime = 'image/jpeg'
+
+    db.session.commit()
+    return jsonify({"status": "ok"})
+
+
 @app.route('/api/profile', methods=['GET', 'POST'])
 @login_required
 def api_profile():
@@ -3933,7 +3971,10 @@ def api_profile():
                 else:
                     return jsonify({"error": "Your study track is locked in and can't be changed here. Contact support if this needs to change."}), 403
         db.session.commit()
-        return jsonify({"status": "ok"})
+        return jsonify({
+            "status": "ok",
+            "displayName": current_user.display_name or default_display_name(current_user.email),
+        })
 
     return jsonify({
         "displayName": current_user.display_name or default_display_name(current_user.email),
@@ -4208,6 +4249,15 @@ def ensure_database_schema():
                 if 'display_name' not in columns:
                     db.session.execute(text('ALTER TABLE "user" ADD COLUMN "display_name" VARCHAR(40)'))
                     db.session.execute(text('ALTER TABLE "user" ADD COLUMN "leaderboard_opt_in" BOOLEAN DEFAULT TRUE'))
+                    db.session.commit()
+                if 'profile_photo_data' not in columns:
+                    binary_type = 'BYTEA' if db.engine.dialect.name == 'postgresql' else 'BLOB'
+                    db.session.execute(text(
+                        f'ALTER TABLE "user" ADD COLUMN "profile_photo_data" {binary_type}'
+                    ))
+                    db.session.commit()
+                if 'profile_photo_mime' not in columns:
+                    db.session.execute(text('ALTER TABLE "user" ADD COLUMN "profile_photo_mime" VARCHAR(30)'))
                     db.session.commit()
                 if 'phone_number' not in columns:
                     db.session.execute(text('ALTER TABLE "user" ADD COLUMN "phone_number" VARCHAR(20)'))

@@ -543,6 +543,35 @@
   const phoneNumberInput = document.getElementById('phoneNumberInput');
   const savePhoneBtn = document.getElementById('savePhoneBtn');
   const phoneNumberError = document.getElementById('phoneNumberError');
+  const profilePhotoInput = document.getElementById('profilePhotoInput');
+  const chooseProfilePhotoBtn = document.getElementById('chooseProfilePhotoBtn');
+  const removeProfilePhotoBtn = document.getElementById('removeProfilePhotoBtn');
+  const profilePhotoStatus = document.getElementById('profilePhotoStatus');
+
+  function updateProfileInitial() {
+    const name = displayNameInput.value.trim() || 'Learner';
+    document.querySelectorAll('.profile-avatar-initial').forEach(initial => {
+      initial.textContent = name[0].toUpperCase();
+    });
+  }
+
+  function updateProfileAvatar(photoUrl) {
+    document.querySelectorAll('.profile-avatar').forEach(avatar => {
+      const image = avatar.querySelector('.profile-avatar-image');
+      const initial = avatar.querySelector('.profile-avatar-initial');
+      if (photoUrl) {
+        image.src = photoUrl;
+        image.hidden = false;
+        initial.hidden = true;
+      } else {
+        image.removeAttribute('src');
+        image.hidden = true;
+        updateProfileInitial();
+        initial.hidden = false;
+      }
+    });
+    removeProfilePhotoBtn.hidden = !photoUrl;
+  }
 
   fetch('/api/profile')
     .then(res => res.ok ? res.json() : Promise.reject())
@@ -564,10 +593,54 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ displayName: name })
     })
-      .then(res => res.ok ? res.json() : Promise.reject())
-      .then(() => { saveDisplayNameBtn.textContent = 'Saved!'; })
+      .then(async res => {
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error || 'Could not save your name.');
+        displayNameInput.value = result.displayName;
+        document.querySelectorAll('.user-profile-name').forEach(element => { element.textContent = result.displayName; });
+        updateProfileInitial();
+        saveDisplayNameBtn.textContent = 'Saved!';
+      })
       .catch(() => { saveDisplayNameBtn.textContent = 'Failed'; })
       .finally(() => { setTimeout(() => { saveDisplayNameBtn.textContent = originalLabel; }, 1500); });
+  });
+
+  chooseProfilePhotoBtn.addEventListener('click', () => profilePhotoInput.click());
+  profilePhotoInput.addEventListener('change', async () => {
+    const photo = profilePhotoInput.files[0];
+    if (!photo) return;
+    profilePhotoStatus.textContent = 'Uploading photo…';
+    chooseProfilePhotoBtn.disabled = true;
+    try {
+      const formData = new FormData();
+      formData.append('avatar', photo);
+      const response = await fetch('/api/profile/avatar', { method: 'POST', body: formData });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Could not upload your photo.');
+      updateProfileAvatar(`/api/profile/avatar?v=${Date.now()}`);
+      profilePhotoStatus.textContent = 'Photo updated.';
+    } catch (error) {
+      profilePhotoStatus.textContent = error.message || 'Could not upload your photo.';
+    } finally {
+      chooseProfilePhotoBtn.disabled = false;
+      profilePhotoInput.value = '';
+    }
+  });
+
+  removeProfilePhotoBtn.addEventListener('click', async () => {
+    removeProfilePhotoBtn.disabled = true;
+    profilePhotoStatus.textContent = 'Removing photo…';
+    try {
+      const response = await fetch('/api/profile/avatar', { method: 'DELETE' });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Could not remove your photo.');
+      updateProfileAvatar(null);
+      profilePhotoStatus.textContent = 'Photo removed.';
+    } catch (error) {
+      profilePhotoStatus.textContent = error.message || 'Could not remove your photo.';
+    } finally {
+      removeProfilePhotoBtn.disabled = false;
+    }
   });
 
   leaderboardOptToggle.addEventListener('click', (e) => {
@@ -1967,7 +2040,7 @@
     clearAttachment();
     sendBtn.disabled = true;
     typingIndicator.style.visibility = 'visible';
-    typingLabel.textContent = 'Tutor is thinking...';
+    typingLabel.textContent = 'Clavis is thinking...';
     playAvatarState('thinking', true);
 
     try {
@@ -1993,7 +2066,7 @@
       playAvatarState('yes', false);
       setTimeout(() => { typingIndicator.style.visibility = 'hidden'; }, 900);
     } catch (err) {
-      addMessage('tutor', err.message || "Something went wrong reaching the tutor. Please try again.");
+      addMessage('tutor', err.message || "Something went wrong reaching Clavis. Please try again.");
       console.error(err);
       typingLabel.textContent = 'Something went wrong';
       playAvatarState('alert', false);
@@ -2018,7 +2091,7 @@
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.id = 'explainDifferentlyBtn';
-    btn.textContent = '🔄 Explain it differently';
+    btn.textContent = '🔄 Clarify in simple terms';
     wrap.appendChild(btn);
     notebook.appendChild(wrap);
     notebook.scrollTop = notebook.scrollHeight;
@@ -2027,7 +2100,7 @@
 
   async function handleExplainDifferently() {
     removeExplainDifferentlyButton();
-    addMessage('user', '🔄 Explain it differently');
+    addMessage('user', '🔄 Clarify in simple terms');
     sendBtn.disabled = true;
     typingIndicator.style.visibility = 'visible';
     typingLabel.textContent = 'Finding another way to explain it...';

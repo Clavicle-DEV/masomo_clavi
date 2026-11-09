@@ -68,31 +68,31 @@
       <img class="brand-badge" src="{{ static_versioned('images/icon-192.png') }}" alt="Clavis">
       <span class="nav-brand-text">Clavis</span>
     </div>
-    <button data-screen="homeScreen" class="active">
+    <button data-screen="homeScreen" class="active" title="Learning" aria-label="Learning">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11l9-7 9 7M5 10v9a1 1 0 001 1h4v-6h4v6h4a1 1 0 001-1v-9" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <span class="nav-label">Learning</span>
     </button>
-    <button data-screen="schoolsScreen">
+    <button data-screen="schoolsScreen" title="Schools" aria-label="Schools">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6M9 10h.01M15 10h.01M9 13h.01M15 13h.01" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <span class="nav-label">Schools</span>
     </button>
-    <button data-screen="dashboardScreen">
+    <button data-screen="dashboardScreen" title="Dashboard" aria-label="Dashboard">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
       <span class="nav-label">Dashboard</span>
     </button>
-    <button data-screen="leaderboardScreen">
+    <button data-screen="leaderboardScreen" title="Leaderboard" aria-label="Leaderboard">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 01-10 0V4z" stroke-linecap="round" stroke-linejoin="round"/><path d="M17 5h2a2 2 0 012 2 4 4 0 01-4 4M7 5H5a2 2 0 00-2 2 4 4 0 004 4" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <span class="nav-label">Leaderboard</span>
     </button>
-    <button data-screen="bookScreen">
+    <button data-screen="bookScreen" title="Book Finder" aria-label="Book Finder">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5c3-1.5 6-1.5 8 0v14c-2-1.5-5-1.5-8 0V5z" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 5c-3-1.5-6-1.5-8 0v14c2-1.5 5-1.5 8 0V5z" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <span class="nav-label">Book Finder</span>
     </button>
-    <button data-screen="papersScreen">
+    <button data-screen="papersScreen" title="Exam Papers" aria-label="Exam Papers">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 2h6l5 5v13a2 2 0 01-2 2H6a2 2 0 01-2-2V4a2 2 0 012-2z" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 13h6M9 17h6M9 9h2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <span class="nav-label">Exam Papers</span>
     </button>
-    <button data-screen="settingsScreen">
+    <button data-screen="settingsScreen" title="Settings" aria-label="Settings">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <span class="nav-label">Settings</span>
     </button>
@@ -125,9 +125,13 @@
     </div>
   {% endif %}
 
-  <div class="user-badge-bar" style="display: flex; justify-content: space-between; align-items: center; background: var(--paper); border: 1px solid var(--line); padding: 10px 16px; border-radius: var(--radius-sm); margin-bottom: 24px; font-size: 13px;">
+  <div class="user-badge-bar">
     <div class="user-info" style="display: flex; align-items: center; gap: 8px; font-weight: 500;">
-      <span>👤 {{ user.email }}</span>
+      <span class="profile-avatar user-profile-avatar" aria-hidden="true">
+        <img class="profile-avatar-image" alt="" {% if user.profile_photo_mime %}src="{{ url_for('profile_avatar') }}"{% else %}hidden{% endif %}>
+        <span class="profile-avatar-initial" {% if user.profile_photo_mime %}hidden{% endif %}>{{ profile_name[:1]|upper }}</span>
+      </span>
+      <span class="user-profile-name">{{ profile_name }}</span>
       {% if is_full_admin_user %}
         <span class="status-tag" style="background: var(--chalk); color: var(--paper); padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase;">Admin / Owner</span>
       {% elif is_admin_user %}
@@ -1065,18 +1069,46 @@
       <div class="settings-row-sub" id="trackLockedNote" style="margin-top:6px;"{% if not student_track_locked %} style="display:none;"{% endif %}>🔒 Locked in for your account — contact support if this needs to change.</div>
     </div>
 
-    <div class="settings-group">
-      <div class="settings-row" style="flex-direction: column; align-items: stretch; gap: 10px;">
-        <div>
-          <div class="settings-row-label">Leaderboard name</div>
-          <div class="settings-row-sub">How you appear to other students on the leaderboard — never your email.</div>
-        </div>
-        <div style="display: flex; gap: 8px;">
-          <input type="text" id="displayNameInput" maxlength="40" placeholder="Your name"
-                 style="flex:1; border:1px solid var(--line); background:var(--paper); border-radius:var(--radius-sm); padding:10px 12px; font-size:13px; color:var(--ink);" />
-          <button type="button" id="saveDisplayNameBtn" style="background:var(--chalk); color:var(--paper); border:none; border-radius:var(--radius-sm); padding:0 16px; font-weight:600; font-size:13px; cursor:pointer; white-space:nowrap; width:96px; text-align:center;">Save</button>
+    <div class="settings-group profile-settings">
+      <div class="settings-row profile-editor-row">
+        <div class="profile-avatar-editor">
+          <span class="profile-avatar settings-profile-avatar" aria-hidden="true">
+            <img id="settingsAvatarImage" class="profile-avatar-image" alt="" {% if user.profile_photo_mime %}src="{{ url_for('profile_avatar') }}"{% else %}hidden{% endif %}>
+            <span id="settingsAvatarInitial" class="profile-avatar-initial" {% if user.profile_photo_mime %}hidden{% endif %}>{{ profile_name[:1]|upper }}</span>
+          </span>
+          <div class="profile-avatar-actions">
+            <strong>Profile photo</strong>
+            <span>Use any JPG, PNG, or WEBP image up to 3 MB.</span>
+            <div class="profile-photo-buttons">
+              <button type="button" class="profile-action-btn" id="chooseProfilePhotoBtn">Change photo</button>
+              <button type="button" class="profile-action-btn secondary" id="removeProfilePhotoBtn" {% if not user.profile_photo_mime %}hidden{% endif %}>Remove</button>
+            </div>
+            <input id="profilePhotoInput" type="file" accept="image/jpeg,image/png,image/webp" hidden>
+            <span id="profilePhotoStatus" class="profile-photo-status" role="status" aria-live="polite"></span>
+          </div>
         </div>
       </div>
+      <div class="settings-row profile-name-row">
+        <div>
+          <div class="settings-row-label">Your nickname</div>
+          <div class="settings-row-sub">This name appears across Clavis and on the leaderboard. Your email stays private.</div>
+        </div>
+        <div class="profile-name-controls">
+          <input type="text" id="displayNameInput" maxlength="40" placeholder="Your name" value="{{ profile_name }}">
+          <button type="button" id="saveDisplayNameBtn" class="profile-action-btn">Save name</button>
+        </div>
+      </div>
+      <div class="settings-row account-email-row">
+        <div>
+          <div class="settings-row-label">Account email</div>
+          <div class="settings-row-sub">Used for sign-in and account messages. Only shown here.</div>
+        </div>
+        <strong id="accountEmailValue">{{ user.email }}</strong>
+      </div>
+    </div>
+
+    <div class="settings-group">
+      <h3 class="section-heading">Leaderboard settings</h3>
 
       <div class="settings-row">
         <div>
