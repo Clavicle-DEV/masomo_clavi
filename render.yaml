@@ -6,14 +6,19 @@ services:
     region: oregon
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn --worker-class gthread --threads 4 --timeout 90 app:app
+    healthCheckPath: /healthz
     autoDeploy: true
     envVars:
       - key: FLASK_ENV
         value: production
+      - key: FLASK_DEBUG
+        value: "0"
+      - key: FLASK_SECRET_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
       - key: APP_DOMAIN
         value: https://clavi.onrender.com
       # Add other secrets and keys in Render dashboard, e.g.:
-      # - key: GROQ_API_KEY
-      # - key: FLASK_SECRET_KEY
       # - key: MPESA_PRICE_DAY
       # - key: MPESA_PRICE_MONTH

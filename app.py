@@ -44,14 +44,23 @@ from reportlab.lib.utils import ImageReader, simpleSplit
 from reportlab.pdfgen import canvas
 
 def load_environment(project_root=None):
-    root = Path(project_root or Path(__file__).resolve().parent).resolve()
-    load_dotenv(root / ".env", override=False)
-    return root
+    repo_root = Path(__file__).resolve().parent.resolve()
+    candidate_root = Path(project_root).resolve() if project_root else repo_root
+    env_path = candidate_root / ".env"
+    if not env_path.exists():
+        env_path = repo_root / ".env"
+    load_dotenv(env_path, override=False)
+    return repo_root
 
 PROJECT_ROOT = load_environment()
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'dev-key-change-me')
+app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY') or ('dev-key-change-me' if os.environ.get('FLASK_ENV') != 'production' else None)
+if not app.config['SECRET_KEY']:
+    raise RuntimeError('FLASK_SECRET_KEY must be set in production.')
+app.config['SESSION_COOKIE_SECURE'] = os.environ.get('FLASK_ENV') == 'production'
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 
 _static_version_cache = {}
@@ -148,8 +157,9 @@ def handle_rate_limit(e):
     return jsonify({"error": "You're sending requests a bit fast — please wait a moment and try again."}), 429
 
 app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=365)
-app.config['REMEMBER_COOKIE_SECURE'] = False
+app.config['REMEMBER_COOKIE_SECURE'] = app.config['SESSION_COOKIE_SECURE']
 app.config['REMEMBER_COOKIE_HTTPONLY'] = True
+app.config['REMEMBER_COOKIE_SAMESITE'] = 'Lax'
 
 YOUR_DOMAIN = os.environ.get('APP_DOMAIN', 'http://localhost:5000')
 
@@ -190,6 +200,42 @@ def is_full_admin(user):
     if email in get_admin_emails() and email not in CO_ADMIN_EMAILS:
         return True
     return False
+
+
+def get_admin_directory():
+    managed_emails = get_admin_emails() | CO_ADMIN_EMAILS
+    admins = User.query.filter(
+        or_(
+            User.is_admin.is_(True),
+            func.lower(User.email).in_(managed_emails),
+        )
+    ).all()
+    users_by_email = {
+        (admin.email or '').strip().lower(): admin
+        for admin in admins
+    }
+    directory = {}
+    for email in managed_emails:
+        admin = users_by_email.get(email)
+        directory[email] = {
+            'name': (admin.display_name or default_display_name(email)) if admin else default_display_name(email),
+            'email': email,
+            'role': 'Admin' if admin and is_full_admin(admin) else (
+                'Co-admin' if email in CO_ADMIN_EMAILS else 'Admin'
+            ),
+        }
+    for admin in admins:
+        email = (admin.email or '').strip().lower()
+        if email not in directory and is_full_admin(admin):
+            directory[email] = {
+                'name': admin.display_name or default_display_name(email),
+                'email': email,
+                'role': 'Admin',
+            }
+    return sorted(directory.values(), key=lambda member: (
+        member['role'] != 'Admin',
+        member['name'].lower(),
+    ))
 
 
 def has_unlimited_access(user):
@@ -1139,7 +1185,7 @@ def login():
             return render_template('auth.html', mode='login', student_track=request.args.get('type', ''))
 
         if user.check_password(password):
-            if user.account_type == 'school_pending':
+            if getattr(user, 'account_type', None) == 'school_pending':
                 application = School.query.filter_by(admin_user_id=user.id).first()
                 if application and application.status == 'pending':
                     flash('Your school registration is awaiting Clavis admin approval.', 'warning')
@@ -1154,9 +1200,9 @@ def login():
             user.lockout_until = None
             db.session.commit()
             login_user(user, remember=True)
-            if is_full_admin(user) and user.onboarding_completed:
+            if is_full_admin(user) and getattr(user, 'onboarding_completed', False):
                 return redirect(url_for('onboarding', step='path'))
-            return redirect(url_for('onboarding', step='name') if not user.onboarding_completed else url_for('home'))
+            return redirect(url_for('onboarding', step='name') if not getattr(user, 'onboarding_completed', False) else url_for('home'))
 
         user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
         if user.failed_login_attempts >= LOGIN_LOCKOUT_THRESHOLD:
@@ -1685,6 +1731,7 @@ def home():
         if not current_user.referral_code:
             current_user.referral_code = generate_referral_code()
             db.session.commit()
+        admin_directory = get_admin_directory()
         referral_link = f"{request.host_url}signup?ref={current_user.referral_code}"
         current_grade = (
             current_user.campus_year if current_user.student_track == 'campus'
@@ -1715,6 +1762,7 @@ def home():
             certificate_application=certificate_application_record,
             timetable=timetable,
             challenging_subjects=challenging_subjects_for_user(current_user),
+            admin_directory=admin_directory,
         )
 
     return render_template(
@@ -4120,22 +4168,6 @@ def internal_send_expiry_reminders():
 
     result = run_expiry_reminders()
     return jsonify({"status": "ok", **result})
-
-
-@app.route('/debug/config')
-def debug_config():
-    def mask(value):
-        if not value:
-            return None
-        return value[:6] + "..." + f"({len(value)} chars)"
-
-    return jsonify({
-        "GROQ_API_KEY": mask(os.environ.get('GROQ_API_KEY')),
-        "DATABASE_URL": mask(os.environ.get('DATABASE_URL')),
-        "APP_DOMAIN": os.environ.get('APP_DOMAIN'),
-        "MPESA_PRICE_DAY": os.environ.get('MPESA_PRICE_DAY'),
-        "MPESA_PRICE_MONTH": os.environ.get('MPESA_PRICE_MONTH'),
-    })
 
 
 def ensure_database_schema():

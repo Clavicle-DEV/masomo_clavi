@@ -16,7 +16,7 @@
     .card { width:min(100%,560px); margin:auto; background:var(--paper); border:1px solid var(--line); border-radius:22px; padding:clamp(24px,6vw,44px); box-shadow:0 24px 65px rgba(23,59,43,.09); }
     .progress-label { display:flex; justify-content:space-between; color:var(--muted); font-size:12px; font-weight:600; margin-bottom:9px; }
     .progress { height:6px; background:#e9eee2; border-radius:8px; overflow:hidden; margin-bottom:30px; }
-    .progress span { display:block; height:100%; width:{{ (step_number / step_count * 100)|int }}%; background:#79a83a; border-radius:inherit; }
+    .progress span { display:block; height:100%; width:var(--progress-width, 0%); background:#79a83a; border-radius:inherit; }
     h1 { font:700 clamp(29px,7vw,40px)/1.08 'Playfair Display',serif; letter-spacing:-.04em; margin:0 0 10px; }
     .intro { color:var(--muted); line-height:1.6; margin:0 0 25px; }
     .flash { background:#fff0e9; color:#8a351d; border:1px solid #f4c7b5; padding:11px 13px; border-radius:10px; margin-bottom:16px; font-size:14px; }
@@ -48,7 +48,7 @@
     <div class="brand">Clavis<span style="color:#79a83a">.</span></div>
     <section class="card">
       <div class="progress-label"><span>{{ 'School level setup' if admin_path_editor else 'Your learning setup' }}</span><span>Step {{ step_number }} of {{ step_count }}</span></div>
-      <div class="progress" aria-label="Step {{ step_number }} of {{ step_count }}"><span></span></div>
+      <div class="progress" aria-label="Step {{ step_number }} of {{ step_count }}"><span style="--progress-width: {{ (step_number / step_count * 100)|int }}%"></span></div>
       {% with messages = get_flashed_messages(with_categories=true) %}
         {% for category, message in messages %}<div class="flash" role="alert">{{ message }}</div>{% endfor %}
       {% endwith %}
@@ -183,13 +183,14 @@
     <a class="logout" href="{{ url_for('logout') }}">Sign out</a>
   </main>
   {% if step == 'schedule' %}
+  <script id="allSubjectsData" type="application/json">{{ subjects|tojson }}</script>
   <script>
     const subjectChoices = document.getElementById('timetableSubjectChoices');
     const subjectChecks = [...subjectChoices.querySelectorAll('input[type="checkbox"]')];
     const modeRadios = [...document.querySelectorAll('input[name="timetable_mode"]')];
     const hoursSelect = document.getElementById('daily_hours');
     const preview = document.getElementById('studyPlanPreview');
-    const allSubjects = {{ subjects|tojson }};
+    const allSubjects = JSON.parse(document.getElementById('allSubjectsData').textContent);
 
     function updateStudyPlanPreview() {
       const mode = modeRadios.find(radio => radio.checked)?.value || 'all';

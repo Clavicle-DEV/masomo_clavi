@@ -100,6 +100,17 @@ class CurriculumLevelTests(unittest.TestCase):
         find_user.assert_not_called()
         self.assertIn(b"Password reset email is temporarily unavailable", response.data)
 
+    def test_debug_config_endpoint_is_not_exposed(self):
+        response = flask_app.test_client().get("/debug/config")
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_health_check_returns_ok(self):
+        response = flask_app.test_client().get("/healthz")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json, {"status": "ok"})
+
     def test_school_listing_requires_name_county_and_valid_official_email(self):
         valid_request = {
             "name": "  Green Valley School ",

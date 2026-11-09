@@ -1,69 +1,68 @@
-# Clavi — Deployment Guide
+# Clavis — Deployment Guide
 
-This folder is a complete, deployable web app: a Flask backend that serves
-the tutor page and safely proxies questions to the Claude API (your API key
-never touches the browser).
+Clavis is a Flask application that serves the student tutor and calls Groq's
+API from the server. API credentials must only be configured as environment
+variables; never put them in browser code or commit them to the repository.
 
-## Files
-- `app.py` — the backend server
-- `templates/index.html` — the front-end page (served by Flask)
-- `requirements.txt` — Python dependencies
-- `Procfile` — tells hosting platforms how to start the app
+## 1. Run locally
 
-## 1. Get an API key
-1. Go to https://console.anthropic.com
-2. Create an account (or log in) and generate an API key
-3. Anthropic API usage is pay-as-you-go — add a small amount of credit to start
-   (a few dollars covers a lot of student questions with Sonnet pricing)
+Install the pinned dependencies with Python 3.12:
 
-## 2. Test it locally first
 ```
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
 
-Set your API key as an environment variable, then run the app:
+Copy `.env.example` to `.env`, then set real values for `FLASK_SECRET_KEY` and
+`GROQ_API_KEY`. Generate a strong Flask key with:
 
-**Windows (Command Prompt):**
 ```
-set ANTHROPIC_API_KEY=your-key-here
-python app.py
-```
-
-**Mac/Linux:**
-```
-export ANTHROPIC_API_KEY=your-key-here
-python app.py
+python -c "import secrets; print(secrets.token_urlsafe(48))"
 ```
 
-Open http://localhost:5000 in your browser and try asking a question in each subject.
+Keep `.env` private and out of version control. Start the development server
+with `python app.py`, then open http://localhost:5000.
 
-## 3. Deploy for free on Render
-1. Push this folder to a GitHub repository
-2. Go to https://render.com, sign up, click **New → Web Service**
-3. Connect your GitHub repo
-4. Settings:
-   - **Build Command:** `pip install -r requirements.txt`
-   - **Start Command:** `gunicorn app:app`
-5. Under **Environment**, add a variable:
-   - Key: `ANTHROPIC_API_KEY`
-   - Value: your API key
-6. Click **Create Web Service** — Render will build and deploy it
-7. You'll get a public URL like `https://clavi.onrender.com` — that's your live site
+## 2. Deploy with Render
 
-**Note on Render's free tier:** the free plan "sleeps" after inactivity and takes
-~30-60 seconds to wake up on the next visit. Fine for a starting community
-tool; if usage grows, a paid tier ($7/mo) keeps it always-on.
+The repository includes `render.yaml` for a Render Blueprint deployment. In
+Render, create a Blueprint from the repository and provide values for the
+unsynced secrets when prompted:
 
-## 4. Managing cost
-- The backend already limits each request to the last 10 conversation turns
-  and caps question length, so costs stay predictable per question.
-- Watch usage at https://console.anthropic.com under "Usage" — set a monthly
-  budget alert there so you're never surprised by a bill.
-- If usage grows beyond what you can personally fund, consider: a simple
-  daily question limit per visitor, or looking into Anthropic's programs for
-  nonprofits/education (worth checking their site directly for current offers).
+- `FLASK_SECRET_KEY`: a long, random value. Keep it stable; changing it
+  invalidates existing sessions and signed reset/verification links.
+- `GROQ_API_KEY`: the API key used by the server-side tutor requests.
 
-## 5. Renewal reminder emails
+The Blueprint sets `FLASK_ENV=production`, disables Flask debug mode, uses
+`/healthz` for health checks, and starts Gunicorn with the configured threaded
+worker. The health endpoint only confirms that the web process responds; it
+does not validate external services.
+
+If configuring a Web Service manually instead of using the Blueprint, use:
+
+- **Build command:** `pip install -r requirements.txt`
+- **Start command:** `gunicorn --worker-class gthread --threads 4 --timeout 90 app:app`
+- **Health check path:** `/healthz`
+- **Runtime:** Python version specified in `runtime.txt`
+
+Add credentials through Render's Environment settings, not in `render.yaml`
+or source files. Set `APP_DOMAIN` to the canonical public URL. Set
+`DATABASE_URL` to a persistent PostgreSQL database for production; without
+it, the app uses local SQLite, which is not suitable for durable data on an
+ephemeral web-service filesystem.
+
+After deployment, verify `/healthz`, log in, and test a tutor request. Check
+the Render service logs if the build, database connection, or AI request
+fails.
+
+## 3. AI usage and costs
+
+Tutor and generated-content requests use the configured Groq models. Review
+current usage and pricing in your Groq account, and configure model overrides
+with `GROQ_MODEL` and `GROQ_VISION_MODEL` only when needed. The application
+also applies per-user daily call limits; these can be adjusted with
+`FREE_DAILY_AI_LIMIT` and `PREMIUM_DAILY_AI_LIMIT`.
+
+## 4. Renewal reminder emails
 Users whose trial or premium access is about to expire can be emailed a
 reminder automatically, but this needs to be triggered once a day by
 something outside the web app itself (Flask doesn't run background jobs).
@@ -106,7 +105,7 @@ real reminders — if a send fails for that reason, it'll fall back to
 logging rather than crash anything, but it also won't have reached the
 student, so it's worth testing directly first.
 
-## 6. Database backups
+## 5. Database backups
 The app has no automatic backups of its own — if you're on a free-tier
 Postgres database, it can be reset or lost without much warning. There's
 a lightweight, dependency-free backup built in: it exports every row of
@@ -133,7 +132,7 @@ points. Keep in mind this emails your full user database (including
 password hashes, which are safely hashed, but still) — make sure
 `BACKUP_EMAIL` is an inbox only you control.
 
-## 7. Login security
+## 6. Login security
 Repeated failed login attempts now lock an account out temporarily
 (`LOGIN_LOCKOUT_THRESHOLD` failed attempts within one session of tries,
 locked for `LOGIN_LOCKOUT_MINUTES` — both default to 5 and 15, override
@@ -143,7 +142,7 @@ involved. A locked-out user can still reset their password via
 "Forgot password?" to regain access immediately, without waiting out
 the lockout.
 
-## 8. School registration requests
+## 7. School registration requests
 The signup page lets a registrant choose an individual or school account.
 School applications include the school's contact and location details plus a
 PNG/JPEG badge (up to 2 MB). The badge is stored in the database, not on the

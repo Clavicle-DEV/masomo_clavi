@@ -870,7 +870,14 @@
 
   <!-- ============ DASHBOARD SCREEN ============ -->
   <div class="screen" id="dashboardScreen">
-    <h2 class="dash-title">Your progress</h2>
+    <header class="dashboard-hero">
+      <div>
+        <span class="dashboard-hero-eyebrow">YOUR STUDY SPACE</span>
+        <h2 class="dash-title">Your progress</h2>
+        <p>Every question is a step forward. Here’s how your learning is taking shape.</p>
+      </div>
+      <div class="dashboard-hero-mark" aria-hidden="true"><span>✦</span><small>Keep going</small></div>
+    </header>
 
     <div id="dashEmptyState" class="empty-dash" style="display:none;">
       You haven't asked any questions yet — pick a subject on the Home tab to get started, and your stats will show up here.
@@ -948,6 +955,28 @@
     </section>
 
     <div id="badgeRow" class="badge-row"></div>
+
+    <section class="admin-directory" aria-labelledby="adminDirectoryTitle">
+      <div class="admin-directory-heading">
+        <div>
+          <span class="dashboard-hero-eyebrow">HERE TO HELP</span>
+          <h3 id="adminDirectoryTitle" class="section-heading">Admins &amp; co-admins</h3>
+        </div>
+        <span class="admin-directory-count">{{ admin_directory|length }} {{ 'team member' if admin_directory|length == 1 else 'team members' }}</span>
+      </div>
+      <div class="admin-directory-grid">
+        {% for member in admin_directory %}
+        <article class="admin-directory-card">
+          <div class="admin-avatar" aria-hidden="true">{{ member.name[:1]|upper }}</div>
+          <div class="admin-directory-person">
+            <strong>{{ member.name }}</strong>
+            <a href="mailto:{{ member.email }}">{{ member.email }}</a>
+          </div>
+          <span class="admin-role-badge {% if member.role == 'Co-admin' %}co-admin{% endif %}">{{ member.role }}</span>
+        </article>
+        {% endfor %}
+      </div>
+    </section>
 
     <div id="subjectBarsWrap">
       <h3 class="section-heading">Questions by subject</h3>
