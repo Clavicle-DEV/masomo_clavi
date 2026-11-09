@@ -32,7 +32,7 @@ except ImportError:
             return lambda *args, **kwargs: (lambda view: view)
 from werkzeug.security import generate_password_hash, check_password_hash
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
-from sqlalchemy import func, inspect, text
+from sqlalchemy import func, inspect, or_, text
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import deferred
 from dotenv import load_dotenv
