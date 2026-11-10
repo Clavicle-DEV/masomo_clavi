@@ -2195,3 +2195,14 @@ body{
     .profile-editor-row { align-items:flex-start; }
     .settings-profile-avatar { width:64px; height:64px; }
   }
+  .daily-spark-source {
+    display:block;
+    width:fit-content;
+    margin-top:7px;
+    color:var(--chalk);
+    font-size:11px;
+    font-weight:700;
+    text-decoration:underline;
+    text-underline-offset:2px;
+  }
+  .daily-spark-source[hidden] { display:none; }

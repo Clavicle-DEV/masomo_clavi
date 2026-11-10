@@ -253,7 +253,11 @@
 
     <div id="dailySparkCard" style="display:none; align-items:flex-start; gap:10px; background:linear-gradient(120deg, rgba(92,141,54,.1), rgba(92,141,54,.03)); border:1px solid rgba(92,141,54,.25); border-radius:14px; padding:14px 18px; margin-bottom:18px; font-size:13.5px; color:var(--ink);">
       <span style="font-size:17px; line-height:1.3;">💡</span>
-      <div><span style="font-weight:700;">Did you know? </span><span id="dailySparkText"></span></div>
+      <div>
+        <span style="font-weight:700;">A fresh fact from around the world </span>
+        <span id="dailySparkText">Finding today’s fact…</span>
+        <a id="dailySparkSource" class="daily-spark-source" href="#" target="_blank" rel="noopener noreferrer" hidden></a>
+      </div>
     </div>
 
     <section style="background:var(--paper); border:1px solid var(--line); border-radius:16px; padding:20px; margin-bottom:20px;">

@@ -842,36 +842,26 @@
     };
   }
 
-  const DAILY_SPARK_FACTS = [
-    "Kenya has 47 counties, each led by an elected governor.",
-    "The word \"algebra\" comes from the Arabic \"al-jabr\", meaning \"reunion of broken parts\".",
-    "Mount Kenya is Africa's second-highest peak, after Kilimanjaro.",
-    "A group of lions is called a \"pride\" — a group of hyenas is a \"clan\".",
-    "The human heart beats about 100,000 times a day.",
-    "Water expands by about 9% when it freezes — that's why ice floats.",
-    "The Great Rift Valley runs right through Kenya, and is slowly widening every year.",
-    "Shakespeare invented or popularised over 1,700 words still used in English today.",
-    "Photosynthesis produces the oxygen in roughly 2 out of every 3 breaths you take.",
-    "Nairobi is one of the few capital cities in the world with a national park inside it.",
-    "The Pythagorean theorem was known and used by Babylonian mathematicians over 1,000 years before Pythagoras.",
-    "Kiswahili is spoken by over 200 million people across East Africa.",
-    "A bolt of lightning is roughly five times hotter than the surface of the sun.",
-    "The first computer \"bug\" was an actual moth found stuck in a relay in 1947.",
-    "Honey never spoils — archaeologists have found edible honey in 3,000-year-old Egyptian tombs.",
-    "The Maasai Mara hosts one of the largest wildlife migrations on Earth every year.",
-    "Compound interest was once called \"the eighth wonder of the world\" — famously attributed to Einstein.",
-    "Octopuses have three hearts and blue blood.",
-    "Kenya's Lake Turkana is the world's largest permanent desert lake.",
-    "The shortest war in recorded history lasted just 38 minutes, between Britain and Zanzibar in 1896.",
-  ];
-  function renderDailySpark() {
+  async function renderDailySpark() {
     const el = document.getElementById('dailySparkCard');
     const textEl = document.getElementById('dailySparkText');
-    if (!el || !textEl) return;
-    const start = new Date(new Date().getFullYear(), 0, 0);
-    const dayOfYear = Math.floor((Date.now() - start) / 86400000);
-    textEl.textContent = DAILY_SPARK_FACTS[dayOfYear % DAILY_SPARK_FACTS.length];
+    const sourceLink = document.getElementById('dailySparkSource');
+    if (!el || !textEl || !sourceLink) return;
     el.style.display = 'flex';
+    try {
+      const response = await fetch('/api/daily-fact');
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || 'Today’s fact is unavailable right now.');
+      textEl.textContent = result.fact;
+      sourceLink.href = result.sourceUrl;
+      sourceLink.textContent = `Read “${result.title}” on ${result.source}`;
+      sourceLink.hidden = false;
+    } catch (error) {
+      textEl.textContent = error.message && error.message !== 'Failed to fetch'
+        ? error.message
+        : 'Today’s fact is unavailable right now. Please try again later.';
+      sourceLink.hidden = true;
+    }
   }
 
   // ---------------- Confetti (used by Daily Challenge, streak badges, level-ups) ----------------
@@ -1097,7 +1087,7 @@
     if (stats.lastActiveDate === yesterday && stats.streak > 0) {
       banner.textContent = `🔥 Keep your ${stats.streak}-day streak alive — ask a question today!`;
     } else {
-      banner.textContent = `👋 Welcome back! Ask a question today to start a new streak.`;
+      banner.textContent = `👋 Welcome back what's on your mind! Ask a question today to start a new streak.`;
     }
     banner.style.display = 'block';
   }

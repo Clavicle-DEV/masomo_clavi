@@ -605,6 +605,16 @@ class PaymentLog(db.Model):
     approved_at = db.Column(db.DateTime, nullable=True)
 
 
+class DailyFact(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    fact_date = db.Column(db.String(10), unique=True, nullable=False)
+    page_title = db.Column(db.String(500), unique=True, nullable=False)
+    fact_text = db.Column(db.Text, nullable=False)
+    fact_hash = db.Column(db.String(64), unique=True, nullable=False)
+    source_url = db.Column(db.String(2048), unique=True, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
+
+
 class UserStats(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
     total = db.Column(db.Integer, default=0)
@@ -3902,6 +3912,111 @@ def api_daily_challenge_answer():
         "streak": current_user.daily_challenge_streak or 0,
         "bestStreak": current_user.daily_challenge_best_streak or 0,
     })
+
+
+@app.route('/api/daily-fact')
+@login_required
+def api_daily_fact():
+    today = datetime.now().date().isoformat()
+    existing = DailyFact.query.filter_by(fact_date=today).first()
+    if existing:
+        return jsonify({
+            "fact": existing.fact_text,
+            "title": existing.page_title,
+            "sourceUrl": existing.source_url,
+            "source": "Wikipedia",
+            "date": existing.fact_date,
+        })
+
+    api_url = "https://en.wikipedia.org/w/api.php"
+    params = {
+        "action": "query",
+        "format": "json",
+        "generator": "random",
+        "grnnamespace": 0,
+        "grnlimit": 10,
+        "prop": "extracts|info",
+        "exintro": 1,
+        "explaintext": 1,
+        "inprop": "url",
+    }
+
+    for _attempt in range(6):
+        try:
+            response = requests.get(
+                api_url,
+                params=params,
+                headers={"User-Agent": "ClavisLearningApp/1.0 (daily educational fact)"},
+                timeout=(3, 8),
+            )
+            response.raise_for_status()
+            payload = response.json()
+            query_data = payload.get("query", {}) if isinstance(payload, dict) else {}
+            pages = query_data.get("pages", {}) if isinstance(query_data, dict) else {}
+            if not isinstance(pages, dict):
+                pages = {}
+        except (requests.RequestException, ValueError) as error:
+            app.logger.error("Daily fact source request failed: %s", error)
+            return jsonify({"error": "The daily fact is temporarily unavailable. Please try again shortly."}), 503
+
+        candidates = sorted(
+            (page for page in pages.values() if isinstance(page, dict)),
+            key=lambda page: page.get("pageid", 0),
+        )
+        for page in candidates:
+            title = (page.get("title") or "").strip()
+            fact_text = re.sub(r'\s+', ' ', (page.get("extract") or "")).strip()
+            source_url = (page.get("fullurl") or "").strip()
+            if not title or not fact_text or not source_url or len(fact_text) < 80:
+                continue
+            if re.search(r'\b(?:may|can) refer to\b|\bdisambiguation page\b', fact_text, re.IGNORECASE):
+                continue
+            if len(fact_text) > 700:
+                sentence_end = re.search(r'[.!?](?:\s|$)', fact_text[450:700])
+                fact_text = fact_text[:450 + sentence_end.end()].strip() if sentence_end else fact_text[:500].rsplit(' ', 1)[0].rstrip(' ,;:') + '…'
+            fact_hash = hashlib.sha256(fact_text.casefold().encode('utf-8')).hexdigest()
+            previously_used = DailyFact.query.filter(
+                or_(
+                    func.lower(DailyFact.page_title) == title.lower(),
+                    DailyFact.source_url == source_url,
+                    DailyFact.fact_hash == fact_hash,
+                )
+            ).first()
+            if previously_used:
+                continue
+
+            daily_fact = DailyFact(
+                fact_date=today,
+                page_title=title,
+                fact_text=fact_text,
+                fact_hash=fact_hash,
+                source_url=source_url,
+            )
+            db.session.add(daily_fact)
+            try:
+                db.session.commit()
+            except IntegrityError:
+                db.session.rollback()
+                existing = DailyFact.query.filter_by(fact_date=today).first()
+                if existing:
+                    return jsonify({
+                        "fact": existing.fact_text,
+                        "title": existing.page_title,
+                        "sourceUrl": existing.source_url,
+                        "source": "Wikipedia",
+                        "date": existing.fact_date,
+                    })
+                continue
+            return jsonify({
+                "fact": daily_fact.fact_text,
+                "title": daily_fact.page_title,
+                "sourceUrl": daily_fact.source_url,
+                "source": "Wikipedia",
+                "date": daily_fact.fact_date,
+            })
+
+    app.logger.warning("Could not find an unused worldwide daily fact after 6 attempts.")
+    return jsonify({"error": "A new daily fact could not be found right now. Please try again shortly."}), 503
 
 
 MAX_PROFILE_PHOTO_BYTES = 3 * 1024 * 1024

@@ -535,7 +535,7 @@ class CurriculumLevelTests(unittest.TestCase):
         Image.new("RGB", (24, 18), color=(34, 90, 55)).save(photo_buffer, format="JPEG")
         pdf = render_certificate_pdf(SimpleNamespace(
             certificate_number="CLV-2026-AB12CD34",
-            learner_name="Amina Njeri",
+            learner_name="Zayn Malik",
             course_level="Year 5 — Computer Science",
             reviewed_at=datetime(2026, 10, 21),
             photo_data=photo_buffer.getvalue(),
@@ -561,6 +561,7 @@ class CurriculumLevelTests(unittest.TestCase):
             self.assertEqual(client.get("/api/profile/avatar").status_code, 302)
             self.assertEqual(client.post("/api/profile/avatar").status_code, 302)
             self.assertEqual(client.delete("/api/profile/avatar").status_code, 302)
+            self.assertEqual(client.get("/api/daily-fact").status_code, 302)
             self.assertEqual(client.get("/api/schools").status_code, 302)
             self.assertEqual(client.post("/api/schools").status_code, 302)
             self.assertEqual(client.post("/api/schools/1/join").status_code, 302)
