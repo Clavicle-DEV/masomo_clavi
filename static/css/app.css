@@ -2206,3 +2206,17 @@ body{
     text-underline-offset:2px;
   }
   .daily-spark-source[hidden] { display:none; }
+  .daily-spark-quote {
+    margin-top:10px;
+    padding:10px 12px;
+    border-left:3px solid var(--gold);
+    border-radius:0 10px 10px 0;
+    background:rgba(198,146,42,.08);
+    color:var(--ink);
+    font-family:'Fraunces',serif;
+    font-size:14px;
+    font-style:italic;
+    line-height:1.5;
+  }
+  .daily-spark-quote[hidden] { display:none; }
+  .daily-spark-quote .daily-spark-source { font-family:'Inter',sans-serif; font-style:normal; }

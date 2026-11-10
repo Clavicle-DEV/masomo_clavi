@@ -20,6 +20,7 @@ from app import (
     default_study_schedule,
     describe_level,
     elementary_stage_for_grade,
+    extract_wikiquote_quote,
     has_unlimited_access,
     has_completed_highest_course,
     normalize_certificate_photo,
@@ -42,6 +43,27 @@ from app import (
 
 
 class CurriculumLevelTests(unittest.TestCase):
+    def test_extract_wikiquote_quote_reads_quote_and_skips_disputed_attribution(self):
+        extract = """Biography.
+
+Quotes
+
+Opening quote that has a disputed attribution and should not be used.
+The quotation is sometimes considered misattributed.
+
+Book I
+The impediment to action advances action. What stands in the way becomes the way.
+Meditations, Book 5
+"""
+
+        self.assertEqual(
+            extract_wikiquote_quote(extract),
+            "The impediment to action advances action. What stands in the way becomes the way.",
+        )
+
+    def test_extract_wikiquote_quote_returns_none_without_quotes_section(self):
+        self.assertIsNone(extract_wikiquote_quote("A short biography with no quotations."))
+
     def test_password_requires_eight_characters_a_letter_and_a_number(self):
         self.assertEqual(
             password_validation_error("abc123"),

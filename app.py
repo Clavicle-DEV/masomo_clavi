@@ -178,6 +178,8 @@ def get_admin_emails():
 # Co-admins get free unlimited access and can approve/reject M-Pesa requests,
 # but they don't get to see total-user counts or revenue figures — those stay
 # on the analytics/users pages, which are gated to full admins only.
+#Co-admins have a roll of P.A they should find problems before they gain roots and find solutions to solve them.
+
 CO_ADMIN_EMAILS = {
     'silasclavicle@gmail.com',
     'kaybrighton7@gmail.com',
@@ -612,6 +614,20 @@ class DailyFact(db.Model):
     fact_text = db.Column(db.Text, nullable=False)
     fact_hash = db.Column(db.String(64), unique=True, nullable=False)
     source_url = db.Column(db.String(2048), unique=True, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
+
+
+class CampusDailyFact(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    fact_date = db.Column(db.String(10), unique=True, nullable=False)
+    person_name = db.Column(db.String(500), unique=True, nullable=False)
+    category = db.Column(db.String(80), nullable=False)
+    fact_text = db.Column(db.Text, nullable=False)
+    fact_hash = db.Column(db.String(64), unique=True, nullable=False)
+    source_url = db.Column(db.String(2048), unique=True, nullable=False)
+    quote_text = db.Column(db.String(500), nullable=False)
+    quote_hash = db.Column(db.String(64), unique=True, nullable=False)
+    quote_source_url = db.Column(db.String(2048), unique=True, nullable=False)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
 
 
@@ -3914,10 +3930,254 @@ def api_daily_challenge_answer():
     })
 
 
+DAILY_FACT_CATEGORIES = {
+    'physician': {
+        'search': '"was a physician"',
+        'pattern': r'\b(?:physician|doctor|surgeon|medical researcher|medical scientist)\b',
+        'offset': 500,
+    },
+    'engineer': {
+        'search': '"was an engineer"',
+        'pattern': r'\bengineer(?:s|ing)?\b',
+        'offset': 500,
+    },
+    'historian': {
+        'search': '"was a historian"',
+        'pattern': r'\bhistorian\b',
+        'offset': 500,
+    },
+    'Stoic thinker': {
+        'search': 'incategory:"Stoic philosophers"',
+        'pattern': r'\b(?:stoic|philosopher|emperor)\b',
+        'offset': 40,
+    },
+    'philosopher': {
+        'search': '"was a philosopher"',
+        'pattern': r'\bphilosopher\b',
+        'offset': 500,
+    },
+    'scientist and visionary': {
+        'search': '"was a scientist" inventor',
+        'pattern': r'\b(?:scientist|inventor|visionary|physicist|mathematician)\b',
+        'offset': 500,
+    },
+    'inventor': {
+        'search': '"was an inventor"',
+        'pattern': r'\b(?:inventor|engineer|scientist)\b',
+        'offset': 500,
+    },
+}
+
+
+def extract_wikiquote_quote(extract):
+    """Return a short English quote from the article's sourced Quotes section."""
+    sections = re.split(r'\n\s*Quotes\s*\n', extract or '', maxsplit=1, flags=re.IGNORECASE)
+    if len(sections) != 2:
+        return None
+
+    lines = [re.sub(r'\s+', ' ', line).strip() for line in sections[1].splitlines()]
+    for index, line in enumerate(lines):
+        if not 35 <= len(line) <= 240 or line.startswith(('(', '[', 'http')):
+            continue
+        if not re.search(r'[.!?]$', line) or re.fullmatch(r'[\dIVXLCDM][\dIVXLCDM,.\-\s]*', line):
+            continue
+        if sum(character.isascii() for character in line) / len(line) < 0.85:
+            continue
+        context = ' '.join(lines[index:index + 3]).casefold()
+        if any(term in context for term in (
+            'misattributed', 'disputed attribution', 'unverified', 'apocryphal',
+            'the quotation', 'another translation', 'repeated throughout',
+        )):
+            continue
+        return line.strip('“”" ')
+    return None
+
+
+def campus_daily_fact_payload(fact):
+    return {
+        'fact': fact.fact_text,
+        'title': fact.person_name,
+        'sourceUrl': fact.source_url,
+        'source': 'Wikipedia',
+        'category': fact.category,
+        'quote': fact.quote_text,
+        'quoteSourceUrl': fact.quote_source_url,
+        'quoteSource': 'Wikiquote',
+        'date': fact.fact_date,
+    }
+
+
+def get_campus_daily_fact(today):
+    existing = CampusDailyFact.query.filter_by(fact_date=today).first()
+    if existing:
+        return jsonify(campus_daily_fact_payload(existing))
+
+    wikipedia_api = 'https://en.wikipedia.org/w/api.php'
+    wikiquote_api = 'https://en.wikiquote.org/w/api.php'
+    headers = {'User-Agent': 'ClavisLearningApp/1.0 (educational daily facts)'}
+
+    for _ in range(6):
+        category, config = secrets.choice(list(DAILY_FACT_CATEGORIES.items()))
+        try:
+            search_response = requests.get(
+                wikipedia_api,
+                params={
+                    'action': 'query',
+                    'format': 'json',
+                    'list': 'search',
+                    'srnamespace': 0,
+                    'srlimit': 20,
+                    'sroffset': secrets.randbelow(config['offset'] + 1),
+                    'srsearch': config['search'],
+                },
+                headers=headers,
+                timeout=(3, 8),
+            )
+            search_response.raise_for_status()
+            search_data = search_response.json()
+            search_results = search_data.get('query', {}).get('search', []) if isinstance(search_data, dict) else []
+            candidate_ids = [
+                str(item.get('pageid'))
+                for item in search_results
+                if isinstance(item, dict)
+                and item.get('pageid')
+                and item.get('size', 0) >= 5000
+                and item.get('wordcount', 0) >= 500
+            ]
+            if not candidate_ids:
+                continue
+
+            bio_response = requests.get(
+                wikipedia_api,
+                params={
+                    'action': 'query',
+                    'format': 'json',
+                    'pageids': '|'.join(candidate_ids),
+                    'prop': 'extracts|info',
+                    'exintro': 1,
+                    'explaintext': 1,
+                    'inprop': 'url',
+                    'redirects': 1,
+                },
+                headers=headers,
+                timeout=(3, 8),
+            )
+            bio_response.raise_for_status()
+            bio_data = bio_response.json()
+            bio_pages = bio_data.get('query', {}).get('pages', {}) if isinstance(bio_data, dict) else {}
+            if not isinstance(bio_pages, dict):
+                continue
+        except (requests.RequestException, ValueError, AttributeError) as error:
+            app.logger.error('Campus daily fact source request failed: %s', error)
+            return jsonify({'error': 'Today’s Campus fact is temporarily unavailable. Please try again shortly.'}), 503
+
+        pages = [page for page in bio_pages.values() if isinstance(page, dict)]
+        secrets.SystemRandom().shuffle(pages)
+        quote_attempts = 0
+        for page in pages:
+            title = (page.get('title') or '').strip()
+            bio = re.sub(r'\s+', ' ', (page.get('extract') or '')).strip()
+            source_url = (page.get('fullurl') or '').strip()
+            if (
+                not title or not source_url or len(bio) < 80
+                or re.search(r'\b(?:may|can) refer to\b|\bdisambiguation page\b', bio, re.IGNORECASE)
+                or not re.search(config['pattern'], bio[:500], re.IGNORECASE)
+                or re.search(r'\blist of\b', title, re.IGNORECASE)
+            ):
+                continue
+
+            used_person = CampusDailyFact.query.filter(
+                or_(
+                    func.lower(CampusDailyFact.person_name) == title.lower(),
+                    CampusDailyFact.source_url == source_url,
+                )
+            ).first()
+            if used_person:
+                continue
+            if quote_attempts >= 2:
+                break
+
+            quote_attempts += 1
+            try:
+                quote_response = requests.get(
+                    wikiquote_api,
+                    params={
+                        'action': 'query',
+                        'format': 'json',
+                        'titles': title,
+                        'prop': 'extracts|info',
+                        'explaintext': 1,
+                        'exsectionformat': 'plain',
+                        'inprop': 'url',
+                    },
+                    headers=headers,
+                    timeout=(3, 8),
+                )
+                quote_response.raise_for_status()
+                quote_data = quote_response.json()
+                quote_pages = quote_data.get('query', {}).get('pages', {}) if isinstance(quote_data, dict) else {}
+                quote_page = next(
+                    (item for item in quote_pages.values() if isinstance(item, dict) and 'missing' not in item),
+                    None,
+                )
+            except (requests.RequestException, ValueError, AttributeError) as error:
+                app.logger.warning('Could not fetch a Wikiquote entry for %s: %s', title, error)
+                continue
+            if not quote_page:
+                continue
+            quote_text = extract_wikiquote_quote(quote_page.get('extract', ''))
+            quote_source_url = (quote_page.get('fullurl') or '').strip()
+            if not quote_text or not quote_source_url:
+                continue
+
+            bio = bio.split('\n', 1)[0].strip()
+            if len(bio) > 700:
+                sentence_end = re.search(r'[.!?](?:\s|$)', bio[450:700])
+                bio = bio[:450 + sentence_end.end()].strip() if sentence_end else bio[:500].rsplit(' ', 1)[0].rstrip(' ,;:') + '…'
+            fact_hash = hashlib.sha256(bio.casefold().encode('utf-8')).hexdigest()
+            quote_hash = hashlib.sha256(quote_text.casefold().encode('utf-8')).hexdigest()
+            used_text = CampusDailyFact.query.filter(
+                or_(
+                    CampusDailyFact.fact_hash == fact_hash,
+                    CampusDailyFact.quote_hash == quote_hash,
+                )
+            ).first()
+            if used_text:
+                continue
+
+            daily_fact = CampusDailyFact(
+                fact_date=today,
+                person_name=title,
+                category=category,
+                fact_text=bio,
+                fact_hash=fact_hash,
+                source_url=source_url,
+                quote_text=quote_text,
+                quote_hash=quote_hash,
+                quote_source_url=quote_source_url,
+            )
+            db.session.add(daily_fact)
+            try:
+                db.session.commit()
+            except IntegrityError:
+                db.session.rollback()
+                existing = CampusDailyFact.query.filter_by(fact_date=today).first()
+                if existing:
+                    return jsonify(campus_daily_fact_payload(existing))
+                continue
+            return jsonify(campus_daily_fact_payload(daily_fact))
+
+    app.logger.warning('Could not find an unused Campus biography and quote after 6 attempts.')
+    return jsonify({'error': 'A new Campus fact and quote could not be found right now. Please try again shortly.'}), 503
+
+
 @app.route('/api/daily-fact')
 @login_required
 def api_daily_fact():
     today = datetime.now().date().isoformat()
+    if current_user.student_track == 'campus':
+        return get_campus_daily_fact(today)
+
     existing = DailyFact.query.filter_by(fact_date=today).first()
     if existing:
         return jsonify({

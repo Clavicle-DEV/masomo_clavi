@@ -846,7 +846,16 @@
     const el = document.getElementById('dailySparkCard');
     const textEl = document.getElementById('dailySparkText');
     const sourceLink = document.getElementById('dailySparkSource');
-    if (!el || !textEl || !sourceLink) return;
+    const heading = document.getElementById('dailySparkHeading');
+    const quoteWrap = document.getElementById('dailySparkQuote');
+    const quoteText = document.getElementById('dailySparkQuoteText');
+    const quoteSource = document.getElementById('dailySparkQuoteSource');
+    if (!el || !textEl || !sourceLink || !heading || !quoteWrap || !quoteText || !quoteSource) return;
+    const isCampus = ACCOUNT_TRACK === 'campus';
+    heading.textContent = isCampus
+      ? 'Campus: great minds, ideas & quotes — '
+      : 'A fresh fact from around the world ';
+    quoteWrap.hidden = true;
     el.style.display = 'flex';
     try {
       const response = await fetch('/api/daily-fact');
@@ -854,8 +863,16 @@
       if (!response.ok) throw new Error(result.error || 'Today’s fact is unavailable right now.');
       textEl.textContent = result.fact;
       sourceLink.href = result.sourceUrl;
-      sourceLink.textContent = `Read “${result.title}” on ${result.source}`;
+      sourceLink.textContent = isCampus
+        ? `Read ${result.category} ${result.title} biography`
+        : `Read “${result.title}” on ${result.source}`;
       sourceLink.hidden = false;
+      if (isCampus && result.quote && result.quoteSourceUrl) {
+        quoteText.textContent = `“${result.quote}”`;
+        quoteSource.href = result.quoteSourceUrl;
+        quoteSource.textContent = `Quote source: ${result.quoteSource}`;
+        quoteWrap.hidden = false;
+      }
     } catch (error) {
       textEl.textContent = error.message && error.message !== 'Failed to fetch'
         ? error.message
