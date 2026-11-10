@@ -80,7 +80,7 @@
           <small>Pick only the subjects I want to study.</small>
         </label>
       </div>
-      <div class="subject-grid" id="timetableSubjectChoices">
+      <div class="subject-grid" id="timetableSubjectChoices" data-subjects="{{ subjects|tojson|forceescape }}">
         {% for subject in subjects %}
           <label class="subject">
             <input type="checkbox" name="timetable_subjects" value="{{ subject }}" {% if subject in timetable_subjects %}checked{% endif %}>
@@ -105,7 +105,7 @@
     const modeRadios = [...document.querySelectorAll('input[name="timetable_mode"]')];
     const hoursSelect = document.getElementById('daily_hours');
     const preview = document.getElementById('studyPlanPreview');
-    const allSubjects = {{ subjects|tojson }};
+    const allSubjects = JSON.parse(subjectChoices.dataset.subjects);
 
     function updateStudyPlanPreview() {
       const mode = modeRadios.find(radio => radio.checked)?.value || 'all';
