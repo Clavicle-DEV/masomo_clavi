@@ -4369,6 +4369,7 @@ def api_leaderboard():
     if period == 'inviters':
         # A completely different metric — how many friends you've referred —
         # not tied to UserStats at all.
+        #You earn rewards for every friend you referS
         referral_counts = dict(
             db.session.query(User.referred_by_id, db.func.count(User.id))
             .filter(User.referred_by_id != None)
