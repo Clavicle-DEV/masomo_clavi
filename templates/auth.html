@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Clavis — {{ 'Sign Up' if mode == 'signup' else ('Reset Password' if mode in ('forgot', 'reset') else 'Log In') }}</title>
+<title>Clavis — {{ 'Sign Up' if mode == 'signup' else ('Application Received' if mode == 'school_submitted' else ('Reset Password' if mode in ('forgot', 'reset') else 'Log In')) }}</title>
 <link rel="icon" href="/static/favicon.ico">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -500,6 +500,10 @@
           signupForm.querySelectorAll('input[name="account_type"]').forEach(function (input) {
             input.addEventListener('change', updateRegistrationType);
           });
+          if (new URLSearchParams(window.location.search).get('kind') === 'school') {
+            var schoolRadio = signupForm.querySelector('input[name="account_type"][value="school"]');
+            if (schoolRadio) schoolRadio.checked = true;
+          }
           updateRegistrationType();
         } catch (e) {}
       </script>
@@ -524,6 +528,11 @@
         <button type="submit" class="submit-btn">Log In Safely</button>
       </form>
       <div class="switch-text">New to Clavis? <a href="/signup">Create an account</a></div>
+
+    {% elif mode == 'school_submitted' %}
+      <h2>Application received</h2>
+      <p class="sub">Thank you! Check your email to verify your address. The Clavis team will review your school, and you can log in once it is approved.</p>
+      <div class="switch-text"><a href="/">Back to home</a> &middot; <a href="/login">Log in</a></div>
 
     {% elif mode == 'forgot' %}
       <h2>Reset your password</h2>
