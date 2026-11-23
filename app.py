@@ -2132,6 +2132,48 @@ def admin_users():
         new_count=new_count,
     )
 
+@app.route('/api/support', methods=['POST'])
+@limiter.limit("10 per minute; 40 per hour")
+def api_support():
+    data = request.get_json(silent=True) or {}
+    message = (data.get('message') or '').strip()
+    history = data.get('messages', [])
+
+    if not message:
+        return jsonify({"error": "Please enter a question."}), 400
+    if len(message) > 800:
+        return jsonify({"error": "Please keep your question under 800 characters."}), 400
+    if not isinstance(history, list):
+        return jsonify({"error": "Invalid conversation history."}), 400
+
+    system_prompt = (
+        "You are the Clavis support assistant for the website and learning platform. "
+        "Answer only about Clavis, Kenyan CBC learning, account signup/login, schools, subscriptions, "
+        "M-Pesa, AI tutoring, exams, discussions, and certificates. Be warm, concise, and practical. "
+        "Use correct Kenyan terminology. Never claim to have viewed an account or payment status. "
+        "For account-specific, payment, or technical problems, advise the user to sign in or retry once, "
+        "and say that the Clavis team can verify or fix it. Do not invent prices, deadlines, policies, "
+        "school data, or support contacts. If the question is unrelated to Clavis, politely redirect it."
+    )
+    groq_messages = [{"role": "system", "content": system_prompt}]
+    for item in history[-8:]:
+        if not isinstance(item, dict):
+            continue
+        role = 'assistant' if item.get('role') == 'assistant' else 'user'
+        content = (item.get('content') or '').strip()[:MAX_MESSAGE_LENGTH]
+        if content:
+            groq_messages.append({"role": role, "content": content})
+    groq_messages.append({"role": "user", "content": message})
+
+    try:
+        answer = call_groq(groq_messages, max_tokens=500)
+    except RuntimeError as exc:
+        app.logger.error("Support bot request failed: %s", exc)
+        return jsonify({"error": "The support assistant is unavailable right now. Please try again shortly."}), 502
+
+    return jsonify({"answer": answer})
+
+
 @app.route('/api/tutor', methods=['POST'])
 @login_required
 @limiter.limit("15 per minute; 100 per hour", exempt_when=is_unlimited_rate_limit_user)

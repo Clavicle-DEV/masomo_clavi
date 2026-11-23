@@ -259,6 +259,29 @@
     .footer-links a { text-decoration: none; font-weight: 600; transition: color .2s; }
     .footer-links a:hover { color: var(--gold-soft); }
 
+    /* ---------- Support bot ---------- */
+    .support-launcher { position: fixed; z-index: 1000; right: 22px; bottom: 22px; width: 58px; height: 58px; display: grid; place-items: center; border: 0; border-radius: 50%; color: #fff; background: var(--forest-700); box-shadow: 0 14px 32px rgba(15,35,24,.32); cursor: pointer; transition: transform .2s ease, background .2s ease; }
+    .support-launcher:hover { transform: translateY(-3px); background: var(--forest-600); }
+    .support-launcher:focus-visible, .support-close:focus-visible, .support-send:focus-visible, .support-input:focus-visible { outline: 3px solid rgba(201,150,47,.45); outline-offset: 2px; }
+    .support-panel { position: fixed; z-index: 1001; right: 22px; bottom: 92px; width: min(380px, calc(100vw - 32px)); height: min(520px, calc(100vh - 120px)); display: grid; grid-template-rows: auto 1fr auto; overflow: hidden; border: 1px solid var(--line); border-radius: 18px; background: var(--paper); box-shadow: 0 24px 70px rgba(15,35,24,.28); opacity: 0; transform: translateY(12px) scale(.98); pointer-events: none; transition: opacity .18s ease, transform .18s ease; }
+    .support-panel.open { opacity: 1; transform: none; pointer-events: auto; }
+    .support-head { display: flex; align-items: center; justify-content: space-between; padding: 15px 16px; color: #fff; background: var(--forest-800); }
+    .support-title { display: flex; align-items: center; gap: 10px; }
+    .support-avatar { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; color: var(--forest-900); background: var(--gold-soft); font: 700 16px var(--serif); }
+    .support-title b { display: block; font-size: 14px; }
+    .support-title small { display: block; color: #bed0c1; font-size: 11px; }
+    .support-close { width: 36px; height: 36px; border: 0; border-radius: 50%; color: #fff; background: transparent; font-size: 22px; cursor: pointer; }
+    .support-messages { overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 16px; background: #fbfaf5; }
+    .support-message { max-width: 86%; padding: 10px 12px; border-radius: 14px; font-size: 13.5px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+    .support-message.bot { align-self: flex-start; color: var(--ink); background: #ecefdf; border-bottom-left-radius: 5px; }
+    .support-message.user { align-self: flex-end; color: #fff; background: var(--forest-600); border-bottom-right-radius: 5px; }
+    .support-message.loading { color: var(--muted); }
+    .support-form { display: grid; grid-template-columns: 1fr 42px; gap: 8px; padding: 10px; border-top: 1px solid var(--line); background: var(--paper); }
+    .support-input { width: 100%; min-width: 0; height: 42px; padding: 0 12px; border: 1px solid var(--line); border-radius: 10px; color: var(--ink); background: #fff; font: 600 13.5px var(--sans); }
+    .support-send { width: 42px; height: 42px; border: 0; border-radius: 10px; color: #fff; background: var(--gold); cursor: pointer; }
+    .support-send:disabled { opacity: .55; cursor: wait; }
+    @media (max-width: 640px) { .support-launcher { right: 14px; bottom: 14px; } .support-panel { right: 16px; bottom: 82px; } }
+
     /* ---------- Reveal ---------- */
     .js .reveal { opacity: 0; transform: translateY(28px); transition: opacity .8s cubic-bezier(.2,.7,.2,1) var(--d, 0s), transform .8s cubic-bezier(.2,.7,.2,1) var(--d, 0s); }
     .js .reveal.in { opacity: 1; transform: none; }
@@ -578,6 +601,27 @@
   </footer>
 </div>
 
+<div class="support-panel" id="supportPanel" role="dialog" aria-modal="false" aria-labelledby="supportTitle" aria-hidden="true">
+  <div class="support-head">
+    <div class="support-title">
+      <span class="support-avatar" aria-hidden="true">C</span>
+      <div><b id="supportTitle">Clavis Support</b><small>Usually replies instantly</small></div>
+    </div>
+    <button class="support-close" id="supportClose" type="button" aria-label="Close support chat">×</button>
+  </div>
+  <div class="support-messages" id="supportMessages" aria-live="polite">
+    <div class="support-message bot">Hi! I can help with signing up, schools, subscriptions, M-Pesa, exams, and using Clavis. What can I help with?</div>
+  </div>
+  <form class="support-form" id="supportForm">
+    <label for="supportInput" hidden>Ask Clavis Support</label>
+    <input class="support-input" id="supportInput" name="message" maxlength="800" autocomplete="off" placeholder="Ask a question...">
+    <button class="support-send" id="supportSend" type="submit" aria-label="Send message">→</button>
+  </form>
+</div>
+<button class="support-launcher" id="supportLauncher" type="button" aria-label="Open Clavis support chat" aria-expanded="false" aria-controls="supportPanel">
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/><path d="M8.5 12h.01M12 12h.01M15.5 12h.01"/></svg>
+</button>
+
 <script>
   (function () {
     var els = document.querySelectorAll('.reveal');
@@ -591,6 +635,71 @@
       });
     }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
     els.forEach(function (el) { io.observe(el); });
+  })();
+
+  (function () {
+    var panel = document.getElementById('supportPanel');
+    var launcher = document.getElementById('supportLauncher');
+    var closeButton = document.getElementById('supportClose');
+    var form = document.getElementById('supportForm');
+    var input = document.getElementById('supportInput');
+    var sendButton = document.getElementById('supportSend');
+    var messages = document.getElementById('supportMessages');
+    var history = [];
+
+    function setOpen(open) {
+      panel.classList.toggle('open', open);
+      panel.setAttribute('aria-hidden', open ? 'false' : 'true');
+      launcher.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (open) input.focus();
+    }
+
+    function addMessage(role, text) {
+      var item = document.createElement('div');
+      item.className = 'support-message ' + (role === 'user' ? 'user' : 'bot');
+      item.textContent = text;
+      messages.appendChild(item);
+      messages.scrollTop = messages.scrollHeight;
+      return item;
+    }
+
+    launcher.addEventListener('click', function () { setOpen(!panel.classList.contains('open')); });
+    closeButton.addEventListener('click', function () { setOpen(false); launcher.focus(); });
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape' && panel.classList.contains('open')) setOpen(false);
+    });
+
+    form.addEventListener('submit', async function (event) {
+      event.preventDefault();
+      var message = input.value.trim();
+      if (!message || sendButton.disabled) return;
+
+      addMessage('user', message);
+      history.push({ role: 'user', content: message });
+      input.value = '';
+      sendButton.disabled = true;
+      var loading = addMessage('bot', 'Thinking...');
+      loading.classList.add('loading');
+
+      try {
+        var response = await fetch('{{ url_for("api_support") }}', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: message, messages: history.slice(-8) })
+        });
+        var data = await response.json();
+        loading.remove();
+        if (!response.ok) throw new Error(data.error || 'Please try again.');
+        addMessage('assistant', data.answer);
+        history.push({ role: 'assistant', content: data.answer });
+      } catch (error) {
+        loading.remove();
+        addMessage('bot', error.message || 'The support assistant is unavailable right now. Please try again shortly.');
+      } finally {
+        sendButton.disabled = false;
+        input.focus();
+      }
+    });
   })();
 </script>
 </body>
