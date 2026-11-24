@@ -14,7 +14,7 @@
   .cvs-launcher:hover { transform: translateY(-3px); background: var(--cvs-forest-600); }
   .cvs-launcher.has-unread::after { content: ""; position: absolute; top: 4px; right: 4px; width: 14px; height: 14px; border-radius: 50%; background: var(--cvs-gold); border: 2px solid var(--cvs-paper); }
   .cvs-launcher:focus-visible, .cvs-close:focus-visible, .cvs-send:focus-visible, .cvs-input:focus-visible, .cvs-agent-btn:focus-visible { outline: 3px solid rgba(201,150,47,.55); outline-offset: 2px; }
-  .cvs-panel { position: fixed; z-index: 1001; right: 22px; bottom: 92px; width: min(380px, calc(100vw - 32px)); height: min(540px, calc(100vh - 120px)); display: grid; grid-template-rows: auto 1fr auto auto; overflow: hidden; border: 1px solid var(--cvs-line); border-radius: 18px; background: var(--cvs-paper); color: var(--cvs-ink); box-shadow: 0 24px 70px rgba(15,35,24,.28); opacity: 0; transform: translateY(12px) scale(.98); pointer-events: none; visibility: hidden; transition: opacity .18s ease, transform .18s ease, visibility 0s .18s; }
+  .cvs-panel { position: fixed; z-index: 1001; right: 22px; bottom: 92px; width: min(380px, calc(100vw - 32px)); height: min(540px, calc(100vh - 120px)); display: grid; grid-template-rows: auto 1fr auto; overflow: hidden; border: 1px solid var(--cvs-line); border-radius: 18px; background: var(--cvs-paper); color: var(--cvs-ink); box-shadow: 0 24px 70px rgba(15,35,24,.28); opacity: 0; transform: translateY(12px) scale(.98); pointer-events: none; visibility: hidden; transition: opacity .18s ease, transform .18s ease, visibility 0s .18s; }
   .cvs-panel.open { opacity: 1; transform: none; pointer-events: auto; visibility: visible; transition: opacity .18s ease, transform .18s ease; }
   .cvs-panel *, .cvs-panel *::before, .cvs-panel *::after { box-sizing: border-box; }
   .cvs-head { display: flex; align-items: center; justify-content: space-between; padding: 15px 16px; color: #fff; background: var(--cvs-forest-800); }
@@ -32,10 +32,9 @@
   .cvs-loading { color: var(--cvs-muted); }
   .cvs-note { align-self: center; max-width: 100%; padding: 2px 6px; color: var(--cvs-muted); font-size: 12px; line-height: 1.4; text-align: center; }
   .cvs-note a { color: var(--cvs-forest-600); font-weight: 700; }
-  .cvs-agentbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; border-top: 1px solid var(--cvs-line); background: var(--cvs-paper); font-size: 12px; color: var(--cvs-muted); }
-  .cvs-agentbar[hidden] { display: none; }
-  .cvs-agent-btn { flex: none; min-height: 34px; padding: 0 12px; border: 1.5px solid var(--cvs-forest-600); border-radius: 999px; color: var(--cvs-forest-700); background: transparent; font: 700 12px var(--cvs-font); cursor: pointer; }
-  .cvs-agent-btn:hover { background: #ecefdf; }
+  .cvs-offer { align-self: flex-start; }
+  .cvs-agent-btn { min-height: 38px; padding: 0 16px; border: 0; border-radius: 999px; color: #fff; background: var(--cvs-forest-700); font: 700 13px var(--cvs-font); cursor: pointer; }
+  .cvs-agent-btn:hover { background: var(--cvs-forest-600); }
   .cvs-agent-btn:disabled { opacity: .55; cursor: wait; }
   .cvs-form { display: grid; grid-template-columns: 1fr 42px; gap: 8px; padding: 10px; border-top: 1px solid var(--cvs-line); background: var(--cvs-paper); }
   .cvs-input { width: 100%; min-width: 0; height: 42px; padding: 0 12px; border: 1px solid var(--cvs-line); border-radius: 10px; color: var(--cvs-ink); background: #fff; font: 600 13.5px var(--cvs-font); }
@@ -61,10 +60,6 @@
   <div class="cvs-log" id="cvsLog" aria-live="polite">
     <div class="cvs-msg cvs-bot">Hi! I can help with signing up, schools, subscriptions, M-Pesa, exams, and using Clavis. What can I help with?</div>
   </div>
-  <div class="cvs-agentbar" id="cvsAgentBar">
-    <span>Need a person?</span>
-    <button class="cvs-agent-btn" id="cvsAgentBtn" type="button">Talk to an agent</button>
-  </div>
   <form class="cvs-form" id="cvsForm">
     <label for="cvsInput" hidden>Message Clavis Support</label>
     <input class="cvs-input" id="cvsInput" name="message" maxlength="800" autocomplete="off" placeholder="Ask a question...">
@@ -85,8 +80,6 @@
     var form = document.getElementById('cvsForm');
     var input = document.getElementById('cvsInput');
     var sendBtn = document.getElementById('cvsSend');
-    var agentBar = document.getElementById('cvsAgentBar');
-    var agentBtn = document.getElementById('cvsAgentBtn');
     var subtitle = document.getElementById('cvsSubtitle');
 
     var authed = panel.dataset.auth === '1';
@@ -179,7 +172,6 @@
     function setMode(next) {
       mode = next;
       var agent = next === 'agent';
-      agentBar.hidden = agent;
       subtitle.textContent = agent ? 'Chatting with the Clavis team' : 'Usually replies instantly';
       input.placeholder = agent ? 'Message the team...' : 'Ask a question...';
       if (agent && isOpen()) startPolling(); else stopPolling();
@@ -188,7 +180,7 @@
     function endAgentChat() {
       convId = null; seen = {}; lastId = 0;
       writeFlag(false);
-      note('This conversation was closed. You can ask the assistant again, or talk to an agent.');
+      note('This conversation was closed. You can ask the assistant again.');
       setMode('bot');
     }
 
@@ -266,8 +258,30 @@
       if (e.key === 'Escape' && isOpen()) { setOpen(false); launcher.focus(); }
     });
 
-    /* ---- talk to an agent ---- */
-    agentBtn.addEventListener('click', function () {
+    /* ---- talk to an agent ----
+       The button is not always on screen. It appears only when the assistant says
+       it can't help (or the person asked for a human), and only one is ever shown. */
+    function removeOffer() {
+      var old = log.querySelectorAll('.cvs-offer');
+      for (var i = 0; i < old.length; i++) old[i].remove();
+    }
+
+    function offerAgent() {
+      if (mode === 'agent') return;
+      removeOffer();                       // never more than one button on screen
+      var wrap = document.createElement('div');
+      wrap.className = 'cvs-offer';
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'cvs-agent-btn';
+      btn.textContent = 'Talk to an agent';
+      btn.addEventListener('click', function () { startAgent(btn); });
+      wrap.appendChild(btn);
+      log.appendChild(wrap);
+      scrollDown();
+    }
+
+    function startAgent(agentBtn) {
       if (!authed) {
         note('Sign in to talk to an agent, so the team knows who you are.', 'Sign in', loginUrl);
         return;
@@ -283,6 +297,7 @@
         agentBtn.disabled = false;
         if (res.status === 401) { note('Sign in to talk to an agent.', 'Sign in', res.data.login_url || loginUrl); return; }
         if (!res.ok) { note(res.data.error || 'Agents can\'t be reached right now. Please try again in a few minutes.'); return; }
+        removeOffer();
         var c = res.data.conversation;
         if (res.data.created) {
           // The chat so far is already on screen, so only remember its ids.
@@ -300,7 +315,7 @@
         agentBtn.disabled = false;
         note('Can\'t reach Clavis. Check your connection and try again.');
       });
-    });
+    }
 
     /* ---- sending a message ---- */
     function sendToAssistant(message) {
@@ -319,9 +334,11 @@
         if (!res.ok) throw new Error(res.data.error || 'Please try again.');
         bubble('bot', res.data.answer);
         history.push({ role: 'assistant', content: res.data.answer });
+        if (res.data.needs_agent) offerAgent();
       }).catch(function (error) {
         loading.remove();
         bubble('bot', error.message || 'The support assistant is unavailable right now. Please try again shortly.');
+        offerAgent();                      // the assistant couldn't answer, so offer a person
       });
     }
 
