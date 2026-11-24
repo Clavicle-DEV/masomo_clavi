@@ -1,0 +1,356 @@
+{# Clavis support widget, included at the bottom of every student-facing page.
+   The AI assistant answers first. "Talk to an agent" hands the chat to the team.
+   Self-contained: it brings its own colours, so it looks the same on every page. #}
+<style>
+  .cvs-launcher, .cvs-panel {
+    --cvs-forest-900: #0f2318; --cvs-forest-800: #16301f; --cvs-forest-700: #1d3d2a;
+    --cvs-forest-600: #2a5a3d; --cvs-gold: #c9962f; --cvs-gold-soft: #e8d8ad;
+    --cvs-paper: #fffdf8; --cvs-ink: #13201a; --cvs-muted: #627060; --cvs-line: #e4dfcf;
+    --cvs-font: var(--sans, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif);
+    --cvs-serif: var(--serif, Georgia, 'Times New Roman', serif);
+    font-family: var(--cvs-font);
+  }
+  .cvs-launcher { position: fixed; z-index: 1000; right: 22px; bottom: 22px; width: 58px; height: 58px; display: grid; place-items: center; border: 0; border-radius: 50%; color: #fff; background: var(--cvs-forest-700); box-shadow: 0 14px 32px rgba(15,35,24,.32); cursor: pointer; transition: transform .2s ease, background .2s ease; }
+  .cvs-launcher:hover { transform: translateY(-3px); background: var(--cvs-forest-600); }
+  .cvs-launcher.has-unread::after { content: ""; position: absolute; top: 4px; right: 4px; width: 14px; height: 14px; border-radius: 50%; background: var(--cvs-gold); border: 2px solid var(--cvs-paper); }
+  .cvs-launcher:focus-visible, .cvs-close:focus-visible, .cvs-send:focus-visible, .cvs-input:focus-visible, .cvs-agent-btn:focus-visible { outline: 3px solid rgba(201,150,47,.55); outline-offset: 2px; }
+  .cvs-panel { position: fixed; z-index: 1001; right: 22px; bottom: 92px; width: min(380px, calc(100vw - 32px)); height: min(540px, calc(100vh - 120px)); display: grid; grid-template-rows: auto 1fr auto auto; overflow: hidden; border: 1px solid var(--cvs-line); border-radius: 18px; background: var(--cvs-paper); color: var(--cvs-ink); box-shadow: 0 24px 70px rgba(15,35,24,.28); opacity: 0; transform: translateY(12px) scale(.98); pointer-events: none; visibility: hidden; transition: opacity .18s ease, transform .18s ease, visibility 0s .18s; }
+  .cvs-panel.open { opacity: 1; transform: none; pointer-events: auto; visibility: visible; transition: opacity .18s ease, transform .18s ease; }
+  .cvs-panel *, .cvs-panel *::before, .cvs-panel *::after { box-sizing: border-box; }
+  .cvs-head { display: flex; align-items: center; justify-content: space-between; padding: 15px 16px; color: #fff; background: var(--cvs-forest-800); }
+  .cvs-title { display: flex; align-items: center; gap: 10px; }
+  .cvs-avatar { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; color: var(--cvs-forest-900); background: var(--cvs-gold-soft); font: 700 16px var(--cvs-serif); }
+  .cvs-title b { display: block; font-size: 14px; }
+  .cvs-title small { display: block; color: #bed0c1; font-size: 11px; }
+  .cvs-close { width: 36px; height: 36px; border: 0; border-radius: 50%; color: #fff; background: transparent; font-size: 22px; line-height: 1; cursor: pointer; }
+  .cvs-log { overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 16px; background: #fbfaf5; }
+  .cvs-msg { max-width: 86%; padding: 10px 12px; border-radius: 14px; font-size: 13.5px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .cvs-msg .cvs-who { display: block; margin-bottom: 2px; font-size: 11px; font-weight: 700; opacity: .75; }
+  .cvs-bot { align-self: flex-start; color: var(--cvs-ink); background: #ecefdf; border-bottom-left-radius: 5px; }
+  .cvs-agent { align-self: flex-start; color: var(--cvs-ink); background: #fbeecb; border-bottom-left-radius: 5px; }
+  .cvs-user { align-self: flex-end; color: #fff; background: var(--cvs-forest-600); border-bottom-right-radius: 5px; }
+  .cvs-loading { color: var(--cvs-muted); }
+  .cvs-note { align-self: center; max-width: 100%; padding: 2px 6px; color: var(--cvs-muted); font-size: 12px; line-height: 1.4; text-align: center; }
+  .cvs-note a { color: var(--cvs-forest-600); font-weight: 700; }
+  .cvs-agentbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; border-top: 1px solid var(--cvs-line); background: var(--cvs-paper); font-size: 12px; color: var(--cvs-muted); }
+  .cvs-agentbar[hidden] { display: none; }
+  .cvs-agent-btn { flex: none; min-height: 34px; padding: 0 12px; border: 1.5px solid var(--cvs-forest-600); border-radius: 999px; color: var(--cvs-forest-700); background: transparent; font: 700 12px var(--cvs-font); cursor: pointer; }
+  .cvs-agent-btn:hover { background: #ecefdf; }
+  .cvs-agent-btn:disabled { opacity: .55; cursor: wait; }
+  .cvs-form { display: grid; grid-template-columns: 1fr 42px; gap: 8px; padding: 10px; border-top: 1px solid var(--cvs-line); background: var(--cvs-paper); }
+  .cvs-input { width: 100%; min-width: 0; height: 42px; padding: 0 12px; border: 1px solid var(--cvs-line); border-radius: 10px; color: var(--cvs-ink); background: #fff; font: 600 13.5px var(--cvs-font); }
+  .cvs-send { width: 42px; height: 42px; border: 0; border-radius: 10px; color: #fff; background: var(--cvs-gold); font-size: 18px; cursor: pointer; }
+  .cvs-send:disabled { opacity: .55; cursor: wait; }
+  @media (max-width: 640px) { .cvs-launcher { right: 14px; bottom: 14px; } .cvs-panel { right: 16px; bottom: 82px; } }
+  @media (prefers-reduced-motion: reduce) { .cvs-launcher, .cvs-panel, .cvs-panel.open { transition: none; } .cvs-launcher:hover { transform: none; } }
+</style>
+
+<div class="cvs-panel" id="cvsPanel" role="dialog" aria-modal="false" aria-labelledby="cvsTitle" aria-hidden="true"
+     data-auth="{{ '1' if current_user.is_authenticated else '0' }}"
+     data-login-url="{{ url_for('signup') }}"
+     data-bot-url="{{ url_for('api_support') }}"
+     data-agent-url="/api/support/agent"
+     data-agent-msg-url="/api/support/agent/message">
+  <div class="cvs-head">
+    <div class="cvs-title">
+      <span class="cvs-avatar" aria-hidden="true">C</span>
+      <div><b id="cvsTitle">Clavis Support</b><small id="cvsSubtitle">Usually replies instantly</small></div>
+    </div>
+    <button class="cvs-close" id="cvsClose" type="button" aria-label="Close support chat">&times;</button>
+  </div>
+  <div class="cvs-log" id="cvsLog" aria-live="polite">
+    <div class="cvs-msg cvs-bot">Hi! I can help with signing up, schools, subscriptions, M-Pesa, exams, and using Clavis. What can I help with?</div>
+  </div>
+  <div class="cvs-agentbar" id="cvsAgentBar">
+    <span>Need a person?</span>
+    <button class="cvs-agent-btn" id="cvsAgentBtn" type="button">Talk to an agent</button>
+  </div>
+  <form class="cvs-form" id="cvsForm">
+    <label for="cvsInput" hidden>Message Clavis Support</label>
+    <input class="cvs-input" id="cvsInput" name="message" maxlength="800" autocomplete="off" placeholder="Ask a question...">
+    <button class="cvs-send" id="cvsSend" type="submit" aria-label="Send message">&rarr;</button>
+  </form>
+</div>
+<button class="cvs-launcher" id="cvsLauncher" type="button" aria-label="Open Clavis support chat" aria-expanded="false" aria-controls="cvsPanel">
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/><path d="M8.5 12h.01M12 12h.01M15.5 12h.01"/></svg>
+</button>
+
+<script>
+  (function () {
+    var panel = document.getElementById('cvsPanel');
+    if (!panel) return;
+    var launcher = document.getElementById('cvsLauncher');
+    var closeBtn = document.getElementById('cvsClose');
+    var log = document.getElementById('cvsLog');
+    var form = document.getElementById('cvsForm');
+    var input = document.getElementById('cvsInput');
+    var sendBtn = document.getElementById('cvsSend');
+    var agentBar = document.getElementById('cvsAgentBar');
+    var agentBtn = document.getElementById('cvsAgentBtn');
+    var subtitle = document.getElementById('cvsSubtitle');
+
+    var authed = panel.dataset.auth === '1';
+    var loginUrl = panel.dataset.loginUrl;
+    var BOT_URL = panel.dataset.botUrl;
+    var AGENT_URL = panel.dataset.agentUrl;
+    var AGENT_MSG_URL = panel.dataset.agentMsgUrl;
+    var STORE = 'clavisAgentChat';          // set while this browser has an open agent chat
+
+    var history = [];       // the chat with the assistant
+    var mode = 'bot';       // 'bot' (assistant) or 'agent' (a person on the team)
+    var convId = null;      // the open agent conversation
+    var seen = {};          // agent-chat message ids already on screen
+    var lastId = 0;
+    var pollTimer = null;
+    var restored = false;
+
+    /* ---- small helpers ---- */
+    function isOpen() { return panel.classList.contains('open'); }
+    function scrollDown() { log.scrollTop = log.scrollHeight; }
+
+    function bubble(kind, text, label) {
+      var item = document.createElement('div');
+      item.className = 'cvs-msg cvs-' + kind;
+      if (label) {
+        var who = document.createElement('span');
+        who.className = 'cvs-who';
+        who.textContent = label;
+        item.appendChild(who);
+      }
+      item.appendChild(document.createTextNode(text));
+      log.appendChild(item);
+      scrollDown();
+      return item;
+    }
+
+    function note(text, linkText, linkHref) {
+      var item = document.createElement('div');
+      item.className = 'cvs-note';
+      item.appendChild(document.createTextNode(text));
+      if (linkText) {
+        item.appendChild(document.createTextNode(' '));
+        var a = document.createElement('a');
+        a.href = linkHref;
+        a.textContent = linkText;
+        item.appendChild(a);
+      }
+      log.appendChild(item);
+      scrollDown();
+      return item;
+    }
+
+    function api(url, method, body) {
+      return fetch(url, {
+        method: method,
+        headers: body ? { 'Content-Type': 'application/json' } : {},
+        credentials: 'same-origin',
+        body: body ? JSON.stringify(body) : undefined
+      }).then(function (r) {
+        return r.json().catch(function () { return {}; }).then(function (data) {
+          return { ok: r.ok, status: r.status, data: data };
+        });
+      });
+    }
+
+    /* ---- remembering that this browser has an agent chat ---- */
+    function readFlag() {
+      try { var v = localStorage.getItem(STORE); return v === null ? null : (parseInt(v, 10) || 0); }
+      catch (e) { return null; }
+    }
+    function writeFlag(on) {
+      try { if (on) localStorage.setItem(STORE, String(lastId)); else localStorage.removeItem(STORE); }
+      catch (e) { /* storage blocked: the chat still works, just without the alert dot */ }
+    }
+
+    /* ---- agent chat on screen ---- */
+    function showAgentMessage(m) {
+      if (seen[m.id]) return;
+      seen[m.id] = true;
+      if (m.id > lastId) lastId = m.id;
+      if (m.sender === 'agent') bubble('agent', m.body, 'Agent');
+      else if (m.sender === 'assistant') bubble('bot', m.body, 'Assistant');
+      else bubble('user', m.body);
+    }
+
+    function markSeenOnly(messages) {
+      messages.forEach(function (m) { seen[m.id] = true; if (m.id > lastId) lastId = m.id; });
+    }
+
+    function setMode(next) {
+      mode = next;
+      var agent = next === 'agent';
+      agentBar.hidden = agent;
+      subtitle.textContent = agent ? 'Chatting with the Clavis team' : 'Usually replies instantly';
+      input.placeholder = agent ? 'Message the team...' : 'Ask a question...';
+      if (agent && isOpen()) startPolling(); else stopPolling();
+    }
+
+    function endAgentChat() {
+      convId = null; seen = {}; lastId = 0;
+      writeFlag(false);
+      note('This conversation was closed. You can ask the assistant again, or talk to an agent.');
+      setMode('bot');
+    }
+
+    // Show a whole agent conversation, for example after coming back to the page.
+    function showConversation(c) {
+      log.textContent = '';
+      seen = {}; lastId = 0; convId = c.id;
+      c.messages.forEach(showAgentMessage);
+      note('You are chatting with the Clavis team. An agent will reply here.');
+      writeFlag(true);
+      setMode('agent');
+    }
+
+    function restore() {
+      return api(AGENT_URL, 'GET').then(function (res) {
+        if (!res.ok) return;
+        if (res.data.conversation) showConversation(res.data.conversation);
+        else writeFlag(false);
+      });
+    }
+
+    /* ---- polling for agent replies ---- */
+    function poll() {
+      if (mode !== 'agent' || !convId) return;
+      api(AGENT_URL + '?after=' + lastId, 'GET').then(function (res) {
+        if (!res.ok || mode !== 'agent') return;
+        if (!res.data.conversation) { endAgentChat(); return; }
+        res.data.conversation.messages.forEach(showAgentMessage);
+        writeFlag(true);
+      });
+    }
+    function startPolling() {
+      if (pollTimer) return;
+      pollTimer = setInterval(function () { if (!document.hidden) poll(); }, 8000);
+    }
+    function stopPolling() { clearInterval(pollTimer); pollTimer = null; }
+
+    // While the panel is closed, check now and then for a reply and show a dot.
+    function quietCheck() {
+      var since = readFlag();
+      if (!authed || isOpen() || since === null || document.hidden) return;
+      api(AGENT_URL + '?after=' + since, 'GET').then(function (res) {
+        if (!res.ok) return;
+        var c = res.data.conversation;
+        if (!c) { writeFlag(false); return; }
+        var fresh = c.messages.some(function (m) { return m.sender === 'agent'; });
+        if (fresh) {
+          launcher.classList.add('has-unread');
+          launcher.setAttribute('aria-label', 'Open Clavis support chat. New reply from an agent.');
+        }
+      });
+    }
+
+    /* ---- open and close ---- */
+    function setOpen(open) {
+      panel.classList.toggle('open', open);
+      panel.setAttribute('aria-hidden', open ? 'false' : 'true');
+      launcher.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (!open) { stopPolling(); return; }
+      launcher.classList.remove('has-unread');
+      launcher.setAttribute('aria-label', 'Open Clavis support chat');
+      if (authed && !restored && readFlag() !== null) {
+        restored = true;
+        restore().then(function () { input.focus(); });
+      } else if (mode === 'agent') {
+        poll();
+        startPolling();
+      }
+      input.focus();
+    }
+
+    launcher.addEventListener('click', function () { setOpen(!isOpen()); });
+    closeBtn.addEventListener('click', function () { setOpen(false); launcher.focus(); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && isOpen()) { setOpen(false); launcher.focus(); }
+    });
+
+    /* ---- talk to an agent ---- */
+    agentBtn.addEventListener('click', function () {
+      if (!authed) {
+        note('Sign in to talk to an agent, so the team knows who you are.', 'Sign in', loginUrl);
+        return;
+      }
+      var asked = history.some(function (m) { return m.role === 'user'; });
+      if (!asked) {
+        note('Type your question first, then tap Talk to an agent.');
+        input.focus();
+        return;
+      }
+      agentBtn.disabled = true;
+      api(AGENT_URL, 'POST', { messages: history.slice(-20) }).then(function (res) {
+        agentBtn.disabled = false;
+        if (res.status === 401) { note('Sign in to talk to an agent.', 'Sign in', res.data.login_url || loginUrl); return; }
+        if (!res.ok) { note(res.data.error || 'Agents can\'t be reached right now. Please try again in a few minutes.'); return; }
+        var c = res.data.conversation;
+        if (res.data.created) {
+          // The chat so far is already on screen, so only remember its ids.
+          convId = c.id; seen = {}; lastId = 0;
+          markSeenOnly(c.messages);
+          note('Your chat was passed to the Clavis team. An agent will reply here. You can close this and come back.');
+          writeFlag(true);
+          setMode('agent');
+        } else {
+          showConversation(c);   // they already had an open chat: show that one
+        }
+        restored = true;
+        input.focus();
+      }).catch(function () {
+        agentBtn.disabled = false;
+        note('Can\'t reach Clavis. Check your connection and try again.');
+      });
+    });
+
+    /* ---- sending a message ---- */
+    function sendToAssistant(message) {
+      bubble('user', message);
+      history.push({ role: 'user', content: message });
+      var loading = bubble('bot', 'Thinking...');
+      loading.classList.add('cvs-loading');
+      return fetch(BOT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: message, messages: history.slice(-8) })
+      }).then(function (r) {
+        return r.json().then(function (data) { return { ok: r.ok, data: data }; });
+      }).then(function (res) {
+        loading.remove();
+        if (!res.ok) throw new Error(res.data.error || 'Please try again.');
+        bubble('bot', res.data.answer);
+        history.push({ role: 'assistant', content: res.data.answer });
+      }).catch(function (error) {
+        loading.remove();
+        bubble('bot', error.message || 'The support assistant is unavailable right now. Please try again shortly.');
+      });
+    }
+
+    function sendToAgent(message) {
+      return api(AGENT_MSG_URL, 'POST', { conversation_id: convId, body: message }).then(function (res) {
+        if (res.data && res.data.closed) { endAgentChat(); return; }
+        if (!res.ok) { note(res.data.error || 'Your message did not send. Please try again.'); input.value = message; return; }
+        showAgentMessage(res.data.message);
+        writeFlag(true);
+      }).catch(function () {
+        note('Can\'t reach Clavis. Check your connection and try again.');
+        input.value = message;
+      });
+    }
+
+    form.addEventListener('submit', function (event) {
+      event.preventDefault();
+      var message = input.value.trim();
+      if (!message || sendBtn.disabled) return;
+      input.value = '';
+      sendBtn.disabled = true;
+      var job = mode === 'agent' ? sendToAgent(message) : sendToAssistant(message);
+      job.then(function () { sendBtn.disabled = false; input.focus(); });
+    });
+
+    /* ---- alert dot for returning students ---- */
+    if (authed && readFlag() !== null) {
+      setTimeout(quietCheck, 4000);
+      setInterval(quietCheck, 60000);
+    }
+  })();
+</script>
