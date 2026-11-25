@@ -21,8 +21,11 @@
     .call-head { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:14px; border-bottom:1px solid var(--line); }
     .call-head strong { color:var(--chalk); font-family:'Fraunces',serif; }
     .call-status { color:var(--muted); font-size:12px; }
-    .call-frame { display:none; width:100%; height:min(620px,calc(100vh - 190px)); border:0; background:#111; }
-    .call-frame.open { display:block; }
+    .call-grid { display:none; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:8px; width:100%; min-height:220px; height:min(620px,calc(100vh - 190px)); padding:8px; background:#111; }
+    .call-grid.open { display:grid; }
+    .call-video { position:relative; min-height:210px; overflow:hidden; border-radius:10px; background:#1b2420; }
+    .call-video video { width:100%; height:100%; object-fit:cover; }
+    .call-video span { position:absolute; left:8px; bottom:8px; max-width:calc(100% - 16px); padding:5px 8px; border-radius:7px; background:rgba(0,0,0,.65); color:#fff; font-size:11px; }
     .call-empty { min-height:220px; display:grid; place-items:center; padding:24px; color:var(--muted); text-align:center; }
     .call-actions { display:flex; gap:8px; padding:12px 14px; }
     button { min-height:42px; border:1px solid var(--line); border-radius:9px; background:var(--paper); color:var(--ink); font-family:inherit; font-size:13px; font-weight:700; cursor:pointer; }
@@ -60,7 +63,7 @@
     <div class="layout">
       <section class="card call-card">
         <div class="call-head"><strong>Team call</strong><span class="call-status" id="callStatus">Checking...</span></div>
-        <iframe class="call-frame" id="callFrame" title="Clavis team call" allow="camera; microphone; fullscreen; display-capture" allowfullscreen></iframe>
+        <div class="call-grid" id="callGrid"></div>
         <div class="call-empty" id="callEmpty">No active call. Start a video or audio room for the team.</div>
         <div class="call-actions">
           <button class="primary" id="videoCall" type="button">Start video call</button>
@@ -176,7 +179,7 @@
         finally { chatSend.disabled = false; chatInput.focus(); }
       });
 
-      var callFrame = document.getElementById('callFrame');
+      var callGrid = document.getElementById('callGrid');
       var callEmpty = document.getElementById('callEmpty');
       var callStatus = document.getElementById('callStatus');
       var videoButton = document.getElementById('videoCall');
@@ -189,25 +192,97 @@
       var acceptCall = document.getElementById('acceptCall');
       var declineCall = document.getElementById('declineCall');
 
-      function roomUrl(call) {
-        var domain = call.domain || 'meet.jit.si';
-        var params = new URLSearchParams();
-        params.set('config.startWithAudioOnly', call.kind === 'audio' ? 'true' : 'false');
-        params.set('config.startWithVideoMuted', call.kind === 'audio' ? 'true' : 'false');
-        params.set('config.prejoinPageEnabled', 'true');
-        params.set('userInfo.displayName', teamName);
-        var safeDomain = String(domain).replace(/^https?:\/\//, '').replace(/\/$/, '');
-        return 'https://' + safeDomain + '/' + encodeURIComponent(call.roomName) + '#' + params.toString();
+      var localStream = null;
+      var peerConnections = {};
+      var signalLastId = 0;
+
+      function ensureVideoTile(peerId, name, stream, muted) {
+        var tileId = 'teamVideo_' + peerId;
+        var tile = document.getElementById(tileId);
+        if (!tile) {
+          tile = document.createElement('div');
+          tile.id = tileId;
+          tile.className = 'call-video';
+          var video = document.createElement('video');
+          video.autoplay = true;
+          video.playsInline = true;
+          video.muted = !!muted;
+          var label = document.createElement('span');
+          label.textContent = name;
+          tile.appendChild(video);
+          tile.appendChild(label);
+          callGrid.appendChild(tile);
+        }
+        var video = tile.querySelector('video');
+        if (stream) video.srcObject = stream;
+      }
+
+      function createPeer(peerId, name, call, initiator) {
+        if (peerConnections[peerId]) return peerConnections[peerId];
+        var pc = new RTCPeerConnection({ iceServers: call.iceServers || [{urls:'stun:stun.l.google.com:19302'}] });
+        peerConnections[peerId] = pc;
+        if (localStream) localStream.getTracks().forEach(function (track) { pc.addTrack(track, localStream); });
+        pc.onicecandidate = function (event) {
+          if (event.candidate) sendSignal(peerId, {type:'ice', candidate:event.candidate});
+        };
+        pc.ontrack = function (event) { ensureVideoTile(peerId, name, event.streams[0], false); };
+        if (initiator) {
+          pc.createOffer().then(function (offer) { return pc.setLocalDescription(offer); }).then(function () {
+            sendSignal(peerId, {type:'offer', sdp:pc.localDescription});
+          }).catch(function () {});
+        }
+        return pc;
+      }
+
+      async function sendSignal(peerId, payload) {
+        await fetch('/api/team/call/signals', {
+          method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({receiverId:peerId, payload:payload})
+        });
+      }
+
+      async function pollSignals() {
+        if (!activeCall) return;
+        try {
+          var response = await fetch('/api/team/call/signals?after=' + signalLastId, {credentials:'same-origin'});
+          var data = await response.json();
+          (data.signals || []).forEach(async function (signal) {
+            if (signal.id > signalLastId) signalLastId = signal.id;
+            var payload = signal.payload;
+            var peerName = 'Team member';
+            var pc = peerConnections[signal.senderId] || createPeer(signal.senderId, peerName, activeCall, false);
+            if (payload.type === 'offer') {
+              await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+              var answer = await pc.createAnswer();
+              await pc.setLocalDescription(answer);
+              sendSignal(signal.senderId, {type:'answer', sdp:pc.localDescription});
+            } else if (payload.type === 'answer') {
+              await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+            } else if (payload.type === 'ice' && payload.candidate) {
+              await pc.addIceCandidate(new RTCIceCandidate(payload.candidate)).catch(function () {});
+            }
+          });
+        } catch (_) {}
       }
 
       async function openCall(call) {
         activeCall = call;
-        callFrame.src = roomUrl(call);
-        callFrame.classList.add('open');
+        try {
+          localStream = await navigator.mediaDevices.getUserMedia({
+            audio:true,
+            video:call.kind === 'video'
+          });
+        } catch (error) {
+          alert('Microphone or camera permission is required: ' + error.message);
+          return;
+        }
+        callGrid.classList.add('open');
         callEmpty.hidden = true;
+        ensureVideoTile(accountId, teamName + ' (You)', localStream, true);
         callStatus.textContent = 'In active call · ' + call.kind;
-        videoButton.textContent = 'Join video call';
-        audioButton.textContent = 'Join audio call';
+        (call.participants || []).forEach(function (participant) {
+          if (participant.id !== accountId) createPeer(participant.id, participant.name, call, participant.id > accountId);
+        });
         if (endButton) endButton.hidden = !isOwner;
       }
 
@@ -230,7 +305,7 @@
             callStatus.textContent = 'Active call · ' + data.call.kind;
             videoButton.textContent = 'Join video call';
             audioButton.textContent = 'Join audio call';
-            if (!incomingCallShown && data.call.startedById !== accountId && !callFrame.classList.contains('open')) {
+            if (!incomingCallShown && data.call.startedById !== accountId && !callGrid.classList.contains('open')) {
               incomingCallShown = true;
               incomingName.textContent = data.call.startedBy || 'Incoming team call';
               incomingKind.textContent = 'Incoming ' + data.call.kind + ' call from the Clavis team';
@@ -244,9 +319,12 @@
             callStatus.textContent = 'No active call';
             videoButton.textContent = 'Start video call';
             audioButton.textContent = 'Start audio call';
-            if (callFrame.classList.contains('open')) {
-              callFrame.classList.remove('open');
-              callFrame.src = 'about:blank';
+            if (callGrid.classList.contains('open')) {
+              callGrid.classList.remove('open');
+              callGrid.textContent = '';
+              if (localStream) localStream.getTracks().forEach(function (track) { track.stop(); });
+              localStream = null;
+              Object.keys(peerConnections).forEach(function (peerId) { peerConnections[peerId].close(); delete peerConnections[peerId]; });
               callEmpty.hidden = false;
             }
             if (endButton) endButton.hidden = true;
@@ -259,6 +337,15 @@
         incomingCallShown = false;
         if (activeCall) openCall(activeCall);
       });
+      function stopLocalCall() {
+        if (localStream) localStream.getTracks().forEach(function (track) { track.stop(); });
+        localStream = null;
+        Object.keys(peerConnections).forEach(function (peerId) { peerConnections[peerId].close(); delete peerConnections[peerId]; });
+        callGrid.classList.remove('open');
+        callGrid.textContent = '';
+        callEmpty.hidden = false;
+      }
+
       declineCall.addEventListener('click', function () {
         incomingRing.classList.remove('open');
         incomingCallShown = false;
@@ -269,7 +356,12 @@
       if (endButton) endButton.addEventListener('click', async function () {
         if (!confirm('End the team call for everyone?')) return;
         await fetch('/api/team/call', { method:'DELETE', credentials:'same-origin' });
+        stopLocalCall();
         pollCallStatus();
+      });
+
+      window.addEventListener('beforeunload', function () {
+        fetch('/api/team/call/leave', { method:'POST', credentials:'same-origin', keepalive:true });
       });
 
       if ('serviceWorker' in navigator) {
@@ -278,7 +370,7 @@
       pollMessages(true);
       pollCallStatus();
       subscribeToTeamPush();
-      setInterval(function () { if (!document.hidden) { pollMessages(false); pollCallStatus(); } }, 5000);
+      setInterval(function () { if (!document.hidden) { pollMessages(false); pollCallStatus(); pollSignals(); } }, 2000);
     })();
   </script>
 </body>

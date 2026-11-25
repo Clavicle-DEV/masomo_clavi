@@ -633,6 +633,27 @@ class TeamCall(db.Model):
     ended_at = db.Column(db.DateTime, nullable=True)
 
 
+class TeamCallParticipant(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    call_id = db.Column(db.Integer, db.ForeignKey('team_call.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    joined_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
+    left_at = db.Column(db.DateTime, nullable=True)
+
+    __table_args__ = (
+        db.Index('ix_team_call_participant_call_left', 'call_id', 'left_at'),
+    )
+
+
+class TeamCallSignal(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    call_id = db.Column(db.Integer, db.ForeignKey('team_call.id'), nullable=False)
+    sender_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    receiver_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    payload_json = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
+
+
 class PaymentLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -2261,6 +2282,10 @@ def api_team_call_status():
         return jsonify({"call": None})
 
     starter = User.query.get(call.started_by_id)
+    participant_rows = TeamCallParticipant.query.filter_by(call_id=call.id, left_at=None).all()
+    participant_ids = [row.user_id for row in participant_rows]
+    participants = User.query.filter(User.id.in_(participant_ids)).all() if participant_ids else []
+    participants_by_id = {participant.id: participant for participant in participants}
     return jsonify({
         "call": {
             "id": call.id,
@@ -2269,7 +2294,15 @@ def api_team_call_status():
             "startedById": call.started_by_id,
             "startedBy": starter.display_name or default_display_name(starter.email) if starter else "Team member",
             "startedAt": call.started_at.isoformat() if call.started_at else None,
-            "domain": os.environ.get('TEAM_CALL_DOMAIN', 'meet.jit.si'),
+            "participants": [
+                {
+                    "id": participant_id,
+                    "name": participants_by_id[participant_id].display_name or default_display_name(participants_by_id[participant_id].email)
+                    if participant_id in participants_by_id else "Team member",
+                }
+                for participant_id in participant_ids
+            ],
+            "iceServers": build_team_ice_servers(),
         }
     })
 
@@ -2312,6 +2345,21 @@ def api_team_push_subscribe():
         ))
     db.session.commit()
     return jsonify({"status": "subscribed"})
+
+
+def build_team_ice_servers():
+    ice_servers = [{"urls": "stun:stun.l.google.com:19302"}]
+    turn_url = os.environ.get('TURN_URL', '')
+    turn_username = os.environ.get('TURN_USERNAME', '')
+    turn_credential = os.environ.get('TURN_CREDENTIAL', '')
+    if turn_url:
+        turn = {"urls": turn_url}
+        if turn_username:
+            turn["username"] = turn_username
+        if turn_credential:
+            turn["credential"] = turn_credential
+        ice_servers.append(turn)
+    return ice_servers
 
 
 def notify_team_of_call(call, sender):
@@ -2367,7 +2415,19 @@ def api_team_start_call():
 
     active_call = TeamCall.query.filter_by(ended_at=None).order_by(TeamCall.started_at.desc()).first()
     if active_call:
+        existing_participant = TeamCallParticipant.query.filter_by(
+            call_id=active_call.id,
+            user_id=current_user.id,
+            left_at=None,
+        ).first()
+        if not existing_participant:
+            db.session.add(TeamCallParticipant(call_id=active_call.id, user_id=current_user.id))
+            db.session.commit()
         starter = User.query.get(active_call.started_by_id)
+        participant_rows = TeamCallParticipant.query.filter_by(call_id=active_call.id, left_at=None).all()
+        participant_ids = [row.user_id for row in participant_rows]
+        participants = User.query.filter(User.id.in_(participant_ids)).all() if participant_ids else []
+        participants_by_id = {participant.id: participant for participant in participants}
         return jsonify({
             "call": {
                 "id": active_call.id,
@@ -2376,7 +2436,15 @@ def api_team_start_call():
                 "startedById": active_call.started_by_id,
                 "startedBy": starter.display_name or default_display_name(starter.email) if starter else "Team member",
                 "startedAt": active_call.started_at.isoformat() if active_call.started_at else None,
-                "domain": os.environ.get('TEAM_CALL_DOMAIN', 'meet.jit.si'),
+                "participants": [
+                    {
+                        "id": participant_id,
+                        "name": participants_by_id[participant_id].display_name or default_display_name(participants_by_id[participant_id].email)
+                        if participant_id in participants_by_id else "Team member",
+                    }
+                    for participant_id in participant_ids
+                ],
+                "iceServers": build_team_ice_servers(),
             },
             "joined": True,
         })
@@ -2387,6 +2455,8 @@ def api_team_start_call():
         started_by_id=current_user.id,
     )
     db.session.add(call)
+    db.session.flush()
+    db.session.add(TeamCallParticipant(call_id=call.id, user_id=current_user.id))
     db.session.commit()
     notify_team_of_call(call, current_user)
 
@@ -2398,10 +2468,76 @@ def api_team_start_call():
             "startedById": current_user.id,
             "startedBy": current_user.display_name or default_display_name(current_user.email),
             "startedAt": call.started_at.isoformat() if call.started_at else None,
-            "domain": os.environ.get('TEAM_CALL_DOMAIN', 'meet.jit.si'),
+            "iceServers": build_team_ice_servers(),
         },
         "joined": False,
     }), 201
+
+
+@app.route('/api/team/call/signals', methods=['GET', 'POST'])
+@login_required
+def api_team_call_signals():
+    if not (is_full_admin(current_user) or is_co_admin(current_user)):
+        return jsonify({"error": "Team calls are only available to admins and co-admins."}), 403
+
+    call = TeamCall.query.filter_by(ended_at=None).order_by(TeamCall.started_at.desc()).first()
+    if not call:
+        return jsonify({"signals": []})
+
+    if request.method == 'POST':
+        data = request.get_json(silent=True) or {}
+        receiver_id = data.get('receiverId')
+        payload = data.get('payload')
+        try:
+            receiver_id = int(receiver_id)
+        except (TypeError, ValueError):
+            return jsonify({"error": "receiverId is required."}), 400
+        if receiver_id == current_user.id or not isinstance(payload, dict):
+            return jsonify({"error": "Invalid signal."}), 400
+        participant = TeamCallParticipant.query.filter_by(call_id=call.id, user_id=receiver_id, left_at=None).first()
+        if not participant:
+            return jsonify({"error": "Receiver is not in the call."}), 404
+        signal = TeamCallSignal(
+            call_id=call.id,
+            sender_id=current_user.id,
+            receiver_id=receiver_id,
+            payload_json=json.dumps(payload),
+        )
+        db.session.add(signal)
+        db.session.commit()
+        return jsonify({"status": "sent", "id": signal.id}), 201
+
+    after_id = request.args.get('after', 0, type=int)
+    signals = TeamCallSignal.query.filter(
+        TeamCallSignal.call_id == call.id,
+        TeamCallSignal.receiver_id == current_user.id,
+        TeamCallSignal.id > after_id,
+    ).order_by(TeamCallSignal.id.asc()).limit(100).all()
+    return jsonify({
+        "signals": [
+            {
+                "id": signal.id,
+                "senderId": signal.sender_id,
+                "payload": json.loads(signal.payload_json),
+            }
+            for signal in signals
+        ]
+    })
+
+
+@app.route('/api/team/call/leave', methods=['POST'])
+@login_required
+def api_team_leave_call():
+    if not (is_full_admin(current_user) or is_co_admin(current_user)):
+        return jsonify({"error": "Team calls are only available to admins and co-admins."}), 403
+
+    call = TeamCall.query.filter_by(ended_at=None).order_by(TeamCall.started_at.desc()).first()
+    if call:
+        participant = TeamCallParticipant.query.filter_by(call_id=call.id, user_id=current_user.id, left_at=None).first()
+        if participant:
+            participant.left_at = datetime.now()
+            db.session.commit()
+    return jsonify({"status": "left"})
 
 
 @app.route('/api/team/call', methods=['DELETE'])
