@@ -27,6 +27,15 @@
     .call-video video { width:100%; height:100%; object-fit:cover; }
     .call-video span { position:absolute; left:8px; bottom:8px; max-width:calc(100% - 16px); padding:5px 8px; border-radius:7px; background:rgba(0,0,0,.65); color:#fff; font-size:11px; }
     .call-empty { min-height:220px; display:grid; place-items:center; padding:24px; color:var(--muted); text-align:center; }
+    .call-permission { display:none; min-height:220px; place-items:center; padding:24px; text-align:center; background:#111; color:#fff; }
+    .call-permission.open { display:grid; }
+    .call-permission-card { max-width:420px; }
+    .call-permission-card strong { display:block; margin-bottom:8px; font-family:'Fraunces',serif; font-size:20px; }
+    .call-permission-card p { margin:0 0 14px; color:#cbd3cd; font-size:13px; line-height:1.5; }
+    .call-permission-card button { color:var(--chalk); background:var(--gold); }
+    .call-video.audio { display:grid; place-items:center; background:radial-gradient(circle at center,#2f5f45 0,#1b3025 220px); }
+    .call-video.audio video { display:none; }
+    .call-video.audio span { position:static; max-width:none; border-radius:999px; background:var(--gold); color:var(--chalk); font-size:13px; }
     .call-actions { display:flex; gap:8px; padding:12px 14px; }
     button { min-height:42px; border:1px solid var(--line); border-radius:9px; background:var(--paper); color:var(--ink); font-family:inherit; font-size:13px; font-weight:700; cursor:pointer; }
     .call-actions button { flex:1; }
@@ -51,7 +60,7 @@
     .incoming-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
     .accept { border-color:#2f6b45; background:#2f6b45; color:#fff; }
     .decline { border-color:var(--red); color:var(--red); }
-    @media(max-width:820px) { .layout { grid-template-columns:1fr; } .chat-card { height:520px; } .call-frame { height:520px; } }
+    @media(max-width:820px) { .layout { grid-template-columns:1fr; } .chat-card { height:520px; } .call-grid { height:520px; } }
   </style>
 </head>
 <body data-team-name="{{ team_name|e }}" data-account-id="{{ current_user.id }}" data-is-owner="{{ '1' if is_full_admin_user else '0' }}">
@@ -64,6 +73,13 @@
       <section class="card call-card">
         <div class="call-head"><strong>Team call</strong><span class="call-status" id="callStatus">Checking...</span></div>
         <div class="call-grid" id="callGrid"></div>
+        <div class="call-permission" id="callPermission">
+          <div class="call-permission-card">
+            <strong id="callPermissionTitle">Allow microphone access</strong>
+            <p id="callPermissionText">Clavis needs access to your microphone for this call.</p>
+            <button type="button" id="callPermissionRetry">Try again</button>
+          </div>
+        </div>
         <div class="call-empty" id="callEmpty">No active call. Start a video or audio room for the team.</div>
         <div class="call-actions">
           <button class="primary" id="videoCall" type="button">Start video call</button>
@@ -181,6 +197,10 @@
 
       var callGrid = document.getElementById('callGrid');
       var callEmpty = document.getElementById('callEmpty');
+      var callPermission = document.getElementById('callPermission');
+      var callPermissionTitle = document.getElementById('callPermissionTitle');
+      var callPermissionText = document.getElementById('callPermissionText');
+      var callPermissionRetry = document.getElementById('callPermissionRetry');
       var callStatus = document.getElementById('callStatus');
       var videoButton = document.getElementById('videoCall');
       var audioButton = document.getElementById('audioCall');
@@ -202,7 +222,7 @@
         if (!tile) {
           tile = document.createElement('div');
           tile.id = tileId;
-          tile.className = 'call-video';
+          tile.className = 'call-video' + (activeCall && activeCall.kind === 'audio' ? ' audio' : '');
           var video = document.createElement('video');
           video.autoplay = true;
           video.playsInline = true;
@@ -267,13 +287,47 @@
 
       async function openCall(call) {
         activeCall = call;
+        callPermission.classList.remove('open');
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          callEmpty.hidden = true;
+          callPermission.classList.add('open');
+          callPermissionTitle.textContent = 'Calling is not supported here';
+          callPermissionText.textContent = 'Use HTTPS or localhost in a current Chrome, Edge, Firefox, or Safari browser. Embedded browsers and some in-app webviews cannot place calls.';
+          callStatus.textContent = 'Permission required';
+          return;
+        }
+        if (!window.isSecureContext) {
+          callEmpty.hidden = true;
+          callPermission.classList.add('open');
+          callPermissionTitle.textContent = 'HTTPS permission required';
+          callPermissionText.textContent = 'Microphone and camera access require HTTPS or localhost. Open Clavis over a secure HTTPS address, allow the site permission, then try again.';
+          callStatus.textContent = 'Secure connection required';
+          return;
+        }
         try {
           localStream = await navigator.mediaDevices.getUserMedia({
             audio:true,
             video:call.kind === 'video'
           });
         } catch (error) {
-          alert('Microphone or camera permission is required: ' + error.message);
+          var isVideo = call.kind === 'video';
+          callEmpty.hidden = true;
+          callGrid.classList.remove('open');
+          callPermission.classList.add('open');
+          callPermissionTitle.textContent = error.name === 'NotAllowedError'
+            ? 'Allow access in browser settings'
+            : 'Microphone or camera unavailable';
+          if (error.name === 'NotFoundError') {
+            callPermissionText.textContent = isVideo
+              ? 'No camera or microphone was found on this device. Connect the device, close other apps using it, and try again.'
+              : 'No microphone was found on this device. Connect a microphone, close other apps using it, and try again.';
+          } else {
+            callPermissionText.textContent = isVideo
+              ? 'Clavis needs microphone and camera access. Allow both using the browser’s permission prompt or site settings, then try again.'
+              : 'Clavis needs microphone access. Allow it using the browser’s permission prompt or site settings, then try again.';
+          }
+          callStatus.textContent = 'Permission required';
+          await fetch('/api/team/call/leave', {method:'POST', credentials:'same-origin'}).catch(function () {});
           return;
         }
         callGrid.classList.add('open');
@@ -345,6 +399,10 @@
         callGrid.textContent = '';
         callEmpty.hidden = false;
       }
+
+      callPermissionRetry.addEventListener('click', function () {
+        if (activeCall) openCall(activeCall);
+      });
 
       declineCall.addEventListener('click', function () {
         incomingRing.classList.remove('open');
