@@ -914,6 +914,8 @@
   .team-chat-input { width:100%; min-width:0; height:42px; padding:0 11px; border:1px solid var(--line); border-radius:10px; background:var(--paper); color:var(--ink); font-family:inherit; font-size:13px; }
   .team-chat-send { width:42px; height:42px; border:0; border-radius:10px; background:var(--gold); color:var(--chalk); font-size:18px; font-weight:800; cursor:pointer; }
   .team-chat-send:disabled { opacity:.55; cursor:wait; }
+  .team-chat-link { display:block; margin-top:12px; padding-top:12px; border-top:1px solid var(--line); color:var(--chalk); font-size:12px; font-weight:800; text-decoration:none; }
+  .team-chat-link:hover { text-decoration:underline; }
   .team-call-actions { display:flex; gap:8px; margin:10px 0 0; }
   .team-call-btn { flex:1; min-height:38px; border:1px solid var(--line); border-radius:10px; background:var(--paper); color:var(--ink); font-family:inherit; font-size:12px; font-weight:800; cursor:pointer; }
   .team-call-btn.primary { border-color:var(--chalk); background:var(--chalk); color:var(--paper); }

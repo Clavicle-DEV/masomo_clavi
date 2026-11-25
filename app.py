@@ -2194,6 +2194,19 @@ def api_support():
     return jsonify({"answer": answer})
 
 
+@app.route('/team-chat')
+@login_required
+def team_chat():
+    if not (is_full_admin(current_user) or is_co_admin(current_user)):
+        return redirect(url_for('home'))
+
+    return render_template(
+        'team_chat.html',
+        team_name=current_user.display_name or default_display_name(current_user.email),
+        is_full_admin_user=is_full_admin(current_user),
+    )
+
+
 @app.route('/api/team/messages', methods=['GET'])
 @login_required
 def api_team_messages():
@@ -2297,8 +2310,8 @@ def api_team_start_call():
 @app.route('/api/team/call', methods=['DELETE'])
 @login_required
 def api_team_end_call():
-    if not (is_full_admin(current_user) or is_co_admin(current_user)):
-        return jsonify({"error": "Team calls are only available to admins and co-admins."}), 403
+    if not is_full_admin(current_user):
+        return jsonify({"error": "Only the owner admin can end a team call."}), 403
 
     call = TeamCall.query.filter_by(ended_at=None).order_by(TeamCall.started_at.desc()).first()
     if not call:
