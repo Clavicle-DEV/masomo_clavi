@@ -988,6 +988,20 @@
         </article>
         {% endfor %}
       </div>
+      {% if is_full_admin_user or is_admin_user %}
+      <div class="team-chat" id="teamChat">
+        <div class="team-call-actions">
+          <button class="team-call-btn primary" id="teamVideoCall" type="button">Start video call</button>
+          <button class="team-call-btn" id="teamAudioCall" type="button">Start audio call</button>
+        </div>
+        <div class="team-chat-log" id="teamChatLog" aria-live="polite"></div>
+        <form class="team-chat-form" id="teamChatForm">
+          <label for="teamChatInput" hidden>Message the admin team</label>
+          <input class="team-chat-input" id="teamChatInput" maxlength="2000" autocomplete="off" placeholder="Message admins and co-admins...">
+          <button class="team-chat-send" id="teamChatSend" type="submit" aria-label="Send team message">&rarr;</button>
+        </form>
+      </div>
+      {% endif %}
     </section>
 
     <div id="subjectBarsWrap">
@@ -1428,6 +1442,7 @@
      data-account-grade="{{ learning_level|default('', true)|tojson|forceescape }}"
      data-account-user-id="{{ user.id|tojson|forceescape }}"
      data-account-course-completed="{{ course_completed|default(false)|tojson|forceescape }}"
+     data-account-name="{{ profile_name|tojson|forceescape }}"
      data-study-timetable="{{ timetable|tojson|forceescape }}"
      data-referral-link="{{ referral_link|default('', true)|tojson|forceescape }}"></div>
 <script>
@@ -1436,6 +1451,7 @@
   const ACCOUNT_GRADE = JSON.parse(appConfig.dataset.accountGrade);
   const ACCOUNT_USER_ID = JSON.parse(appConfig.dataset.accountUserId);
   const ACCOUNT_COURSE_COMPLETED = JSON.parse(appConfig.dataset.accountCourseCompleted);
+  const ACCOUNT_NAME = JSON.parse(appConfig.dataset.accountName);
   const STUDY_TIMETABLE = JSON.parse(appConfig.dataset.studyTimetable);
   const REFERRAL_LINK = JSON.parse(appConfig.dataset.referralLink);
 
@@ -1452,8 +1468,167 @@
     };
     setTimeout(hide, MIN_SHOW_MS);
   })();
+
+  (function () {
+    var chat = document.getElementById('teamChat');
+    if (!chat) return;
+
+    var log = document.getElementById('teamChatLog');
+    var form = document.getElementById('teamChatForm');
+    var input = document.getElementById('teamChatInput');
+    var send = document.getElementById('teamChatSend');
+    var lastId = 0;
+    var seen = {};
+
+    function addMessage(message) {
+      if (seen[message.id]) return;
+      seen[message.id] = true;
+      if (message.id > lastId) lastId = message.id;
+      var item = document.createElement('div');
+      item.className = 'team-chat-message' + (message.senderId === ACCOUNT_USER_ID ? ' mine' : '');
+      var sender = document.createElement('strong');
+      sender.textContent = message.senderName + ' · ' + message.senderRole;
+      item.appendChild(sender);
+      item.appendChild(document.createTextNode(message.body));
+      log.appendChild(item);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    async function poll(initial) {
+      try {
+        var response = await fetch('/api/team/messages?after=' + (initial ? '0' : lastId), { credentials: 'same-origin' });
+        var data = await response.json();
+        if (!response.ok) return;
+        (data.messages || []).forEach(addMessage);
+        if (initial) log.scrollTop = log.scrollHeight;
+      } catch (_) {}
+    }
+
+    form.addEventListener('submit', async function (event) {
+      event.preventDefault();
+      var body = input.value.trim();
+      if (!body || send.disabled) return;
+      send.disabled = true;
+      try {
+        var response = await fetch('/api/team/messages', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ body: body })
+        });
+        var data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Could not send message.');
+        input.value = '';
+        addMessage(data.message);
+      } catch (error) {
+        var status = document.createElement('div');
+        status.className = 'team-chat-message';
+        status.textContent = error.message;
+        log.appendChild(status);
+      } finally {
+        send.disabled = false;
+        input.focus();
+      }
+    });
+
+    poll(true);
+    setInterval(function () { if (!document.hidden) poll(false); }, 5000);
+
+    var videoButton = document.getElementById('teamVideoCall');
+    var audioButton = document.getElementById('teamAudioCall');
+    var callModal = document.getElementById('teamCallModal');
+    var callFrame = document.getElementById('teamCallFrame');
+    var activeCall = null;
+    var jitsiApi = null;
+
+    function loadJitsi(domain) {
+      return new Promise(function (resolve, reject) {
+        if (window.JitsiMeetExternalAPI) return resolve(window.JitsiMeetExternalAPI);
+        var script = document.createElement('script');
+        script.src = (location.protocol === 'https:' ? 'https://' : 'http://') + domain + '/external_api.js';
+        script.onload = function () { resolve(window.JitsiMeetExternalAPI); };
+        script.onerror = reject;
+        document.head.appendChild(script);
+      });
+    }
+
+    async function openCall(call) {
+      activeCall = call;
+      callModal.classList.add('open');
+      try {
+        var JitsiMeetExternalAPI = await loadJitsi(call.domain);
+        if (jitsiApi) jitsiApi.dispose();
+        jitsiApi = new JitsiMeetExternalAPI(call.domain, {
+          roomName: call.roomName,
+          parentNode: callFrame,
+          userInfo: { displayName: ACCOUNT_NAME },
+          configOverwrite: {
+            prejoinPageEnabled: true,
+            startWithAudioOnly: call.kind === 'audio',
+            startWithVideoMuted: call.kind === 'audio',
+            disableDeepLinking: true
+          },
+          interfaceConfigOverwrite: {
+            MOBILE_APP_PROMO: false,
+            SHOW_JITSI_WATERMARK: false
+          }
+        });
+        jitsiApi.addEventListener('videoConferenceLeft', endCallFromIframe);
+      } catch (_) {
+        callModal.classList.remove('open');
+        alert('Could not load the call service. Check your internet connection and try again.');
+      }
+    }
+
+    async function startOrJoin(kind) {
+      var response = await fetch('/api/team/call', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: kind })
+      });
+      var data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Could not start the call.');
+      openCall(data.call);
+    }
+
+    async function endCallFromIframe() {
+      if (jitsiApi) { jitsiApi.dispose(); jitsiApi = null; }
+      callModal.classList.remove('open');
+      try {
+        await fetch('/api/team/call', { method: 'DELETE', credentials: 'same-origin' });
+      } catch (_) {}
+      activeCall = null;
+      videoButton.textContent = 'Start video call';
+      audioButton.textContent = 'Start audio call';
+      pollCallStatus();
+    }
+
+    async function pollCallStatus() {
+      try {
+        var response = await fetch('/api/team/call', { credentials: 'same-origin' });
+        var data = await response.json();
+        activeCall = response.ok ? data.call : null;
+        videoButton.textContent = activeCall ? 'Join video call' : 'Start video call';
+        audioButton.textContent = activeCall ? 'Join audio call' : 'Start audio call';
+      } catch (_) {}
+    }
+
+    async function handleCallClick(kind) {
+      if (activeCall) return openCall(activeCall);
+      try { await startOrJoin(kind); } catch (error) { alert(error.message); }
+    }
+
+    videoButton.addEventListener('click', function () { handleCallClick('video'); });
+    audioButton.addEventListener('click', function () { handleCallClick('audio'); });
+    pollCallStatus();
+    setInterval(function () { if (!document.hidden && !callModal.classList.contains('open')) pollCallStatus(); }, 10000);
+  })();
 </script>
 <script src="{{ static_versioned('js/app.js') }}"></script>
 {% include '_support_widget.html' %}
+<div class="team-call-modal" id="teamCallModal" role="dialog" aria-modal="true" aria-label="Clavis team call">
+  <div class="team-call-shell" id="teamCallFrame"></div>
+</div>
 </body>
 </html>

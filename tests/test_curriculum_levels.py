@@ -38,6 +38,7 @@ from app import (
     study_schedule_for_user,
     study_timetable_for_user,
     validate_class_promotion_test,
+    is_co_admin,
     validate_topic_mastery_test,
 )
 
@@ -573,6 +574,20 @@ Meditations, Book 5
         with flask_app.test_client() as client:
             response = client.get("/pay-mpesa")
             self.assertEqual(response.status_code, 302)
+
+    def test_team_chat_and_call_routes_require_login(self):
+        with flask_app.test_client() as client:
+            self.assertEqual(client.get("/api/team/messages").status_code, 302)
+            self.assertEqual(client.post("/api/team/messages", json={"body": "Hello team"}).status_code, 302)
+            self.assertEqual(client.get("/api/team/call").status_code, 302)
+            self.assertEqual(client.post("/api/team/call", json={"kind": "video"}).status_code, 302)
+            self.assertEqual(client.delete("/api/team/call").status_code, 302)
+
+    def test_configured_team_emails_are_co_admins(self):
+        co_admin = SimpleNamespace(email="silasclavicle@gmail.com")
+        regular_user = SimpleNamespace(email="learner@example.com")
+        self.assertTrue(is_co_admin(co_admin))
+        self.assertFalse(is_co_admin(regular_user))
 
     def test_certificate_routes_require_login(self):
         with flask_app.test_client() as client:

@@ -599,6 +599,26 @@ def check_and_consume_ai_call(user):
     return True, limit - user.daily_ai_calls
 
 
+class TeamMessage(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    sender_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    body = db.Column(db.String(2000), nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
+
+    __table_args__ = (
+        db.Index('ix_team_message_created', 'created_at'),
+    )
+
+
+class TeamCall(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    room_name = db.Column(db.String(120), unique=True, nullable=False)
+    kind = db.Column(db.String(10), nullable=False, default='video')
+    started_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    started_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
+    ended_at = db.Column(db.DateTime, nullable=True)
+
+
 class PaymentLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -2172,6 +2192,151 @@ def api_support():
         return jsonify({"error": "The support assistant is unavailable right now. Please try again shortly."}), 502
 
     return jsonify({"answer": answer})
+
+
+@app.route('/api/team/messages', methods=['GET'])
+@login_required
+def api_team_messages():
+    if not (is_full_admin(current_user) or is_co_admin(current_user)):
+        return jsonify({"error": "Team chat is only available to admins and co-admins."}), 403
+
+    after_id = request.args.get('after', '0', type=int)
+    messages = TeamMessage.query.filter(TeamMessage.id > after_id).order_by(
+        TeamMessage.created_at.asc(), TeamMessage.id.asc()
+    ).limit(100).all()
+    sender_ids = {message.sender_id for message in messages}
+    senders = User.query.filter(User.id.in_(sender_ids)).all() if sender_ids else []
+    senders_by_id = {sender.id: sender for sender in senders}
+
+    return jsonify({
+        "messages": [
+            {
+                "id": message.id,
+                "senderId": message.sender_id,
+                "senderName": (senders_by_id[message.sender_id].display_name or default_display_name(senders_by_id[message.sender_id].email)) if message.sender_id in senders_by_id else "Team member",
+                "senderRole": "Admin" if message.sender_id in senders_by_id and is_full_admin(senders_by_id[message.sender_id]) else "Co-admin",
+                "body": message.body,
+                "createdAt": message.created_at.isoformat() if message.created_at else None,
+            }
+            for message in messages
+        ]
+    })
+
+
+@app.route('/api/team/call', methods=['GET'])
+@login_required
+def api_team_call_status():
+    if not (is_full_admin(current_user) or is_co_admin(current_user)):
+        return jsonify({"error": "Team calls are only available to admins and co-admins."}), 403
+
+    call = TeamCall.query.filter_by(ended_at=None).order_by(TeamCall.started_at.desc()).first()
+    if not call:
+        return jsonify({"call": None})
+
+    starter = User.query.get(call.started_by_id)
+    return jsonify({
+        "call": {
+            "id": call.id,
+            "roomName": call.room_name,
+            "kind": call.kind,
+            "startedBy": starter.display_name or default_display_name(starter.email) if starter else "Team member",
+            "startedAt": call.started_at.isoformat() if call.started_at else None,
+            "domain": os.environ.get('TEAM_CALL_DOMAIN', 'meet.jit.si'),
+        }
+    })
+
+
+@app.route('/api/team/call', methods=['POST'])
+@login_required
+@limiter.limit("10 per minute")
+def api_team_start_call():
+    if not (is_full_admin(current_user) or is_co_admin(current_user)):
+        return jsonify({"error": "Team calls are only available to admins and co-admins."}), 403
+
+    data = request.get_json(silent=True) or {}
+    kind = data.get('kind', 'video')
+    if kind not in {'audio', 'video'}:
+        return jsonify({"error": "Call type must be audio or video."}), 400
+
+    active_call = TeamCall.query.filter_by(ended_at=None).order_by(TeamCall.started_at.desc()).first()
+    if active_call:
+        starter = User.query.get(active_call.started_by_id)
+        return jsonify({
+            "call": {
+                "id": active_call.id,
+                "roomName": active_call.room_name,
+                "kind": active_call.kind,
+                "startedBy": starter.display_name or default_display_name(starter.email) if starter else "Team member",
+                "startedAt": active_call.started_at.isoformat() if active_call.started_at else None,
+                "domain": os.environ.get('TEAM_CALL_DOMAIN', 'meet.jit.si'),
+            },
+            "joined": True,
+        })
+
+    call = TeamCall(
+        room_name=f"Clavis-Team-{secrets.token_hex(8)}",
+        kind=kind,
+        started_by_id=current_user.id,
+    )
+    db.session.add(call)
+    db.session.commit()
+
+    return jsonify({
+        "call": {
+            "id": call.id,
+            "roomName": call.room_name,
+            "kind": call.kind,
+            "startedBy": current_user.display_name or default_display_name(current_user.email),
+            "startedAt": call.started_at.isoformat() if call.started_at else None,
+            "domain": os.environ.get('TEAM_CALL_DOMAIN', 'meet.jit.si'),
+        },
+        "joined": False,
+    }), 201
+
+
+@app.route('/api/team/call', methods=['DELETE'])
+@login_required
+def api_team_end_call():
+    if not (is_full_admin(current_user) or is_co_admin(current_user)):
+        return jsonify({"error": "Team calls are only available to admins and co-admins."}), 403
+
+    call = TeamCall.query.filter_by(ended_at=None).order_by(TeamCall.started_at.desc()).first()
+    if not call:
+        return jsonify({"status": "already-ended"})
+
+    call.ended_at = datetime.now()
+    db.session.commit()
+    return jsonify({"status": "ended"})
+
+
+@app.route('/api/team/messages', methods=['POST'])
+@login_required
+@limiter.limit("30 per minute; 300 per hour")
+def api_team_send_message():
+    if not (is_full_admin(current_user) or is_co_admin(current_user)):
+        return jsonify({"error": "Team chat is only available to admins and co-admins."}), 403
+
+    data = request.get_json(silent=True) or {}
+    body = (data.get('body') or '').strip()
+    if not body:
+        return jsonify({"error": "Enter a message."}), 400
+    if len(body) > 2000:
+        return jsonify({"error": "Please keep the message under 2000 characters."}), 400
+
+    message = TeamMessage(sender_id=current_user.id, body=body)
+    db.session.add(message)
+    db.session.commit()
+
+    return jsonify({
+        "message": {
+            "id": message.id,
+            "senderId": message.sender_id,
+            "senderName": current_user.display_name or default_display_name(current_user.email),
+            "senderRole": "Admin" if is_full_admin(current_user) else "Co-admin",
+            "body": message.body,
+            "createdAt": message.created_at.isoformat() if message.created_at else None,
+        }
+    }), 201
 
 
 @app.route('/api/tutor', methods=['POST'])
