@@ -17,6 +17,11 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 import requests
+try:
+    from pywebpush import webpush, WebPushException
+except ImportError:
+    webpush = None
+    WebPushException = Exception
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, Response, send_from_directory, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
@@ -608,6 +613,15 @@ class TeamMessage(db.Model):
     __table_args__ = (
         db.Index('ix_team_message_created', 'created_at'),
     )
+
+
+class TeamPushSubscription(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    endpoint = db.Column(db.String(1000), unique=True, nullable=False)
+    p256dh = db.Column(db.String(500), nullable=False)
+    auth = db.Column(db.String(300), nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
 
 
 class TeamCall(db.Model):
@@ -2252,11 +2266,91 @@ def api_team_call_status():
             "id": call.id,
             "roomName": call.room_name,
             "kind": call.kind,
+            "startedById": call.started_by_id,
             "startedBy": starter.display_name or default_display_name(starter.email) if starter else "Team member",
             "startedAt": call.started_at.isoformat() if call.started_at else None,
             "domain": os.environ.get('TEAM_CALL_DOMAIN', 'meet.jit.si'),
         }
     })
+
+
+@app.route('/api/team/push/vapid-public-key', methods=['GET'])
+@login_required
+def api_team_push_vapid_public_key():
+    if not (is_full_admin(current_user) or is_co_admin(current_user)):
+        return jsonify({"error": "Team notifications are only available to admins and co-admins."}), 403
+    public_key = os.environ.get('VAPID_PUBLIC_KEY', '')
+    return jsonify({"publicKey": public_key})
+
+
+@app.route('/api/team/push/subscribe', methods=['POST'])
+@login_required
+def api_team_push_subscribe():
+    if not (is_full_admin(current_user) or is_co_admin(current_user)):
+        return jsonify({"error": "Team notifications are only available to admins and co-admins."}), 403
+
+    data = request.get_json(silent=True) or {}
+    subscription = data.get('subscription') or {}
+    keys = subscription.get('keys') or {}
+    endpoint = (subscription.get('endpoint') or '').strip()
+    p256dh = (keys.get('p256dh') or '').strip()
+    auth = (keys.get('auth') or '').strip()
+    if not endpoint or not p256dh or not auth:
+        return jsonify({"error": "Invalid push subscription."}), 400
+
+    existing = TeamPushSubscription.query.filter_by(endpoint=endpoint).first()
+    if existing:
+        existing.user_id = current_user.id
+        existing.p256dh = p256dh
+        existing.auth = auth
+    else:
+        db.session.add(TeamPushSubscription(
+            user_id=current_user.id,
+            endpoint=endpoint,
+            p256dh=p256dh,
+            auth=auth,
+        ))
+    db.session.commit()
+    return jsonify({"status": "subscribed"})
+
+
+def notify_team_of_call(call, sender):
+    private_key = os.environ.get('VAPID_PRIVATE_KEY', '')
+    if private_key and not private_key.startswith('-----BEGIN'):
+        private_path = Path(private_key)
+        if not private_path.is_absolute():
+            private_path = PROJECT_ROOT / private_path
+        if private_path.is_file():
+            private_key = private_path.read_text(encoding='utf-8')
+    public_key = os.environ.get('VAPID_PUBLIC_KEY', '')
+    subject = os.environ.get('VAPID_SUBJECT', 'mailto:admin@clavis.local')
+    if not private_key or not public_key or webpush is None:
+        return
+
+    subscriptions = TeamPushSubscription.query.filter(
+        TeamPushSubscription.user_id != sender.id
+    ).all()
+    sender_name = sender.display_name or default_display_name(sender.email)
+    payload = json.dumps({
+        'title': f"{sender_name} is calling",
+        'body': f"Incoming {call.kind} call from the Clavis team",
+        'url': '/team-chat',
+        'tag': f"team-call-{call.id}",
+    })
+    for subscription in subscriptions:
+        try:
+            webpush(
+                subscription_info={
+                    'endpoint': subscription.endpoint,
+                    'keys': {'p256dh': subscription.p256dh, 'auth': subscription.auth},
+                },
+                data=payload,
+                vapid_private_key=private_key,
+                vapid_claims={'sub': subject},
+                ttl=30,
+            )
+        except Exception as exc:
+            app.logger.warning("Team call push failed: %s", exc)
 
 
 @app.route('/api/team/call', methods=['POST'])
@@ -2279,6 +2373,7 @@ def api_team_start_call():
                 "id": active_call.id,
                 "roomName": active_call.room_name,
                 "kind": active_call.kind,
+                "startedById": active_call.started_by_id,
                 "startedBy": starter.display_name or default_display_name(starter.email) if starter else "Team member",
                 "startedAt": active_call.started_at.isoformat() if active_call.started_at else None,
                 "domain": os.environ.get('TEAM_CALL_DOMAIN', 'meet.jit.si'),
@@ -2293,12 +2388,14 @@ def api_team_start_call():
     )
     db.session.add(call)
     db.session.commit()
+    notify_team_of_call(call, current_user)
 
     return jsonify({
         "call": {
             "id": call.id,
             "roomName": call.room_name,
             "kind": call.kind,
+            "startedById": current_user.id,
             "startedBy": current_user.display_name or default_display_name(current_user.email),
             "startedAt": call.started_at.isoformat() if call.started_at else None,
             "domain": os.environ.get('TEAM_CALL_DOMAIN', 'meet.jit.si'),

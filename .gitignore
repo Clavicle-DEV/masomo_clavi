@@ -3,5 +3,7 @@
 __pycache__/
 .venv/
 instance/
+private_key.pem
+public_key.pem
 *.db
 .DS_Store
