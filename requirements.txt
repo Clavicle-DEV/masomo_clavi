@@ -13,3 +13,4 @@ gunicorn==23.0.0
 psycopg2-binary==2.9.12
 pywebpush==2.2.0
 py-vapid==1.9.2
+livekit-api==1.0.7

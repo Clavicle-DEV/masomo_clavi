@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/livekit-client@2/dist/livekit-client.umd.min.js"></script>
   <style>
     :root { --bg:#f3eee3; --paper:#fffdf8; --chalk:#1f3b30; --gold:#d9a62e; --ink:#21281f; --muted:#6e7a6c; --line:#dbd5c5; --red:#b8433a; }
     * { box-sizing:border-box; }
@@ -212,103 +213,94 @@
       var acceptCall = document.getElementById('acceptCall');
       var declineCall = document.getElementById('declineCall');
 
-      var localStream = null;
-      var peerConnections = {};
-      var signalLastId = 0;
+      var livekitRoom = null;
 
-      function ensureVideoTile(peerId, name, stream, muted) {
-        var tileId = 'teamVideo_' + peerId;
+      function ensureLiveKitTile(identity, name, kind) {
+        var tileId = 'livekit_' + identity;
         var tile = document.getElementById(tileId);
         if (!tile) {
           tile = document.createElement('div');
           tile.id = tileId;
-          tile.className = 'call-video' + (activeCall && activeCall.kind === 'audio' ? ' audio' : '');
-          var video = document.createElement('video');
-          video.autoplay = true;
-          video.playsInline = true;
-          video.muted = !!muted;
+          tile.className = 'call-video' + (kind === 'audio' ? ' audio' : '');
           var label = document.createElement('span');
           label.textContent = name;
-          tile.appendChild(video);
           tile.appendChild(label);
           callGrid.appendChild(tile);
         }
-        var video = tile.querySelector('video');
-        if (stream) video.srcObject = stream;
+        return tile;
       }
 
-      function createPeer(peerId, name, call, initiator) {
-        if (peerConnections[peerId]) return peerConnections[peerId];
-        var pc = new RTCPeerConnection({ iceServers: call.iceServers || [{urls:'stun:stun.l.google.com:19302'}] });
-        peerConnections[peerId] = pc;
-        if (localStream) localStream.getTracks().forEach(function (track) { pc.addTrack(track, localStream); });
-        pc.onicecandidate = function (event) {
-          if (event.candidate) sendSignal(peerId, {type:'ice', candidate:event.candidate});
-        };
-        pc.ontrack = function (event) { ensureVideoTile(peerId, name, event.streams[0], false); };
-        if (initiator) {
-          pc.createOffer().then(function (offer) { return pc.setLocalDescription(offer); }).then(function () {
-            sendSignal(peerId, {type:'offer', sdp:pc.localDescription});
-          }).catch(function () {});
+      function attachLiveKitTrack(track, identity, name, kind) {
+        var tile = ensureLiveKitTile(identity, name, kind);
+        if (track.kind === 'video' || track.kind === 'audio') {
+          var media = track.attach();
+          media.autoplay = true;
+          media.playsInline = true;
+          if (identity === String(accountId)) media.muted = true;
+          var label = tile.querySelector('span');
+          tile.querySelectorAll('video,audio').forEach(function (element) { element.remove(); });
+          tile.insertBefore(media, label);
         }
-        return pc;
       }
 
-      async function sendSignal(peerId, payload) {
-        await fetch('/api/team/call/signals', {
-          method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({receiverId:peerId, payload:payload})
-        });
-      }
-
-      async function pollSignals() {
-        if (!activeCall) return;
-        try {
-          var response = await fetch('/api/team/call/signals?after=' + signalLastId, {credentials:'same-origin'});
-          var data = await response.json();
-          (data.signals || []).forEach(async function (signal) {
-            if (signal.id > signalLastId) signalLastId = signal.id;
-            var payload = signal.payload;
-            var peerName = 'Team member';
-            var pc = peerConnections[signal.senderId] || createPeer(signal.senderId, peerName, activeCall, false);
-            if (payload.type === 'offer') {
-              await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
-              var answer = await pc.createAnswer();
-              await pc.setLocalDescription(answer);
-              sendSignal(signal.senderId, {type:'answer', sdp:pc.localDescription});
-            } else if (payload.type === 'answer') {
-              await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
-            } else if (payload.type === 'ice' && payload.candidate) {
-              await pc.addIceCandidate(new RTCIceCandidate(payload.candidate)).catch(function () {});
-            }
-          });
-        } catch (_) {}
+      function detachLiveKitTrack(track) {
+        track.detach().forEach(function (media) { media.remove(); });
       }
 
       async function openCall(call) {
         activeCall = call;
         callPermission.classList.remove('open');
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+
+        if (!window.LivekitClient) {
           callEmpty.hidden = true;
           callPermission.classList.add('open');
-          callPermissionTitle.textContent = 'Calling is not supported here';
-          callPermissionText.textContent = 'Use HTTPS or localhost in a current Chrome, Edge, Firefox, or Safari browser. Embedded browsers and some in-app webviews cannot place calls.';
-          callStatus.textContent = 'Permission required';
+          callPermissionTitle.textContent = 'LiveKit player is unavailable';
+          callPermissionText.textContent = 'Refresh the page and try again. A network connection is required to load the secure call player.';
+          callStatus.textContent = 'Call player unavailable';
           return;
         }
         if (!window.isSecureContext) {
           callEmpty.hidden = true;
           callPermission.classList.add('open');
           callPermissionTitle.textContent = 'HTTPS permission required';
-          callPermissionText.textContent = 'Microphone and camera access require HTTPS or localhost. Open Clavis over a secure HTTPS address, allow the site permission, then try again.';
+          callPermissionText.textContent = 'Microphone and camera access require HTTPS or localhost. Open Clavis over a secure HTTPS address, then try again.';
           callStatus.textContent = 'Secure connection required';
           return;
         }
+
         try {
-          localStream = await navigator.mediaDevices.getUserMedia({
-            audio:true,
-            video:call.kind === 'video'
+          var tokenResponse = await fetch('/api/team/call/token', {
+            method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:'{}'
           });
+          var tokenData = await tokenResponse.json();
+          if (!tokenResponse.ok) throw new Error(tokenData.error || 'Could not create the LiveKit call token.');
+
+          livekitRoom = new window.LivekitClient.Room({
+            adaptiveStream: true,
+            dynacast: true,
+            publishDefaults: { dtx: true, red: true }
+          });
+
+          livekitRoom
+            .on(window.LivekitClient.RoomEvent.TrackSubscribed, function (track, publication, participant) {
+              attachLiveKitTrack(track, participant.identity, participant.name || 'Team member', call.kind);
+            })
+            .on(window.LivekitClient.RoomEvent.TrackUnsubscribed, function (track) {
+              detachLiveKitTrack(track);
+            })
+            .on(window.LivekitClient.RoomEvent.Disconnected, function () {
+              stopLocalCall();
+            });
+
+          await livekitRoom.connect(tokenData.url, tokenData.token);
+          await livekitRoom.localParticipant.setMicrophoneEnabled(true);
+          if (call.kind === 'video') await livekitRoom.localParticipant.setCameraEnabled(true);
+
+          callGrid.classList.add('open');
+          callEmpty.hidden = true;
+          ensureLiveKitTile(String(accountId), teamName + ' (You)', call.kind);
+          callStatus.textContent = 'In LiveKit call · ' + call.kind;
+          if (endButton) endButton.hidden = !isOwner;
         } catch (error) {
           var isVideo = call.kind === 'video';
           callEmpty.hidden = true;
@@ -316,28 +308,13 @@
           callPermission.classList.add('open');
           callPermissionTitle.textContent = error.name === 'NotAllowedError'
             ? 'Allow access in browser settings'
-            : 'Microphone or camera unavailable';
-          if (error.name === 'NotFoundError') {
-            callPermissionText.textContent = isVideo
-              ? 'No camera or microphone was found on this device. Connect the device, close other apps using it, and try again.'
-              : 'No microphone was found on this device. Connect a microphone, close other apps using it, and try again.';
-          } else {
-            callPermissionText.textContent = isVideo
-              ? 'Clavis needs microphone and camera access. Allow both using the browser’s permission prompt or site settings, then try again.'
-              : 'Clavis needs microphone access. Allow it using the browser’s permission prompt or site settings, then try again.';
-          }
+            : 'Could not join the call';
+          callPermissionText.textContent = isVideo
+            ? 'Clavis needs microphone and camera access. Allow both in the browser permission prompt or site settings, then try again.'
+            : 'Clavis needs microphone access. Allow it in the browser permission prompt or site settings, then try again.';
           callStatus.textContent = 'Permission required';
           await fetch('/api/team/call/leave', {method:'POST', credentials:'same-origin'}).catch(function () {});
-          return;
         }
-        callGrid.classList.add('open');
-        callEmpty.hidden = true;
-        ensureVideoTile(accountId, teamName + ' (You)', localStream, true);
-        callStatus.textContent = 'In active call · ' + call.kind;
-        (call.participants || []).forEach(function (participant) {
-          if (participant.id !== accountId) createPeer(participant.id, participant.name, call, participant.id > accountId);
-        });
-        if (endButton) endButton.hidden = !isOwner;
       }
 
       async function startOrJoin(kind) {
@@ -376,9 +353,8 @@
             if (callGrid.classList.contains('open')) {
               callGrid.classList.remove('open');
               callGrid.textContent = '';
-              if (localStream) localStream.getTracks().forEach(function (track) { track.stop(); });
-              localStream = null;
-              Object.keys(peerConnections).forEach(function (peerId) { peerConnections[peerId].close(); delete peerConnections[peerId]; });
+              if (livekitRoom) livekitRoom.disconnect();
+              livekitRoom = null;
               callEmpty.hidden = false;
             }
             if (endButton) endButton.hidden = true;
@@ -392,9 +368,8 @@
         if (activeCall) openCall(activeCall);
       });
       function stopLocalCall() {
-        if (localStream) localStream.getTracks().forEach(function (track) { track.stop(); });
-        localStream = null;
-        Object.keys(peerConnections).forEach(function (peerId) { peerConnections[peerId].close(); delete peerConnections[peerId]; });
+        if (livekitRoom) livekitRoom.disconnect();
+        livekitRoom = null;
         callGrid.classList.remove('open');
         callGrid.textContent = '';
         callEmpty.hidden = false;
@@ -428,7 +403,7 @@
       pollMessages(true);
       pollCallStatus();
       subscribeToTeamPush();
-      setInterval(function () { if (!document.hidden) { pollMessages(false); pollCallStatus(); pollSignals(); } }, 2000);
+      setInterval(function () { if (!document.hidden) { pollMessages(false); pollCallStatus(); } }, 2000);
     })();
   </script>
 </body>

@@ -18,6 +18,10 @@ from pathlib import Path
 
 import requests
 try:
+    from livekit import api as livekit_api
+except ImportError:
+    livekit_api = None
+try:
     from pywebpush import webpush, WebPushException
 except ImportError:
     webpush = None
@@ -2304,6 +2308,52 @@ def api_team_call_status():
             ],
             "iceServers": build_team_ice_servers(),
         }
+    })
+
+
+@app.route('/api/team/call/token', methods=['POST'])
+@login_required
+@limiter.limit("20 per minute")
+def api_team_call_token():
+    if not (is_full_admin(current_user) or is_co_admin(current_user)):
+        return jsonify({"error": "Team calls are only available to admins and co-admins."}), 403
+
+    livekit_url = os.environ.get('LIVEKIT_URL', '').strip()
+    livekit_key = os.environ.get('LIVEKIT_API_KEY', '').strip()
+    livekit_secret = os.environ.get('LIVEKIT_API_SECRET', '').strip()
+    if livekit_api is None:
+        return jsonify({"error": "LiveKit server SDK is not installed."}), 503
+    if not livekit_url or not livekit_key or not livekit_secret:
+        return jsonify({"error": "LiveKit is not configured. Add LIVEKIT_URL, LIVEKIT_API_KEY, and LIVEKIT_API_SECRET."}), 503
+
+    call = TeamCall.query.filter_by(ended_at=None).order_by(TeamCall.started_at.desc()).first()
+    if not call:
+        return jsonify({"error": "No active team call."}), 404
+
+    display_name = current_user.display_name or default_display_name(current_user.email)
+    token = (
+        livekit_api.AccessToken(livekit_key, livekit_secret)
+        .with_identity(str(current_user.id))
+        .with_name(display_name)
+        .with_grants(livekit_api.VideoGrants(
+            room_join=True,
+            room=call.room_name,
+            can_publish=True,
+            can_subscribe=True,
+            can_publish_data=True,
+        ))
+    )
+    try:
+        jwt_token = token.to_jwt()
+    except Exception as exc:
+        app.logger.error("Could not create LiveKit token: %s", exc)
+        return jsonify({"error": "Could not create the LiveKit call token."}), 502
+
+    return jsonify({
+        "url": livekit_url,
+        "token": jwt_token,
+        "roomName": call.room_name,
+        "kind": call.kind,
     })
 
 
