@@ -32,6 +32,6 @@ svg = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img
   <circle cx="88" cy="87" r="5" fill="#C6922A"/>
 </svg>
 '''
-(root / 'static' / 'images' / 'clavis-mark.svg').write_text(svg, encoding='utf-8')
+(root / 'static' / 'images' / 'Clavis-mark.svg').write_text(svg, encoding='utf-8')
 
 print('Updated non-logo app icons and favicon to match the light shield style. Logo PNG was left untouched.')

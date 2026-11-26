@@ -2421,7 +2421,7 @@ def notify_team_of_call(call, sender):
         if private_path.is_file():
             private_key = private_path.read_text(encoding='utf-8')
     public_key = os.environ.get('VAPID_PUBLIC_KEY', '')
-    subject = os.environ.get('VAPID_SUBJECT', 'mailto:admin@clavis.local')
+    subject = os.environ.get('VAPID_SUBJECT', 'mailto:admin@Clavis.local')
     if not private_key or not public_key or webpush is None:
         return
 

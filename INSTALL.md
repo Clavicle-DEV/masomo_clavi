@@ -43,7 +43,7 @@ Make the key (run once, copy the output):
 
 In the **hub's** `.env`:
 
-    PARTNER_KEYS=clavis:PASTE_THE_KEY_HERE
+    PARTNER_KEYS=Clavis:PASTE_THE_KEY_HERE
 
 In **Clavis's** `.env`:
 

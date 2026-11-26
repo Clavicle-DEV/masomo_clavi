@@ -8,7 +8,7 @@ Setup, in Clavis's .env:
     HUB_URL=http://127.0.0.1:5001
     HUB_PARTNER_KEY=<a long random key>
 
-The same key goes in the hub's .env as:  PARTNER_KEYS=clavis:<that key>
+The same key goes in the hub's .env as:  PARTNER_KEYS=Clavis:<that key>
 
 Then in app.py, after ensure_database_schema() and before
 `if __name__ == '__main__':`, add:
