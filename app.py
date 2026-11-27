@@ -1034,11 +1034,13 @@ def plainize_tutor_answer(text):
         return text
 
     text = re.sub(r'^[ \t]*#{1,6}[ \t]*(.+)$', r'\1', text, flags=re.MULTILINE)
-    text = re.sub(r'^[ \t]*-{3,}[ \t]*$', '', text, flags=re.MULTILINE)
+    text = re.sub(r'^[ \t]*[-*_]{3,}[ \t]*$', '', text, flags=re.MULTILINE)
     text = re.sub(r'^[ \t]*\|?[ \t]*:?-{3,}:?[ \t]*(?:\|[ \t]*:?-{3,}:?[ \t]*)+\|?[ \t]*$', '', text, flags=re.MULTILINE)
+    text = re.sub(r'^[ \t]*>[ \t]?', '', text, flags=re.MULTILINE)
     text = re.sub(r'^([ \t]*)\*[ \t]+', r'\1- ', text, flags=re.MULTILINE)
     text = re.sub(r'\*\*([^*]+)\*\*', r'\1', text)
     text = re.sub(r'__([^_]+)__', r'\1', text)
+    text = re.sub(r'(^|[^_])_([^_\n]+)_', r'\1\2', text)
     text = re.sub(r'(^|[^*])\*([^*\n]+)\*', r'\1\2', text)
     text = text.replace('*', '')
 
