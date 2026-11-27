@@ -6,298 +6,191 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title or 'Clavis — Learn with clarity. Teach with confidence.' }}</title>
-  <meta name="description" content="Clavis is the AI study space for Kenyan students and the platform schools use to teach, connect and track progress. CBC Junior and Senior school.">
-  <meta name="theme-color" content="#0f2318">
+  <meta name="description" content="Clavis is the AI study space for Kenyan students and the school platform teachers and principals run on. CBC Junior and Senior school.">
+  <meta name="theme-color" content="#faf6ec">
   <link rel="icon" type="image/png" href="{{ static_versioned('images/icon-192.png') }}">
   <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400..600&family=Manrope:wght@400..800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500..700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script>document.documentElement.classList.add('js');</script>
   <noscript><style>.reveal{opacity:1!important;transform:none!important}</style></noscript>
   <style>
     :root {
-      --forest-950: #0b1b12;
-      --forest-900: #0f2318;
-      --forest-800: #16301f;
-      --forest-700: #1d3d2a;
-      --forest-600: #2a5a3d;
-      --forest-500: #3b7a53;
-      --gold: #c9962f;
-      --gold-soft: #e8d8ad;
-      --gold-pale: #f3e9cc;
-      --cream: #f6f1e4;
-      --blush: #fbf1f0;
-      --paper: #fffdf8;
-      --ink: #13201a;
-      --muted: #627060;
-      --line: #e4dfcf;
-      --serif: 'Fraunces', Georgia, 'Times New Roman', serif;
-      --sans: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
-      --wrap: 1180px;
-      --gutter: clamp(20px, 5vw, 56px);
+      --bg: #faf7f0; --paper: #ffffff; --soft: #f6f2e8; --line: #ece6d6; --line-2: #e2dac4;
+      --ink: #1b2420; --muted: #6f776f; --faint: #9aa19a;
+      --gold: #b98a35; --gold-2: #c9a04b; --gold-pale: #f7efd9; --gold-line: #ead9aa;
+      --green: #3f9a62; --green-pale: #e7f4ec; --amber: #e3a23a; --amber-pale: #fbf0d8;
+      --red: #d9604f; --red-pale: #fbe9e5; --blue: #3b5fa8; --violet: #8a6fc7;
+      --serif: 'Fraunces', Georgia, serif; --sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+      --wrap: 1180px; --gutter: clamp(18px, 5vw, 48px);
     }
     * { box-sizing: border-box; }
-    html { scroll-behavior: smooth; scroll-padding-top: 90px; }
-    body { margin: 0; color: var(--ink); background: var(--cream); font-family: var(--sans); font-size: 16px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+    html { scroll-behavior: smooth; scroll-padding-top: 84px; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 var(--sans); -webkit-font-smoothing: antialiased; }
     a { color: inherit; }
-    img, svg { max-width: 100%; }
     .site { overflow-x: clip; }
     .wrap { width: 100%; max-width: calc(var(--wrap) + var(--gutter) * 2); margin: 0 auto; padding: 0 var(--gutter); }
 
-    /* ---------- Buttons ---------- */
-    .btn { min-height: 52px; padding: 0 26px; display: inline-flex; align-items: center; justify-content: center; gap: 10px; border: 1px solid transparent; border-radius: 999px; font: 700 15px var(--sans); text-decoration: none; cursor: pointer; transition: transform .2s ease, box-shadow .2s ease, background .2s ease, border-color .2s ease; }
-    .btn:hover { transform: translateY(-2px); }
-    .btn-gold { color: #1a2a1e; background: linear-gradient(180deg, #ecd9a2, #d9b45f); box-shadow: 0 10px 28px rgba(201,150,47,.32), inset 0 1px 0 rgba(255,255,255,.5); }
-    .btn-gold:hover { box-shadow: 0 14px 34px rgba(201,150,47,.44), inset 0 1px 0 rgba(255,255,255,.5); }
-    .btn-ghost { color: #f3f0e4; border-color: rgba(255,255,255,.28); background: rgba(255,255,255,.06); backdrop-filter: blur(6px); }
-    .btn-ghost:hover { background: rgba(255,255,255,.14); border-color: rgba(255,255,255,.5); }
-    .btn-dark { color: #fff; background: var(--forest-800); box-shadow: 0 10px 26px rgba(15,35,24,.25); }
-    .btn-dark:hover { background: var(--forest-700); }
-    .btn-line { color: var(--forest-800); border-color: rgba(22,48,31,.25); background: rgba(255,255,255,.5); }
-    .btn-line:hover { background: #fff; border-color: var(--forest-800); }
-    .btn-sm { min-height: 44px; padding: 0 20px; font-size: 14px; }
-    .arrow { font-size: 18px; line-height: 1; transition: transform .2s ease; }
-    .btn:hover .arrow { transform: translateX(3px); }
+    /* buttons */
+    .btn { min-height: 48px; padding: 0 24px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid transparent; border-radius: 12px; font: 600 15px var(--sans); text-decoration: none; cursor: pointer; transition: transform .2s, box-shadow .2s, background .2s; }
+    .btn:hover { transform: translateY(-1px); }
+    .btn-gold { background: linear-gradient(180deg, #cfa953, #b98a35); color: #fff; box-shadow: 0 8px 20px rgba(185,138,53,.28); }
+    .btn-gold:hover { box-shadow: 0 12px 26px rgba(185,138,53,.38); }
+    .btn-line { background: var(--paper); border-color: var(--line-2); color: var(--ink); }
+    .btn-line:hover { border-color: var(--gold-2); }
+    .btn-sm { min-height: 40px; padding: 0 18px; font-size: 14px; border-radius: 10px; }
 
-    /* ---------- Nav ---------- */
-    .nav { position: sticky; top: 0; z-index: 50; background: rgba(11,27,18,.82); backdrop-filter: blur(14px) saturate(1.4); -webkit-backdrop-filter: blur(14px) saturate(1.4); border-bottom: 1px solid rgba(255,255,255,.08); }
-    .nav-inner { height: 76px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
-    .brand { display: inline-flex; align-items: center; gap: 11px; color: #fff; text-decoration: none; font: 600 28px var(--serif); letter-spacing: -.02em; }
-    .brand img { width: 36px; height: 36px; object-fit: contain; }
+    /* nav */
+    .nav { position: sticky; top: 0; z-index: 50; background: rgba(250,247,240,.86); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-bottom: 1px solid var(--line); }
+    .nav-inner { height: 68px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+    .brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font: 600 24px var(--serif); letter-spacing: -.02em; }
+    .brand img { width: 32px; height: 32px; border-radius: 9px; }
     .brand i { color: var(--gold); font-style: normal; }
-    .nav-links { display: flex; align-items: center; gap: 30px; }
-    .nav-link { color: #cfd9cf; font-size: 15px; font-weight: 600; text-decoration: none; transition: color .2s; }
-    .nav-link:hover { color: var(--gold-soft); }
-    .nav-cta { display: flex; align-items: center; gap: 12px; }
+    .nav-links { display: flex; align-items: center; gap: 6px; }
+    .nav-link { padding: 8px 14px; border-radius: 10px; font-size: 14.5px; font-weight: 500; color: var(--muted); text-decoration: none; transition: background .2s, color .2s; }
+    .nav-link:hover { background: var(--soft); color: var(--ink); }
+    .nav-cta { display: flex; align-items: center; gap: 8px; margin-left: 10px; }
+    @media (max-width: 820px) { .nav-link:not(.nav-login) { display: none; } }
 
-    /* ---------- Hero ---------- */
-    .hero { position: relative; color: #fff; background:
-      radial-gradient(ellipse 60% 60% at 82% 38%, rgba(201,150,47,.20), transparent 62%),
-      radial-gradient(ellipse 50% 60% at 6% 100%, rgba(59,122,83,.35), transparent 60%),
-      linear-gradient(160deg, #0b1b12 0%, #14301f 55%, #0f2318 100%); }
-    .hero::before { content: ''; position: absolute; inset: 0; opacity: .5; pointer-events: none; background-image: radial-gradient(rgba(255,255,255,.07) 1px, transparent 1px); background-size: 28px 28px; -webkit-mask-image: linear-gradient(180deg, #000 0%, transparent 85%); mask-image: linear-gradient(180deg, #000 0%, transparent 85%); }
-    .hero-grid { position: relative; display: grid; grid-template-columns: 1.02fr .98fr; gap: clamp(30px, 5vw, 70px); align-items: center; padding-top: clamp(56px, 8vw, 104px); padding-bottom: clamp(76px, 9vw, 120px); }
-    .pill { display: inline-flex; align-items: center; gap: 10px; padding: 8px 16px 8px 10px; border: 1px solid rgba(232,216,173,.3); border-radius: 999px; background: rgba(232,216,173,.08); color: var(--gold-soft); font-size: 13px; font-weight: 700; letter-spacing: .02em; }
-    .pill-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 4px rgba(201,150,47,.22); }
-    h1 { margin: 26px 0 24px; font: 500 clamp(44px, 6.2vw, 78px)/1.02 var(--serif); letter-spacing: -.035em; }
-    h1 em { color: var(--gold-soft); font-style: italic; font-weight: 400; }
-    .hero-lede { max-width: 520px; margin: 0; color: #c8d4c9; font-size: clamp(17px, 1.6vw, 19px); line-height: 1.7; }
-    .hero-actions { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 36px; }
-    .hero-trust { display: flex; flex-wrap: wrap; gap: 12px 26px; margin-top: 34px; padding-top: 26px; border-top: 1px solid rgba(255,255,255,.12); max-width: 540px; }
-    .trust-item { display: inline-flex; align-items: center; gap: 9px; color: #b9c8bb; font-size: 14px; font-weight: 600; }
-    .trust-item svg { color: var(--gold); flex: none; }
+    /* hero */
+    .hero { padding: clamp(44px, 7vw, 84px) 0 0; text-align: center; background: radial-gradient(ellipse 70% 50% at 50% 0%, rgba(201,160,75,.16), transparent 70%); }
+    .pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border: 1px solid var(--gold-line); border-radius: 999px; background: var(--gold-pale); color: #7d5b17; font-size: 13px; font-weight: 600; }
+    .pill i { width: 7px; height: 7px; border-radius: 50%; background: var(--gold); }
+    h1 { margin: 20px auto 0; max-width: 840px; font: 600 clamp(38px, 6.4vw, 72px)/1.04 var(--serif); letter-spacing: -.035em; }
+    h1 em, h2 em { font-style: italic; color: var(--gold); font-weight: 500; }
+    .hero-lede { max-width: 640px; margin: 20px auto 0; color: var(--muted); font-size: clamp(16px, 1.8vw, 19px); }
+    .hero-actions { margin-top: 30px; display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+    .hero-trust { margin-top: 22px; display: flex; flex-wrap: wrap; gap: 8px 22px; justify-content: center; color: var(--muted); font-size: 13.5px; font-weight: 500; }
+    .hero-trust span::before { content: '✓'; margin-right: 7px; color: var(--green); font-weight: 700; }
 
-    /* App mockup */
-    .stage { position: relative; padding: 28px 0 40px; }
-    .stage::before { content: ''; position: absolute; z-index: 0; width: 78%; aspect-ratio: 1; right: -6%; top: 2%; border-radius: 50%; background: radial-gradient(circle at 35% 30%, rgba(232,216,173,.28), rgba(201,150,47,.08) 60%, transparent 70%); filter: blur(4px); }
-    .device { position: relative; z-index: 1; display: grid; grid-template-columns: 54px 1fr; border-radius: 22px; overflow: hidden; background: linear-gradient(135deg, #eef1e6, #f4ecd6); border: 1px solid rgba(255,255,255,.35); box-shadow: 0 40px 90px rgba(0,0,0,.5), 0 0 0 8px rgba(255,255,255,.04); transform: perspective(1400px) rotateY(-7deg) rotateX(3deg); transition: transform .6s ease; }
-    .stage:hover .device { transform: perspective(1400px) rotateY(-2deg) rotateX(1deg); }
-    .dv-side { padding: 16px 0; display: flex; flex-direction: column; align-items: center; gap: 16px; background: var(--forest-800); }
-    .dv-logo { width: 28px; height: 28px; margin-bottom: 6px; border-radius: 8px; display: grid; place-items: center; background: rgba(201,150,47,.18); color: var(--gold); font: 700 14px var(--serif); }
-    .dv-ico { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; color: #8fa596; }
-    .dv-ico.on { color: #fff; background: rgba(255,255,255,.12); box-shadow: inset 2px 0 0 var(--gold); }
-    .dv-main { padding: 18px; display: grid; gap: 12px; color: var(--ink); }
-    .dv-bar { display: flex; align-items: center; justify-content: space-between; padding: 9px 12px; border-radius: 12px; background: var(--blush); border: 1px solid #f0e3e1; font-size: 11px; font-weight: 700; }
-    .dv-user { display: inline-flex; align-items: center; gap: 8px; }
-    .dv-avatar { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: #e6dcc6; font: 700 11px var(--serif); }
-    .dv-tag { padding: 2px 7px; border-radius: 5px; background: var(--forest-800); color: #fff; font-size: 8px; letter-spacing: .04em; }
-    .dv-hero { position: relative; overflow: hidden; padding: 18px 18px 20px; border-radius: 14px; color: #fff; background: linear-gradient(135deg, #1a3626, #2a5a3d); }
-    .dv-hero::after { content: ''; position: absolute; width: 150px; height: 150px; right: -34px; top: -60px; border-radius: 50%; border: 18px solid rgba(255,255,255,.07); }
-    .dv-eyebrow { color: var(--gold); font-size: 8px; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; }
-    .dv-title { margin: 4px 0 2px; font: 500 24px/1.1 var(--serif); }
-    .dv-sub { color: #bcd0c1; font-size: 10px; }
-    .dv-level { padding: 10px 12px; border-radius: 12px; background: var(--blush); border: 1px solid #f0e3e1; }
-    .dv-level-top { display: flex; justify-content: space-between; font-size: 10px; font-weight: 700; margin-bottom: 7px; }
-    .dv-track { height: 6px; border-radius: 9px; background: #e4e3da; overflow: hidden; }
-    .dv-track span { display: block; width: 64%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--gold), var(--forest-800)); }
-    .dv-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-    .dv-stat { padding: 10px 11px; border-radius: 12px; background: var(--blush); border: 1px solid #f0e3e1; border-top: 2px solid var(--gold); }
-    .dv-stat b { display: block; font: 600 22px/1.1 var(--serif); color: var(--forest-800); }
-    .dv-stat span { font-size: 9px; color: var(--muted); font-weight: 600; }
+    /* =========== product preview (dashboard) =========== */
+    .preview { position: relative; margin: clamp(40px, 6vw, 64px) auto 0; max-width: 1120px; }
+    .preview::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 90px; background: linear-gradient(180deg, transparent, var(--bg)); pointer-events: none; border-radius: 0 0 20px 20px; }
+    .dash { display: grid; grid-template-columns: 188px minmax(0, 1fr); text-align: left; border: 1px solid var(--line-2); border-radius: 20px 20px 0 0; border-bottom: 0; background: var(--paper); box-shadow: 0 40px 90px rgba(80,60,20,.14), 0 8px 24px rgba(80,60,20,.06); overflow: hidden; font-size: 12px; line-height: 1.4; }
+    .dash b { font-weight: 600; }
+    .d-side { padding: 18px 12px; border-right: 1px solid var(--line); background: #fdfbf6; display: flex; flex-direction: column; gap: 2px; }
+    .d-logo { display: flex; align-items: center; gap: 8px; padding: 0 8px 14px; font: 600 20px var(--serif); }
+    .d-logo span { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 8px; background: var(--gold-pale); color: var(--gold); font-size: 14px; }
+    .d-logo small { display: block; margin-top: -2px; font: 500 8px var(--sans); letter-spacing: .14em; color: var(--faint); }
+    .d-nav { display: flex; align-items: center; gap: 9px; padding: 8px 10px; border-radius: 9px; color: #515a53; font-weight: 500; }
+    .d-nav.on { background: var(--gold-pale); color: #7d5b17; }
+    .d-nav svg { width: 15px; height: 15px; flex: none; }
+    .d-label { margin: 14px 10px 4px; color: var(--faint); font-size: 9.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+    .d-school { margin-top: auto; display: flex; align-items: center; gap: 8px; padding: 9px; border: 1px solid var(--line); border-radius: 11px; background: #fff; }
+    .d-school i { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 8px; background: var(--gold-pale); color: var(--gold); font-style: normal; font-weight: 700; }
+    .d-school b { display: block; font-size: 11px; } .d-school span { color: var(--faint); font-size: 9.5px; }
 
-    .float { position: absolute; z-index: 3; border-radius: 16px; box-shadow: 0 22px 50px rgba(0,0,0,.38); animation: bob 7s ease-in-out infinite; }
-    .f-challenge { left: -6%; bottom: 2%; width: min(250px, 58%); padding: 14px 16px; color: #fff; background: linear-gradient(160deg, #1a3626, #11281b); border: 1px solid rgba(255,255,255,.1); }
-    .f-challenge small { display: block; color: var(--gold); font-size: 9px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
-    .f-challenge p { margin: 5px 0 9px; font-size: 12.5px; line-height: 1.4; font-weight: 700; }
-    .f-opt { padding: 7px 10px; margin-top: 5px; border-radius: 8px; font-size: 11px; font-weight: 600; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12); }
-    .f-opt.right { background: rgba(59,122,83,.55); border-color: #4c9a68; }
-    .f-live { right: -4%; top: 0; padding: 12px 15px; display: flex; align-items: center; gap: 12px; color: var(--ink); background: var(--paper); border: 1px solid var(--line); animation-delay: -2.5s; }
-    .live-dot { position: relative; width: 10px; height: 10px; border-radius: 50%; background: #e0493d; flex: none; }
-    .live-dot::after { content: ''; position: absolute; inset: -5px; border-radius: 50%; border: 2px solid rgba(224,73,61,.45); animation: ping 1.8s ease-out infinite; }
-    .f-live b { display: block; font-size: 12.5px; line-height: 1.25; }
-    .f-live span { font-size: 11px; color: var(--muted); font-weight: 600; }
-    .f-chat { right: 2%; bottom: -3%; width: min(215px, 50%); padding: 12px 14px; color: var(--ink); background: var(--paper); border: 1px solid var(--line); animation-delay: -4.5s; }
-    .f-chat small { color: var(--forest-600); font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
-    .f-chat p { margin: 4px 0 8px; font-size: 12px; line-height: 1.45; font-weight: 600; }
-    .f-chat .row { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 10.5px; font-weight: 600; }
-    @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
-    @keyframes ping { 0% { transform: scale(.6); opacity: 1; } 100% { transform: scale(1.7); opacity: 0; } }
+    .d-main { padding: 18px 20px 0; min-width: 0; background: #fcfaf5; }
+    .d-top { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 14px; }
+    .d-top h3 { margin: 0; font: 600 19px var(--serif); } .d-top p { margin: 1px 0 0; color: var(--muted); font-size: 11px; }
+    .d-tools { display: flex; align-items: center; gap: 10px; }
+    .d-search { width: 210px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--faint); }
+    .d-user { display: flex; align-items: center; gap: 8px; } .d-user i { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; background: var(--gold-pale); color: var(--gold); font-style: normal; font-weight: 700; } .d-user b { display: block; font-size: 11px; } .d-user span { color: var(--faint); font-size: 9.5px; }
+    .d-card { border: 1px solid var(--line); border-radius: 13px; background: #fff; padding: 13px 14px; min-width: 0; }
+    .d-stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 12px; }
+    .d-stat { display: flex; flex-direction: column; gap: 2px; }
+    .d-stat .ic { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 9px; margin-bottom: 6px; }
+    .d-stat .ic svg { width: 15px; height: 15px; }
+    .d-stat small { color: var(--muted); font-size: 10.5px; } .d-stat strong { font: 600 22px/1.1 var(--serif); } .d-stat em { font-style: normal; font-size: 10px; font-weight: 600; color: var(--green); }
+    .ic.g { background: var(--gold-pale); color: var(--gold); } .ic.n { background: var(--green-pale); color: var(--green); } .ic.b { background: #e8eefa; color: var(--blue); } .ic.v { background: #efeafa; color: var(--violet); } .ic.r { background: var(--red-pale); color: var(--red); }
+    .d-row { display: grid; gap: 12px; margin-bottom: 12px; }
+    .d-row.a { grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr); }
+    .d-row.b { grid-template-columns: 1.05fr 1.1fr 1fr 1fr; }
+    .d-h { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .d-h b { font-size: 12.5px; } .d-h span { padding: 3px 9px; border: 1px solid var(--line); border-radius: 7px; color: var(--muted); font-size: 10px; }
+    .d-h a { color: var(--gold); font-size: 10.5px; font-weight: 600; text-decoration: none; }
+    table.heat { width: 100%; border-collapse: separate; border-spacing: 0 4px; font-size: 11px; }
+    .heat th { text-align: center; color: var(--faint); font-size: 9.5px; font-weight: 600; } .heat th:first-child, .heat td:first-child { text-align: left; }
+    .heat td { text-align: center; color: #5a625b; } .heat td:first-child { font-weight: 600; color: var(--ink); }
+    .heat i { display: block; height: 15px; margin: 0 3px; border-radius: 4px; }
+    .p { background: #a8d5b3; } .l { background: #efc979; } .a2 { background: #e79a8e; } .n { background: #ece7d9; }
+    .heat .o { color: var(--amber); font-weight: 600; } .heat .r { color: var(--red); font-weight: 600; }
+    .d-legend { display: flex; gap: 14px; margin-top: 8px; color: var(--muted); font-size: 10px; } .d-legend span::before { content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 5px; border-radius: 50%; background: var(--c); }
+    .ai-tag { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 6px; background: var(--gold-pale); color: var(--gold); font-size: 9px; font-weight: 700; }
+    .ai-item { display: flex; align-items: center; gap: 10px; padding: 9px 10px; margin-top: 6px; border: 1px solid var(--line); border-radius: 10px; }
+    .ai-item .ic { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 8px; flex: none; } .ai-item .ic svg { width: 13px; height: 13px; }
+    .ai-item b { display: block; font-size: 11px; } .ai-item span { color: var(--muted); font-size: 10px; } .ai-item::after { content: '›'; margin-left: auto; color: var(--faint); font-size: 16px; }
+    .ai-btn { display: block; margin-top: 10px; padding: 9px; border-radius: 9px; background: linear-gradient(180deg, #cfa953, #b98a35); color: #fff; text-align: center; font-size: 11px; font-weight: 600; }
+    .donut { --size: 78px; position: relative; width: var(--size); height: var(--size); border-radius: 50%; background: conic-gradient(var(--segs)); flex: none; }
+    .donut::after { content: attr(data-v); position: absolute; inset: 14px; display: grid; place-items: center; border-radius: 50%; background: #fff; font: 600 15px var(--serif); text-align: center; line-height: 1; }
+    .donut.big { --size: 92px; } .donut.big::after { inset: 16px; font-size: 17px; }
+    .d-split { display: flex; align-items: center; gap: 14px; }
+    .d-list { flex: 1; display: grid; gap: 5px; font-size: 10.5px; } .d-list div { display: flex; justify-content: space-between; gap: 8px; color: var(--muted); } .d-list div::before { content: ''; width: 7px; height: 7px; margin: 4px 6px 0 0; border-radius: 50%; background: var(--c); flex: none; } .d-list div span { margin-left: auto; color: var(--ink); font-weight: 600; }
+    .bars { display: flex; align-items: flex-end; gap: 12px; height: 74px; margin-top: 4px; } .bars i { flex: 1; border-radius: 4px 4px 0 0; background: linear-gradient(180deg, #d9b45f, #c9a04b); }
+    .evt { display: flex; align-items: center; gap: 10px; margin-top: 8px; } .evt .dt { width: 34px; padding: 3px 0; border: 1px solid var(--line); border-radius: 8px; text-align: center; font: 600 14px/1.1 var(--serif); } .evt .dt small { display: block; color: var(--gold); font: 700 8px var(--sans); letter-spacing: .08em; } .evt b { display: block; font-size: 11px; } .evt span { color: var(--muted); font-size: 10px; }
+    .req-row { display: flex; align-items: center; gap: 9px; margin-top: 8px; } .req-row .av { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; background: var(--gold-pale); color: var(--gold); font-weight: 700; flex: none; } .req-row b { display: block; font-size: 11px; } .req-row span { color: var(--muted); font-size: 10px; } .req-row .acts { margin-left: auto; display: flex; gap: 5px; } .req-row .acts i { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 7px; font-style: normal; font-size: 11px; font-weight: 700; } .acts .y { background: var(--green-pale); color: var(--green); } .acts .x { background: var(--red-pale); color: var(--red); }
+    .live { display: flex; align-items: center; gap: 9px; margin-top: 10px; padding: 9px 10px; border-radius: 10px; background: var(--green-pale); } .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 0 rgba(63,154,98,.5); animation: pulse 1.8s infinite; flex: none; } .live b { display: block; font-size: 11px; } .live span { color: var(--muted); font-size: 10px; }
+    @keyframes pulse { 70% { box-shadow: 0 0 0 8px rgba(63,154,98,0); } 100% { box-shadow: 0 0 0 0 rgba(63,154,98,0); } }
+    .sample { margin-top: 14px; color: var(--faint); font-size: 12px; text-align: center; }
 
-    /* ---------- Marquee ---------- */
-    .marquee { background: var(--forest-950); border-top: 1px solid rgba(255,255,255,.06); border-bottom: 1px solid rgba(255,255,255,.06); overflow: hidden; -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
-    .marquee-track { display: flex; width: max-content; animation: scroll 38s linear infinite; }
-    .marquee:hover .marquee-track { animation-play-state: paused; }
-    .m-item { display: inline-flex; align-items: center; gap: 14px; padding: 22px 28px; color: #aebfb1; font: 500 18px var(--serif); white-space: nowrap; }
-    .m-item::after { content: '✦'; color: var(--gold); font-size: 13px; margin-left: 14px; }
-    @keyframes scroll { to { transform: translateX(-50%); } }
-
-    /* ---------- Section basics ---------- */
-    .section { padding: clamp(72px, 10vw, 130px) 0; }
-    .eyebrow { display: inline-flex; align-items: center; gap: 10px; color: var(--forest-500); font-size: 13px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
-    .eyebrow::before { content: ''; width: 26px; height: 2px; background: var(--gold); }
-    h2 { margin: 16px 0 16px; font: 500 clamp(34px, 4.6vw, 58px)/1.06 var(--serif); letter-spacing: -.03em; }
-    h2 em { font-style: italic; font-weight: 400; color: var(--forest-600); }
-    .lede { max-width: 580px; margin: 0; color: var(--muted); font-size: 18px; line-height: 1.7; }
-    .sec-head { max-width: 720px; margin-bottom: clamp(36px, 5vw, 60px); }
-
-    /* ---------- Student bento ---------- */
-    .bento { display: grid; grid-template-columns: repeat(6, 1fr); gap: 18px; }
-    .card { position: relative; overflow: hidden; padding: 30px; border-radius: 26px; background: var(--paper); border: 1px solid var(--line); transition: transform .3s ease, box-shadow .3s ease; }
-    .card:hover { transform: translateY(-5px); box-shadow: 0 26px 50px rgba(29,61,42,.12); }
-    .card h3 { margin: 0 0 10px; font: 500 26px/1.15 var(--serif); letter-spacing: -.02em; }
-    .card p { margin: 0; color: var(--muted); font-size: 16px; }
-    .c-ask { grid-column: span 4; background: linear-gradient(150deg, var(--forest-800), var(--forest-700)); border-color: transparent; color: #fff; display: grid; grid-template-columns: 1fr 1.05fr; gap: 28px; align-items: center; }
-    .c-ask p { color: #bfd0c3; }
-    .c-ask h3 { font-size: 32px; }
-    .chat { display: grid; gap: 10px; }
-    .bubble { padding: 12px 15px; border-radius: 16px; font-size: 14px; line-height: 1.5; max-width: 94%; }
-    .bubble.me { justify-self: end; color: #1a2a1e; background: var(--gold-soft); border-bottom-right-radius: 5px; font-weight: 600; }
-    .bubble.ai { background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.14); border-bottom-left-radius: 5px; color: #eef3ee; }
-    .bubble.ai b { color: var(--gold-soft); }
-    .c-papers { grid-column: span 2; }
-    .c-streak { grid-column: span 2; background: linear-gradient(160deg, #fbf1f0, #f6ead6); }
-    .c-cert { grid-column: span 2; }
-    .c-phone { grid-column: span 2; background: var(--gold-pale); border-color: #e8d8ad; }
-    .ico { width: 52px; height: 52px; margin-bottom: 22px; display: grid; place-items: center; border-radius: 16px; color: var(--forest-700); background: #eaf0de; }
-    .c-streak .ico { color: #a67a1f; background: #f6e8c4; }
-    .c-cert .ico { color: #4b7a72; background: #e1efeb; }
-    .c-phone .ico { color: #8d6a18; background: #f2e2b3; }
-    .mini-bar { height: 8px; margin-top: 18px; border-radius: 9px; background: rgba(19,32,26,.1); overflow: hidden; }
-    .mini-bar span { display: block; height: 100%; width: 68%; border-radius: inherit; background: linear-gradient(90deg, var(--gold), var(--forest-800)); }
-    .mini-meta { display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px; font-weight: 700; color: var(--muted); }
-
-    /* ---------- Schools ---------- */
-    .schools { position: relative; color: #fff; background:
-      radial-gradient(ellipse 50% 50% at 90% 10%, rgba(201,150,47,.16), transparent 60%),
-      radial-gradient(ellipse 60% 50% at 0% 100%, rgba(59,122,83,.3), transparent 60%),
-      linear-gradient(170deg, #0b1b12, #14301f); }
-    .schools .eyebrow { color: var(--gold-soft); }
-    .schools h2 em { color: var(--gold-soft); }
-    .schools .lede { color: #b9c8bb; }
-    .schools-grid { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(36px, 6vw, 80px); align-items: center; }
-    .flow { margin: 38px 0 0; padding: 0; list-style: none; display: grid; gap: 0; counter-reset: step; }
-    .flow li { position: relative; display: flex; gap: 18px; padding-bottom: 26px; }
-    .flow li:last-child { padding-bottom: 0; }
-    .flow li::before { counter-increment: step; content: counter(step); flex: none; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; color: #1a2a1e; background: var(--gold-soft); font: 700 15px var(--serif); position: relative; z-index: 1; }
-    .flow li::after { content: ''; position: absolute; left: 18px; top: 38px; bottom: 0; width: 2px; background: linear-gradient(180deg, rgba(232,216,173,.5), rgba(232,216,173,.08)); }
-    .flow li:last-child::after { display: none; }
-    .flow b { display: block; margin-bottom: 3px; font: 500 21px var(--serif); }
-    .flow span { color: #aebfb1; font-size: 15.5px; }
-    .schools-cta { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 40px; }
-    .panel { position: relative; padding: 22px; border-radius: 26px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); backdrop-filter: blur(10px); box-shadow: 0 40px 80px rgba(0,0,0,.35); }
-    .panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-    .panel-head b { font: 500 20px var(--serif); }
-    .badge { padding: 5px 11px; border-radius: 999px; background: rgba(201,150,47,.2); color: var(--gold-soft); font-size: 12px; font-weight: 800; }
-    .req { display: flex; align-items: center; gap: 13px; padding: 13px 14px; margin-bottom: 10px; border-radius: 16px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.08); }
-    .req .av { width: 40px; height: 40px; flex: none; display: grid; place-items: center; border-radius: 50%; background: var(--gold-soft); color: #1a2a1e; font: 700 15px var(--serif); }
-    .req .who { flex: 1; min-width: 0; }
-    .req .who b { display: block; font-size: 15px; }
-    .req .who span { color: #98ab9c; font-size: 13px; }
-    .req .acts { display: flex; gap: 7px; }
-    .act { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; font-size: 15px; font-weight: 800; }
-    .act.ok { background: rgba(76,154,104,.35); color: #b8f0cc; }
-    .act.no { background: rgba(224,73,61,.22); color: #ffb3ac; }
-    .session { margin-top: 16px; padding: 18px; border-radius: 18px; background: linear-gradient(135deg, rgba(201,150,47,.22), rgba(201,150,47,.08)); border: 1px solid rgba(232,216,173,.3); }
-    .session-top { display: flex; align-items: center; gap: 9px; margin-bottom: 8px; color: #ffd0cb; font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
-    .session b { display: block; font: 500 21px var(--serif); }
-    .session span { color: #c3d1c5; font-size: 14px; }
-    .school-feats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: clamp(50px, 7vw, 90px); }
-    .sf { padding: 26px; border-radius: 22px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.09); transition: background .25s, transform .25s; }
-    .sf:hover { background: rgba(255,255,255,.08); transform: translateY(-4px); }
-    .sf svg { color: var(--gold); margin-bottom: 16px; }
-    .sf h3 { margin: 0 0 8px; font: 500 22px var(--serif); }
-    .sf p { margin: 0; color: #a9bbac; font-size: 15.5px; }
-
-    /* ---------- Independent / how ---------- */
-    .indep { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(30px, 6vw, 80px); align-items: center; }
-    .groups { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-    .grp { padding: 20px 16px; text-align: center; border-radius: 20px; background: var(--paper); border: 1px solid var(--line); transition: transform .25s, border-color .25s; }
-    .grp:hover { transform: translateY(-4px); border-color: var(--gold); }
-    .grp b { display: block; font: 500 26px var(--serif); color: var(--forest-700); }
-    .grp span { font-size: 13px; color: var(--muted); font-weight: 600; }
-    .grp.hl { background: var(--forest-800); border-color: var(--forest-800); }
-    .grp.hl b { color: #fff; }
-    .grp.hl span { color: #a9bbac; }
-    .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 10px; }
-    .step { padding: 30px; border-radius: 26px; background: var(--paper); border: 1px solid var(--line); }
-    .step .no { font: 400 54px/1 var(--serif); color: var(--gold); opacity: .9; }
-    .step h3 { margin: 14px 0 8px; font: 500 24px var(--serif); }
-    .step p { margin: 0; color: var(--muted); font-size: 16px; }
-
-    /* ---------- Quote ---------- */
-    .quote { position: relative; overflow: hidden; padding: clamp(80px, 10vw, 130px) 0; text-align: center; color: #fff; background:
-      radial-gradient(ellipse 60% 70% at 50% 120%, rgba(201,150,47,.2), transparent 60%),
-      linear-gradient(160deg, #16301f, #1d3d2a 55%, #14301f); }
-    .quote::before { content: '“'; position: absolute; left: 50%; top: -30px; transform: translateX(-50%); color: rgba(232,216,173,.1); font: 400 340px/1 var(--serif); }
-    .quote blockquote { position: relative; max-width: 860px; margin: 0 auto; font: 400 clamp(28px, 4vw, 46px)/1.25 var(--serif); letter-spacing: -.02em; }
-    .quote blockquote em { color: var(--gold-soft); }
-    .quote p { position: relative; max-width: 560px; margin: 26px auto 0; color: #b9c8bb; font-size: 17px; }
-
-    /* ---------- Closing ---------- */
-    .closing { padding: clamp(80px, 10vw, 130px) 0; text-align: center; background: linear-gradient(120deg, #e8edd0, #f3e7bd 55%, #e8edd0); }
-    .closing h2 { max-width: 780px; margin: 16px auto 14px; }
-    .closing p { max-width: 520px; margin: 0 auto 34px; color: #55604f; font-size: 18px; }
-    .closing .row { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; }
-
-    /* ---------- Footer ---------- */
-    .footer { background: var(--forest-950); color: #8fa396; }
-    .footer-inner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px 30px; padding-top: 34px; padding-bottom: 34px; font-size: 14px; }
-    .footer .brand { font-size: 22px; }
-    .footer .brand img { width: 28px; height: 28px; }
-    .footer-links { display: flex; gap: 24px; }
-    .footer-links a { text-decoration: none; font-weight: 600; transition: color .2s; }
-    .footer-links a:hover { color: var(--gold-soft); }
-
-    /* ---------- Reveal ---------- */
-    .js .reveal { opacity: 0; transform: translateY(28px); transition: opacity .8s cubic-bezier(.2,.7,.2,1) var(--d, 0s), transform .8s cubic-bezier(.2,.7,.2,1) var(--d, 0s); }
-    .js .reveal.in { opacity: 1; transform: none; }
-
-    /* ---------- Responsive ---------- */
-    @media (max-width: 980px) {
-      .hero-grid, .schools-grid, .indep { grid-template-columns: 1fr; }
-      .stage { max-width: 560px; margin: 10px auto 0; width: 100%; }
-      .device { transform: none; }
-      .stage:hover .device { transform: none; }
-      .bento { grid-template-columns: repeat(2, 1fr); }
-      .c-ask { grid-column: span 2; grid-template-columns: 1fr; }
-      .c-papers, .c-streak, .c-cert, .c-phone { grid-column: span 1; }
-      .school-feats, .steps { grid-template-columns: 1fr; }
-      .nav-links .nav-link { display: none; }
+    @media (max-width: 1000px) {
+      .dash { grid-template-columns: 1fr; } .d-side { display: none; }
+      .d-stats { grid-template-columns: repeat(3, 1fr); } .d-row.a { grid-template-columns: 1fr; } .d-row.b { grid-template-columns: 1fr 1fr; }
     }
     @media (max-width: 640px) {
-      .nav-inner { height: 66px; }
-      .brand { font-size: 24px; }
-      .brand img { width: 30px; height: 30px; }
-      .nav-cta .btn-line, .nav-cta .nav-login { display: none; }
-      .hero-actions .btn { flex: 1 1 100%; }
-      .stage { padding-bottom: 70px; }
-      .f-challenge { left: -2%; width: 62%; }
-      .f-chat { right: -2%; width: 54%; }
-      .f-live { right: 0; top: -8px; }
-      .bento { grid-template-columns: 1fr; }
-      .c-ask, .c-papers, .c-streak, .c-cert, .c-phone { grid-column: span 1; }
-      .card { padding: 24px; }
-      .groups { grid-template-columns: repeat(2, 1fr); }
-      .schools-cta .btn, .closing .btn { flex: 1 1 100%; }
-      .footer-inner { flex-direction: column; align-items: flex-start; }
+      .d-main { padding: 14px 12px 0; } .d-search, .d-user div { display: none; }
+      .d-stats { grid-template-columns: repeat(2, 1fr); } .d-row.b { grid-template-columns: 1fr; }
+      .heat th:nth-child(n+7), .heat td:nth-child(n+7) { display: none; }
     }
-    @media (prefers-reduced-motion: reduce) {
-      html { scroll-behavior: auto; }
-      .float, .marquee-track, .live-dot::after { animation: none !important; }
-      .js .reveal { opacity: 1; transform: none; transition: none; }
-      .device { transition: none; }
+
+    /* sections */
+    .section { padding: clamp(64px, 9vw, 110px) 0; }
+    .sec-head { max-width: 680px; margin: 0 auto clamp(34px, 5vw, 54px); text-align: center; }
+    .eyebrow { color: var(--gold); font-size: 12px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
+    h2 { margin: 10px 0 0; font: 600 clamp(30px, 4.6vw, 48px)/1.1 var(--serif); letter-spacing: -.03em; }
+    .lede { margin: 14px 0 0; color: var(--muted); font-size: clamp(15.5px, 1.6vw, 18px); }
+    h3 { margin: 0; }
+
+    .feats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .fcard { padding: 26px; border: 1px solid var(--line); border-radius: 18px; background: var(--paper); transition: transform .25s, box-shadow .25s, border-color .25s; }
+    .fcard:hover { transform: translateY(-4px); border-color: var(--gold-line); box-shadow: 0 18px 40px rgba(80,60,20,.09); }
+    .fcard .ic { width: 46px; height: 46px; display: grid; place-items: center; margin-bottom: 18px; border-radius: 13px; background: var(--gold-pale); color: var(--gold); }
+    .fcard .ic svg { width: 22px; height: 22px; }
+    .fcard h3 { font: 600 20px var(--serif); letter-spacing: -.01em; } .fcard p { margin: 8px 0 0; color: var(--muted); font-size: 15px; }
+    .fcard.wide { grid-column: span 2; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: center; }
+    .chat { display: grid; gap: 8px; } .bub { max-width: 92%; padding: 10px 14px; border-radius: 14px; font-size: 13.5px; } .bub.me { justify-self: end; background: var(--gold-pale); border-bottom-right-radius: 4px; } .bub.ai { background: var(--soft); border: 1px solid var(--line); border-bottom-left-radius: 4px; }
+    .meter { height: 8px; margin-top: 16px; border-radius: 99px; background: var(--soft); overflow: hidden; } .meter span { display: block; width: 62%; height: 100%; border-radius: 99px; background: linear-gradient(90deg, #d9b45f, #b98a35); }
+    .meter-meta { display: flex; justify-content: space-between; margin-top: 7px; color: var(--muted); font-size: 12.5px; }
+
+    .schools { background: #fff; border-block: 1px solid var(--line); }
+    .schools-grid { display: grid; grid-template-columns: 1.05fr 1fr; gap: clamp(32px, 6vw, 80px); align-items: center; }
+    .schools-grid .lede { max-width: 520px; }
+    .flow { list-style: none; counter-reset: s; margin: 26px 0 0; padding: 0; display: grid; gap: 14px; }
+    .flow li { counter-increment: s; display: flex; gap: 14px; }
+    .flow li::before { content: counter(s); width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; background: var(--gold-pale); color: var(--gold); font-weight: 700; font-size: 14px; flex: none; }
+    .flow b { display: block; font-size: 16px; } .flow span { color: var(--muted); font-size: 14.5px; }
+    .schools-cta { margin-top: 28px; display: flex; flex-wrap: wrap; gap: 12px; }
+    .panel { padding: 20px; border: 1px solid var(--line); border-radius: 20px; background: var(--bg); box-shadow: 0 24px 60px rgba(80,60,20,.1); font-size: 13px; }
+    .panel .d-card { margin-bottom: 12px; } .panel .d-card:last-child { margin-bottom: 0; }
+    .panel .d-h b { font-size: 15px; font-family: var(--serif); } .panel .req-row b { font-size: 14px; } .panel .req-row span { font-size: 12.5px; } .panel .req-row .av { width: 34px; height: 34px; } .panel .req-row .acts i { width: 28px; height: 28px; font-size: 13px; } .panel .live b { font-size: 14px; } .panel .live span { font-size: 12.5px; }
+    .school-feats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: clamp(40px, 6vw, 64px); }
+    .sf { padding: 24px; border: 1px solid var(--line); border-radius: 18px; background: var(--bg); } .sf svg { width: 28px; height: 28px; color: var(--gold); } .sf h3 { margin-top: 14px; font: 600 18px var(--serif); } .sf p { margin: 6px 0 0; color: var(--muted); font-size: 14.5px; }
+
+    .indep { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(30px, 6vw, 72px); align-items: center; }
+    .groups { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .grp { padding: 18px 14px; border: 1px solid var(--line); border-radius: 14px; background: #fff; text-align: center; } .grp b { display: block; font: 600 18px var(--serif); } .grp span { color: var(--muted); font-size: 12.5px; }
+    .grp.hl { border-color: var(--gold-2); background: var(--gold-pale); box-shadow: 0 10px 24px rgba(185,138,53,.18); }
+    .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .step { padding: 26px; border: 1px solid var(--line); border-radius: 18px; background: #fff; } .step .no { font: 600 36px var(--serif); color: var(--gold-2); } .step h3 { margin-top: 6px; font: 600 20px var(--serif); } .step p { margin: 6px 0 0; color: var(--muted); font-size: 15px; }
+
+    .quote { padding: clamp(60px, 8vw, 100px) 0; text-align: center; background: var(--gold-pale); border-block: 1px solid var(--gold-line); }
+    blockquote { max-width: 800px; margin: 0 auto; font: 500 clamp(28px, 4.6vw, 46px)/1.15 var(--serif); letter-spacing: -.025em; } blockquote em { color: var(--gold); }
+    .quote p { max-width: 580px; margin: 18px auto 0; color: #6a5a30; }
+    .closing { padding: clamp(70px, 10vw, 120px) 0; text-align: center; }
+    .closing p { margin: 14px 0 0; color: var(--muted); font-size: 18px; } .closing .row { margin-top: 28px; display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+    .footer { border-top: 1px solid var(--line); padding: 28px 0; background: #fff; color: var(--muted); font-size: 14px; }
+    .footer-inner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px 24px; }
+    .footer-links { display: flex; gap: 18px; } .footer-links a { text-decoration: none; } .footer-links a:hover { color: var(--gold); }
+
+    @media (max-width: 900px) {
+      .feats, .school-feats, .steps { grid-template-columns: 1fr; } .fcard.wide { grid-column: auto; grid-template-columns: 1fr; }
+      .schools-grid, .indep { grid-template-columns: 1fr; }
     }
+    .reveal { opacity: 0; transform: translateY(18px); transition: opacity .7s ease, transform .7s ease; transition-delay: var(--d, 0s); }
+    .reveal.in { opacity: 1; transform: none; }
+    html:not(.js) .reveal { opacity: 1; transform: none; }
+    @media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; transition: none; } .live-dot { animation: none; } html { scroll-behavior: auto; } }
   </style>
 </head>
 <body>
@@ -305,98 +198,128 @@
 
   <header class="nav">
     <div class="wrap nav-inner">
-      <a class="brand" href="/" aria-label="Clavis home">
-        <img src="{{ static_versioned('images/icon-192.png') }}" alt="">
-        <span>Clavis<i>.</i></span>
-      </a>
+      <a class="brand" href="/" aria-label="Clavis home"><img src="{{ static_versioned('images/icon-192.png') }}" alt=""><span>Clavis<i>.</i></span></a>
       <nav class="nav-links" aria-label="Main navigation">
         <a class="nav-link" href="#students">For students</a>
         <a class="nav-link" href="#schools">For schools</a>
         <a class="nav-link" href="#how">How it works</a>
         <div class="nav-cta">
           <a class="nav-link nav-login" href="{{ url_for('login') }}">Log in</a>
-          <a class="btn btn-gold btn-sm" href="{{ url_for('signup') }}">Get started <span class="arrow" aria-hidden="true">→</span></a>
+          <a class="btn btn-gold btn-sm" href="{{ url_for('signup') }}">Get started</a>
         </div>
       </nav>
     </div>
   </header>
 
   <main>
-    <!-- HERO -->
     <section class="hero">
-      <div class="wrap hero-grid">
-        <div class="hero-copy">
-          <span class="pill reveal"><span class="pill-dot" aria-hidden="true"></span> Built for Kenyan learners &amp; schools</span>
-          <h1 class="reveal" style="--d:.08s">Learn with clarity.<br><em>Teach with confidence.</em></h1>
-          <p class="hero-lede reveal" style="--d:.16s">Clavis is the AI study space where students finally get it, and the platform where schools bring teachers and learners together, live.</p>
-          <div class="hero-actions reveal" style="--d:.24s">
-            <a class="btn btn-gold" href="{{ url_for('signup') }}">Start learning <span class="arrow" aria-hidden="true">→</span></a>
-            <a class="btn btn-ghost" href="#schools">Bring Clavis to your school</a>
-          </div>
-          <div class="hero-trust reveal" style="--d:.32s">
-            <span class="trust-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 12 4 4L19 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg> CBC Junior &amp; Senior school</span>
-            <span class="trust-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 12 4 4L19 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg> Auto-marked tests</span>
-            <span class="trust-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 12 4 4L19 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg> Installs on your phone</span>
+      <div class="wrap">
+        <span class="pill reveal"><i></i> Built for Kenyan learners &amp; schools</span>
+        <h1 class="reveal" style="--d:.06s">Learn with clarity.<br><em>Teach with confidence.</em></h1>
+        <p class="hero-lede reveal" style="--d:.12s">Clavis is the AI study space where students finally get it, and the school platform where teachers, learners and principals come together, live.</p>
+        <div class="hero-actions reveal" style="--d:.18s">
+          <a class="btn btn-gold" href="{{ url_for('signup') }}">Start learning</a>
+          <a class="btn btn-line" href="{{ school_register_url }}">Register your school</a>
+        </div>
+        <div class="hero-trust reveal" style="--d:.24s"><span>CBC Junior &amp; Senior school</span><span>Auto-marked tests</span><span>Live study sessions</span><span>Installs on your phone</span></div>
+
+        {% if false %}
+        <!-- Admin-only product preview; removed from the public landing page -->
+        <div class="preview reveal" style="--d:.2s" role="img" aria-label="Preview of the Clavis school dashboard with sample data">
+          <div class="dash" aria-hidden="true">
+            <aside class="d-side">
+              <div class="d-logo"><span>C</span><div>Clavis<small>SCHOOL</small></div></div>
+              <div class="d-nav on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>Dashboard</div>
+              <div class="d-nav"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/></svg>Students</div>
+              <div class="d-nav"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>Attendance</div>
+              <div class="d-nav"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="13" height="14" rx="2"/><path d="m16 10 5-3v10l-5-3"/></svg>Live sessions</div>
+              <div class="d-nav"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg>Examinations</div>
+              <div class="d-nav"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 8l10 5 10-5z"/><path d="M6 10.5V16c0 1.4 2.7 3 6 3s6-1.6 6-3v-5.5"/></svg>Teachers</div>
+              <div class="d-nav"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>Discussions</div>
+              <div class="d-nav"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 19V5"/></svg>Library</div>
+              <div class="d-nav"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Reports</div>
+              <div class="d-label">Shortcuts</div>
+              <div class="d-nav">+ Approve join requests</div>
+              <div class="d-nav">+ Schedule a session</div>
+              <div class="d-school"><i>K</i><div><b>Kamau Academy</b><span>Sample school</span></div></div>
+            </aside>
+
+            <div class="d-main">
+              <div class="d-top">
+                <div><h3>School Overview</h3><p>Welcome back, Principal</p></div>
+                <div class="d-tools"><div class="d-search">Search students, teachers, classes…</div><div class="d-user"><i>P</i><div><b>Principal</b><span>School admin</span></div></div></div>
+              </div>
+
+              <div class="d-stats">
+                <div class="d-card d-stat"><span class="ic g"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/></svg></span><small>Total students</small><strong>1,284</strong><em>↑ 12 this term</em></div>
+                <div class="d-card d-stat"><span class="ic n"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/></svg></span><small>Attendance rate</small><strong>96.4%</strong><em>↑ 2.7% vs last term</em></div>
+                <div class="d-card d-stat"><span class="ic b"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="5" width="13" height="14" rx="2"/><path d="m16 10 5-3v10l-5-3"/></svg></span><small>Live sessions</small><strong>212</strong><em>↑ 18% this term</em></div>
+                <div class="d-card d-stat"><span class="ic v"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3 2 8l10 5 10-5z"/></svg></span><small>Teachers</small><strong>86</strong><em>● 48 online</em></div>
+                <div class="d-card d-stat"><span class="ic r"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/></svg></span><small>Active classes</small><strong>134</strong><em style="color:var(--muted)">Across all grades</em></div>
+              </div>
+
+              <div class="d-row a">
+                <div class="d-card">
+                  <div class="d-h"><b>Attendance overview</b><span>This week ⌄</span></div>
+                  <table class="heat">
+                    <thead><tr><th>Class</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Present</th><th>Late</th><th>Absent</th><th>Rate</th></tr></thead>
+                    <tbody>
+                      <tr><td>Grade 7A</td><td><i class="p"></i></td><td><i class="p"></i></td><td><i class="p"></i></td><td><i class="l"></i></td><td><i class="p"></i></td><td>32</td><td class="o">2</td><td class="r">1</td><td>94%</td></tr>
+                      <tr><td>Grade 8B</td><td><i class="p"></i></td><td><i class="p"></i></td><td><i class="p"></i></td><td><i class="p"></i></td><td><i class="p"></i></td><td>31</td><td class="o">2</td><td class="r">1</td><td>91%</td></tr>
+                      <tr><td>Grade 9A</td><td><i class="p"></i></td><td><i class="l"></i></td><td><i class="p"></i></td><td><i class="a2"></i></td><td><i class="p"></i></td><td>28</td><td class="o">3</td><td class="r">4</td><td>87%</td></tr>
+                      <tr><td>Grade 10A</td><td><i class="p"></i></td><td><i class="p"></i></td><td><i class="p"></i></td><td><i class="p"></i></td><td><i class="p"></i></td><td>33</td><td class="o">2</td><td class="r">0</td><td>97%</td></tr>
+                      <tr><td>Grade 11B</td><td><i class="p"></i></td><td><i class="l"></i></td><td><i class="p"></i></td><td><i class="p"></i></td><td><i class="l"></i></td><td>30</td><td class="o">4</td><td class="r">2</td><td>89%</td></tr>
+                      <tr><td>Grade 12A</td><td><i class="p"></i></td><td><i class="p"></i></td><td><i class="l"></i></td><td><i class="p"></i></td><td><i class="p"></i></td><td>29</td><td class="o">1</td><td class="r">1</td><td>93%</td></tr>
+                    </tbody>
+                  </table>
+                  <div class="d-legend"><span style="--c:#a8d5b3">Present</span><span style="--c:#efc979">Late</span><span style="--c:#e79a8e">Absent</span><span style="--c:#ece7d9">No data</span></div>
+                </div>
+                <div class="d-card">
+                  <div class="d-h"><b>Clavis AI assistant <i class="ai-tag">BETA</i></b></div>
+                  <div style="color:var(--muted);font-size:10.5px">Key insights for today</div>
+                  <div class="ai-item"><span class="ic r"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 8v5M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg></span><div><b>23 students are at risk</b><span>Due to low attendance</span></div></div>
+                  <div class="ai-item"><span class="ic g"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 17l6-6 4 4 8-8"/></svg></span><div><b>Grade 9 maths scores dipped</b><span>Suggest a revision session</span></div></div>
+                  <div class="ai-item"><span class="ic b"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8"/></svg></span><div><b>4 teachers have incomplete records</b><span>Please review and update</span></div></div>
+                  <div class="ai-item"><span class="ic n"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/></svg></span><div><b>Exams start in 18 days</b><span>Grade 12 mock examinations</span></div></div>
+                  <div class="ai-btn">✦ Generate AI report →</div>
+                </div>
+              </div>
+
+              <div class="d-row b">
+                <div class="d-card">
+                  <div class="d-h"><b>Join requests</b><span>2 pending</span></div>
+                  <div class="req-row"><span class="av">A</span><div><b>Amina Wanjiru</b><span>Grade 10</span></div><div class="acts"><i class="y">✓</i><i class="x">✕</i></div></div>
+                  <div class="req-row"><span class="av">B</span><div><b>Brian Otieno</b><span>Grade 8</span></div><div class="acts"><i class="y">✓</i><i class="x">✕</i></div></div>
+                  <div class="live"><span class="live-dot"></span><div><b>Live · Biology, Grade 10</b><span>28 students in session</span></div></div>
+                </div>
+                <div class="d-card">
+                  <div class="d-h"><b>Performance overview</b><span>This term ⌄</span></div>
+                  <div class="d-split">
+                    <div class="donut big" data-v="72%" style="--segs:#4c9d6a 0 28%,#a8c96a 28% 60%,#e3b448 60% 85%,#e08a3c 85% 95%,#d9604f 95% 100%"></div>
+                    <div class="d-list"><div style="--c:#4c9d6a">Excellent<span>28%</span></div><div style="--c:#a8c96a">Good<span>32%</span></div><div style="--c:#e3b448">Average<span>25%</span></div><div style="--c:#e08a3c">Below avg<span>10%</span></div><div style="--c:#d9604f">Poor<span>5%</span></div></div>
+                  </div>
+                </div>
+                <div class="d-card">
+                  <div class="d-h"><b>Upcoming events</b><a>View all</a></div>
+                  <div class="evt"><div class="dt"><small>MAY</small>25</div><div><b>Grade 12 mock exam</b><span>8:00 AM</span></div></div>
+                  <div class="evt"><div class="dt"><small>MAY</small>29</div><div><b>Parents' meeting</b><span>2:00 PM</span></div></div>
+                  <div class="evt"><div class="dt"><small>JUN</small>01</div><div><b>Madaraka Day</b><span>School closed</span></div></div>
+                </div>
+                <div class="d-card">
+                  <div class="d-h"><b>Staff overview</b><a>View all</a></div>
+                  <div class="d-split">
+                    <div class="donut" data-v="86" style="--segs:#3b5fa8 0 67%,#4c9d6a 67% 90%,#8a6fc7 90% 100%"></div>
+                    <div class="d-list"><div style="--c:#3b5fa8">Teaching<span>58</span></div><div style="--c:#4c9d6a">Non-teaching<span>20</span></div><div style="--c:#8a6fc7">Support<span>8</span></div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-
-        <div class="stage reveal" style="--d:.2s" aria-label="Preview of the Clavis app">
-          <div class="device" aria-hidden="true">
-            <div class="dv-side">
-              <div class="dv-logo">C</div>
-              <div class="dv-ico on"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg></div>
-              <div class="dv-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></div>
-              <div class="dv-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg></div>
-              <div class="dv-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 19V5"/></svg></div>
-            </div>
-            <div class="dv-main">
-              <div class="dv-bar">
-                <span class="dv-user"><span class="dv-avatar">A</span> Amina <span class="dv-tag">STUDENT</span></span>
-                <span style="color:#a02e2e">Log out</span>
-              </div>
-              <div class="dv-hero">
-                <div class="dv-eyebrow">Your study space</div>
-                <div class="dv-title">Your progress</div>
-                <div class="dv-sub">Every question is a step forward.</div>
-              </div>
-              <div class="dv-level">
-                <div class="dv-level-top"><span>Subject Explorer</span><span style="color:var(--muted)">Level 6</span></div>
-                <div class="dv-track"><span></span></div>
-              </div>
-              <div class="dv-stats">
-                <div class="dv-stat"><b>128</b><span>Questions asked</span></div>
-                <div class="dv-stat"><b>12</b><span>Day streak</span></div>
-                <div class="dv-stat"><b>Maths</b><span>Most studied</span></div>
-              </div>
-            </div>
-          </div>
-
-          <div class="float f-live" aria-hidden="true">
-            <span class="live-dot"></span>
-            <div><b>Live session · Biology</b><span>Grade 10 · Starting now</span></div>
-          </div>
-          <div class="float f-challenge" aria-hidden="true">
-            <small>⚡ Daily challenge</small>
-            <p>Which Kenyan city lies closest to the equator?</p>
-            <div class="f-opt right">Nanyuki ✓</div>
-            <div class="f-opt">Mombasa</div>
-          </div>
-          <div class="float f-chat" aria-hidden="true">
-            <small>Grade 10 · Discussion</small>
-            <p>Can someone explain why the mitochondria is called the powerhouse?</p>
-            <div class="row">💬 6 replies · Teacher replied</div>
-          </div>
-        </div>
+        <p class="sample">Sample data, shown to illustrate the Clavis school dashboard.</p>
+        {% endif %}
       </div>
     </section>
-
-    <!-- MARQUEE -->
-    <div class="marquee" aria-hidden="true">
-      <div class="marquee-track">
-        <span class="m-item">Ask anything</span><span class="m-item">Practice exam papers</span><span class="m-item">Auto-marked tests</span><span class="m-item">Daily challenges</span><span class="m-item">Streaks &amp; levels</span><span class="m-item">Campus certificates</span><span class="m-item">Live study sessions</span><span class="m-item">School discussions</span>
-        <span class="m-item">Ask anything</span><span class="m-item">Practice exam papers</span><span class="m-item">Auto-marked tests</span><span class="m-item">Daily challenges</span><span class="m-item">Streaks &amp; levels</span><span class="m-item">Campus certificates</span><span class="m-item">Live study sessions</span><span class="m-item">School discussions</span>
-      </div>
-    </div>
 
     <!-- STUDENTS -->
     <section class="section" id="students">
@@ -406,42 +329,37 @@
           <h2>Your own patient tutor, <em>any hour.</em></h2>
           <p class="lede">Ask the question you were too shy to ask in class. Practise until it clicks. Watch yourself level up.</p>
         </div>
-
-        <div class="bento">
-          <article class="card c-ask reveal">
+        <div class="feats">
+          <article class="fcard wide reveal">
             <div>
-              <div class="ico" style="color:#e8d8ad;background:rgba(232,216,173,.14)" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg></div>
+              <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg></div>
               <h3>Get unstuck, gently.</h3>
               <p>Clear explanations that take their time, in the way that finally makes sense for you.</p>
             </div>
             <div class="chat" aria-hidden="true">
-              <div class="bubble me">Why do we flip the second fraction when dividing?</div>
-              <div class="bubble ai"><b>Great question!</b> Dividing by a fraction is the same as multiplying by its reciprocal. Let's see why with ½ ÷ ¼ …</div>
+              <div class="bub me">Why do we flip the second fraction when dividing?</div>
+              <div class="bub ai"><b>Great question!</b> Dividing by a fraction is the same as multiplying by its reciprocal. Let's see why with ½ ÷ ¼ …</div>
             </div>
           </article>
-
-          <article class="card c-papers reveal" style="--d:.08s">
-            <div class="ico" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg></div>
+          <article class="fcard reveal" style="--d:.08s">
+            <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg></div>
             <h3>Exam papers &amp; tests</h3>
             <p>Practise with real-style papers. Answers are marked automatically, instantly.</p>
           </article>
-
-          <article class="card c-streak reveal">
-            <div class="ico" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2c1 4 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-4-1-6 1-9z"/></svg></div>
+          <article class="fcard reveal">
+            <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2c1 4 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-4-1-6 1-9z"/></svg></div>
             <h3>Streaks &amp; levels</h3>
             <p>Daily challenges that make studying a habit you actually keep.</p>
-            <div class="mini-bar" aria-hidden="true"><span></span></div>
-            <div class="mini-meta" aria-hidden="true"><span>Level 6</span><span>9 / 15 to next</span></div>
+            <div class="meter" aria-hidden="true"><span></span></div>
+            <div class="meter-meta" aria-hidden="true"><span>Level 6</span><span>9 / 15 to next</span></div>
           </article>
-
-          <article class="card c-cert reveal" style="--d:.08s">
-            <div class="ico" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="9" r="6"/><path d="M8.5 14.5 7 22l5-3 5 3-1.5-7.5"/></svg></div>
+          <article class="fcard reveal" style="--d:.08s">
+            <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="9" r="6"/><path d="M8.5 14.5 7 22l5-3 5 3-1.5-7.5"/></svg></div>
             <h3>Campus certificates</h3>
             <p>Campus students earn certificates as proof of what they've mastered.</p>
           </article>
-
-          <article class="card c-phone reveal" style="--d:.16s">
-            <div class="ico" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg></div>
+          <article class="fcard reveal" style="--d:.16s">
+            <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg></div>
             <h3>On your phone</h3>
             <p>Install Clavis like an app. One tap from your home screen, no browser needed.</p>
           </article>
@@ -464,52 +382,30 @@
               <li><div><b>Teach live, discuss after</b><span>Teachers host study sessions, then students discuss, only with their school.</span></div></li>
             </ol>
             <div class="schools-cta">
-              <a class="btn btn-gold" href="{{ school_register_url }}">Register your school <span class="arrow" aria-hidden="true">→</span></a>
-              <a class="btn btn-ghost" href="{{ url_for('login') }}">School admin log in</a>
+              <a class="btn btn-gold" href="{{ school_register_url }}">Register your school</a>
+              <a class="btn btn-line" href="{{ url_for('login') }}">School admin log in</a>
             </div>
           </div>
-
-          <div class="panel reveal" style="--d:.15s" aria-hidden="true">
-            <div class="panel-head"><b>Join requests</b><span class="badge">2 pending</span></div>
-            <div class="req">
-              <div class="av">A</div>
-              <div class="who"><b>Amina Wanjiru</b><span>Grade 10 · wants to join</span></div>
-              <div class="acts"><span class="act ok">✓</span><span class="act no">✕</span></div>
+          <div class="panel reveal" style="--d:.12s" aria-hidden="true">
+            <div class="d-card">
+              <div class="d-h"><b>Join requests</b><span>2 pending</span></div>
+              <div class="req-row"><span class="av">A</span><div><b>Amina Wanjiru</b><span>Grade 10 · wants to join</span></div><div class="acts"><i class="y">✓</i><i class="x">✕</i></div></div>
+              <div class="req-row"><span class="av">B</span><div><b>Brian Otieno</b><span>Grade 8 · wants to join</span></div><div class="acts"><i class="y">✓</i><i class="x">✕</i></div></div>
             </div>
-            <div class="req">
-              <div class="av">B</div>
-              <div class="who"><b>Brian Otieno</b><span>Grade 8 · wants to join</span></div>
-              <div class="acts"><span class="act ok">✓</span><span class="act no">✕</span></div>
-            </div>
-            <div class="session">
-              <div class="session-top"><span class="live-dot"></span> Live now</div>
-              <b>Biology revision · Grade 10</b>
-              <span>Hosted by Mr. Kamau · 28 students in session</span>
+            <div class="d-card">
+              <div class="live" style="margin-top:0"><span class="live-dot"></span><div><b>Live now · Biology revision</b><span>Hosted by Mr. Kamau · 28 students in session</span></div></div>
             </div>
           </div>
         </div>
-
         <div class="school-feats">
-          <div class="sf reveal">
-            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 3 8l9 5 9-5z"/><path d="M7 11v5c0 1.5 2.2 3 5 3s5-1.5 5-3v-5"/></svg>
-            <h3>You stay in control</h3>
-            <p>Only students you approve can join your school. Every request comes to you.</p>
-          </div>
-          <div class="sf reveal" style="--d:.08s">
-            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="13" height="14" rx="2"/><path d="m16 10 5-3v10l-5-3"/></svg>
-            <h3>Live study sessions</h3>
-            <p>Teachers bring the class together in real time, wherever students are.</p>
-          </div>
-          <div class="sf reveal" style="--d:.16s">
-            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>
-            <h3>Moderated discussions</h3>
-            <p>After each session, students talk it through in a space only their school can see.</p>
-          </div>
+          <div class="sf reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 3 8l9 5 9-5z"/><path d="M7 11v5c0 1.5 2.2 3 5 3s5-1.5 5-3v-5"/></svg><h3>You stay in control</h3><p>Only students you approve can join your school. Every request comes to you.</p></div>
+          <div class="sf reveal" style="--d:.08s"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="13" height="14" rx="2"/><path d="m16 10 5-3v10l-5-3"/></svg><h3>Live study sessions</h3><p>Teachers bring the class together in real time, wherever students are.</p></div>
+          <div class="sf reveal" style="--d:.16s"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg><h3>Moderated discussions</h3><p>After each session, students talk it through in a space only their school can see.</p></div>
         </div>
       </div>
     </section>
 
-    <!-- NO SCHOOL / HOW -->
+    <!-- HOW -->
     <section class="section" id="how">
       <div class="wrap">
         <div class="indep">
@@ -518,7 +414,7 @@
             <h2>You're <em>never</em> learning alone.</h2>
             <p class="lede">Independent students join discussion groups with learners in their own grade, so there's always someone to learn with.</p>
           </div>
-          <div class="groups reveal" style="--d:.12s" aria-hidden="true">
+          <div class="groups reveal" style="--d:.1s" aria-hidden="true">
             <div class="grp"><b>Grade 7</b><span>Junior</span></div>
             <div class="grp"><b>Grade 8</b><span>Junior</span></div>
             <div class="grp"><b>Grade 9</b><span>Junior</span></div>
@@ -527,8 +423,7 @@
             <div class="grp"><b>Grade 12</b><span>Senior</span></div>
           </div>
         </div>
-
-        <div class="sec-head reveal" style="margin-top:clamp(70px,9vw,120px)">
+        <div class="sec-head reveal" style="margin-top:clamp(70px,9vw,110px)">
           <div class="eyebrow">Getting started</div>
           <h2>Ready in <em>three steps.</em></h2>
         </div>
@@ -540,7 +435,6 @@
       </div>
     </section>
 
-    <!-- QUOTE -->
     <section class="quote">
       <div class="wrap">
         <blockquote class="reveal">A hard season is not <em>your whole story.</em></blockquote>
@@ -548,14 +442,13 @@
       </div>
     </section>
 
-    <!-- CLOSING -->
     <section class="closing">
       <div class="wrap">
         <div class="eyebrow reveal">Ready when you are</div>
         <h2 class="reveal" style="--d:.06s">Let's make that next topic <em>click.</em></h2>
         <p class="reveal" style="--d:.12s">Join as a student today, or bring your whole school onto Clavis.</p>
         <div class="row reveal" style="--d:.18s">
-          <a class="btn btn-dark" href="{{ url_for('signup') }}">Start learning <span class="arrow" aria-hidden="true">→</span></a>
+          <a class="btn btn-gold" href="{{ url_for('signup') }}">Start learning</a>
           <a class="btn btn-line" href="{{ school_register_url }}">Register your school</a>
         </div>
       </div>
@@ -564,10 +457,7 @@
 
   <footer class="footer">
     <div class="wrap footer-inner">
-      <a class="brand" href="/" aria-label="Clavis home">
-        <img src="{{ static_versioned('images/icon-192.png') }}" alt="">
-        <span>Clavis<i>.</i></span>
-      </a>
+      <a class="brand" href="/" aria-label="Clavis home"><img src="{{ static_versioned('images/icon-192.png') }}" alt=""><span>Clavis<i>.</i></span></a>
       <span>© {{ now().year if now is defined else '2026' }} Clavis Learning · Made for curious learners.</span>
       <nav class="footer-links" aria-label="Footer">
         <a href="{{ url_for('login') }}">Log in</a>
@@ -581,18 +471,12 @@
 <script>
   (function () {
     var els = document.querySelectorAll('.reveal');
-    if (!('IntersectionObserver' in window)) {
-      els.forEach(function (el) { el.classList.add('in'); });
-      return;
-    }
+    if (!('IntersectionObserver' in window)) { els.forEach(function (el) { el.classList.add('in'); }); return; }
     var io = new IntersectionObserver(function (entries) {
-      entries.forEach(function (e) {
-        if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
-      });
-    }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+      entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+    }, { threshold: 0.08, rootMargin: '0px 0px -30px 0px' });
     els.forEach(function (el) { io.observe(el); });
   })();
-
 </script>
 {% include '_support_widget.html' %}
 </body>

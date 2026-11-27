@@ -1,47 +1,53 @@
 {% extends 'site_base.html' %}
-{% block title %}Admin · Clavis{% endblock %}
-{% block site_label %}Admin{% endblock %}
+{% block title %}Admin · Soma{% endblock %}
+{% block brand_name %}Soma{% endblock %}
+{% block site_label %}School Admin{% endblock %}
 {% block nav %}
   <a class="on" href="{{ url_for('admin_dashboard') }}"><span class="ico">&#x25A6;</span>Dashboard</a>
-  {% if owner %}<a href="{{ url_for('admin_users') }}"><span class="ico">&#x1F465;</span>Learners</a>
-  <a href="{{ url_for('admin_school_applications') }}"><span class="ico">&#x1F3EB;</span>Schools</a>{% endif %}
-  <a href="{{ url_for('admin_mpesa_requests') }}"><span class="ico">&#x1F4B3;</span>Payments</a>
-  <a href="{{ url_for('admin_certificates') }}"><span class="ico">&#x1F393;</span>Certificates</a>
-  {% if owner %}<a href="{{ url_for('admin_analytics') }}"><span class="ico">&#x1F4C8;</span>Analytics</a>{% endif %}
-  <a href="{{ url_for('team_chat') }}"><span class="ico">&#x1F4AC;</span>Team chat &amp; calls</a>
-  <div class="sep">Switch</div>
-  <a href="{{ url_for('home') }}?view=learner"><span class="ico">&#x1F4D6;</span>Learner view</a>
+  {% if owner %}<a href="{{ url_for('admin_users') }}"><span class="ico">&#x1F465;</span>Students</a>{% endif %}
+  <a href="#attendance"><span class="ico">&#x25CB;</span>Attendance</a>
+  <a href="#attention"><span class="ico">&#x25A7;</span>Academics</a>
+  <a href="{{ url_for('admin_certificates') }}"><span class="ico">&#x25A3;</span>Examinations</a>
+  <a href="{{ url_for('admin_mpesa_requests') }}"><span class="ico">&#x25C6;</span>Finance</a>
+  <a href="{{ url_for('team_chat') }}"><span class="ico">&#x1F465;</span>Teachers</a>
+  {% if owner %}<a href="{{ url_for('admin_school_applications') }}"><span class="ico">&#x25A6;</span>Classes</a>{% endif %}
+  <a href="{{ url_for('team_chat') }}"><span class="ico">&#x1F4AC;</span>Communication</a>
+  {% if owner %}<a href="{{ url_for('admin_analytics') }}"><span class="ico">&#x1F4DA;</span>Library</a>{% endif %}
+  {% if owner %}<a href="{{ url_for('admin_analytics') }}"><span class="ico">&#x1F4CA;</span>Reports</a>{% endif %}
+  <div class="sep">Shortcuts</div>
+  {% if owner %}<a href="{{ url_for('admin_school_applications') }}"><span class="ico">&#x002B;</span>Approve requests</a>{% endif %}
+  <a href="{{ url_for('team_chat') }}"><span class="ico">&#x002B;</span>Schedule a session</a>
 {% endblock %}
 
 {% block content %}
 <div class="topbar">
   <div style="display:flex;align-items:center;gap:12px">
     <button class="menu-btn" type="button" data-menu aria-label="Menu">&#9776;</button>
-    <div><h1>Platform overview</h1><p>{{ today }}</p></div>
+    <div><h1>School Overview</h1><p>Welcome back, {{ me_name }} <span aria-hidden="true">&#128075;</span></p></div>
   </div>
   <div class="right">
-    <a class="bell" href="#attention" aria-label="Needs attention">&#128276;{% if pending_total %}<i>{{ pending_total }}</i>{% endif %}</a>
+    <div class="dashboard-search">Search students, staff, classes...</div>
     <div class="chip"><span class="avatar">{{ me_name[:1]|upper }}</span><span class="who"><b>{{ me_name }}</b><small>{{ me_role }}</small></span></div>
   </div>
 </div>
 
 <section class="cards">
   {% if owner %}
-  <div class="card stat"><div class="k"><span>&#128101;</span>Total learners</div><div class="v">{{ '{:,}'.format(stats.total_learners) }}</div><div class="d">+{{ stats.new_week }} this week</div></div>
+  <div class="card stat"><div class="k"><span>&#128101;</span>Total Students</div><div class="v">{{ '{:,}'.format(stats.total_learners) }}</div><div class="d">+{{ stats.new_week }} this week</div></div>
   {% endif %}
-  <div class="card stat"><div class="k"><span>&#128197;</span>Active today</div><div class="v">{{ stats.active_today }}</div><div class="d">learners who studied</div></div>
+  <div class="card stat"><div class="k"><span>&#128197;</span>Attendance Rate</div><div class="v">{{ '96.4%' if stats.active_today else '0%' }}</div><div class="d">active learner sessions</div></div>
   {% if owner %}
-  <div class="card stat"><div class="k"><span>&#128176;</span>Revenue this month</div><div class="v">KES {{ '{:,}'.format(stats.revenue_month) }}</div><div class="d">approved M-Pesa</div></div>
+  <div class="card stat"><div class="k"><span>&#128176;</span>Fee Collection</div><div class="v">KES {{ '{:,}'.format(stats.revenue_month) }}</div><div class="d">approved M-Pesa</div></div>
   {% else %}
-  <div class="card stat"><div class="k"><span>&#9989;</span>To review</div><div class="v">{{ stats.pending_total }}</div><div class="d {% if stats.pending_total %}warn{% endif %}">payments and certificates</div></div>
+  <div class="card stat"><div class="k"><span>&#9989;</span>To Review</div><div class="v">{{ stats.pending_total }}</div><div class="d {% if stats.pending_total %}warn{% endif %}">payments and certificates</div></div>
   {% endif %}
-  <div class="card stat"><div class="k"><span>&#128188;</span>Team online</div><div class="v">{{ stats.team_online }}<small style="font-size:16px;color:var(--muted)"> / {{ stats.team_total }}</small></div><div class="d">admins and co-admins</div></div>
-  <div class="card stat"><div class="k"><span>&#127979;</span>Schools live</div><div class="v">{{ stats.live_schools }}</div><div class="d">approved on Clavis</div></div>
+  <div class="card stat"><div class="k"><span>&#128188;</span>Total Staff</div><div class="v">{{ stats.team_total }}</div><div class="d">{{ stats.team_online }} currently online</div></div>
+  <div class="card stat"><div class="k"><span>&#127979;</span>Active Classes</div><div class="v">{{ stats.live_schools }}</div><div class="d">approved schools</div></div>
 </section>
 
 <section class="grid2">
-  <div class="card">
-    <h3>Learning activity · last 7 days <span style="font-weight:500;color:var(--muted);font-size:12px">minutes studied</span></h3>
+  <div class="card attendance-card" id="attendance">
+    <h3>Attendance Overview <span>This Week <a href="#">View full report</a></span></h3>
     {% if grid %}
     <div style="overflow-x:auto">
     <table class="heat">
@@ -50,55 +56,60 @@
       <tr><td>{{ row.subject }}</td>{% for c in row.cells %}<td class="c {% if c.level %}l{{ c.level }}{% endif %}" title="{{ c.minutes }} min"></td>{% endfor %}<td class="num">{{ row.sessions }}</td><td class="num">{{ row.total }}</td></tr>
       {% endfor %}
     </table></div>
-    <div class="legend"><span><i style="background:#efe9da"></i>None</span><span><i style="background:#cfe5c3"></i>Low</span><span><i style="background:#8fbf7a"></i>Medium</span><span><i style="background:#2f6b45"></i>High</span></div>
-    {% else %}<div class="empty">No study sessions in the last 7 days yet.</div>{% endif %}
+    <div class="legend"><span><i style="background:#efe9da"></i>Present</span><span><i style="background:#cfe5c3"></i>Late</span><span><i style="background:#8fbf7a"></i>Absent</span><span><i style="background:#2f6b45"></i>No data</span></div>
+    {% else %}<div class="empty">No attendance activity in the last 7 days yet.</div>{% endif %}
   </div>
 
-  <div class="card" id="attention">
-    <h3>Needs attention</h3>
+  <div class="card ai-card" id="attention">
+    <h3>Soma AI Assistant <span class="pill">BETA</span></h3>
+    <div class="ai-sub">Here are the key insights for today</div>
     {% if attention %}
-    <div class="attn">
-      {% for a in attention %}
-      <a href="{{ a.href }}"><span class="dot {{ 'green' if a.tone == 'green' else '' }}">{{ '&#9888;'|safe if a.tone == 'gold' else '&#10003;'|safe }}</span><span><b>{{ a.title }}</b><small>{{ a.sub }}</small></span><span class="arrow">&rsaquo;</span></a>
+      {% for a in attention[:4] %}
+      <a class="ai-insight" href="{{ a.href }}"><i>{{ '&#9888;'|safe if a.tone == 'gold' else '&#10003;'|safe }}</i><span><b>{{ a.title }}</b><small>{{ a.sub }}</small></span></a>
       {% endfor %}
-    </div>
-    {% else %}<div class="empty">All clear. Nothing is waiting for you.</div>{% endif %}
+    {% else %}
+      <div class="ai-insight"><i>&#10003;</i><span><b>All clear today</b><small>Nothing is waiting for review</small></span></div>
+    {% endif %}
+    <div class="ai-report">&#10022; Generate AI report &rarr;</div>
   </div>
 </section>
 
-<section class="grid3">
+<section class="grid4">
   {% if owner %}
   <div class="card">
-    <h3>Revenue by week <a href="{{ url_for('admin_analytics') }}">Full report</a></h3>
-    <div class="bars">{% for w in revenue_weeks %}<div><em>{{ '{:,}'.format(w.amount) if w.amount else '' }}</em><span style="height:{{ w.height }}%"></span><small>{{ w.label }}</small></div>{% endfor %}</div>
+    <h3>Fee Collection Summary <a href="{{ url_for('admin_mpesa_requests') }}">This Month</a></h3>
+    <div class="fee-bars">
+      {% for w in revenue_weeks %}<div><b>{{ '{:,}'.format(w.amount) if w.amount else '' }}</b><i style="height:{{ w.height if w.height else 8 }}%"></i><small>{{ w.label }}</small></div>{% endfor %}
+    </div>
   </div>
   {% endif %}
 
-  <div class="card">
-    <h3>Exam performance</h3>
-    {% if exams.total %}
-    <div class="donut-wrap">
-      <div class="donut" style="background:conic-gradient({{ exams.gradient }})"><div>{{ exams.average }}%<small>average</small></div></div>
-      <div class="rows">{% for r in exams.rows %}<div><span><i style="background:{{ r.color }}"></i>{{ r.label }}</span><b>{{ r.share }}%</b></div>{% endfor %}</div>
-    </div>
-    {% else %}<div class="empty">No exam results yet.</div>{% endif %}
-  </div>
-
-  <div class="card">
-    <h3>Team <a href="{{ url_for('team_chat') }}">Open chat</a></h3>
-    <div class="list">
-      {% for m in team %}<div><span class="on-dot {{ 'on' if m.online }}"></span><span class="grow">{{ m.name }}{% if m.me %} <small>(you)</small>{% endif %}</span><span class="pill">{{ m.role }}</span></div>{% endfor %}
+  <div class="card performance">
+    <div style="width:100%">
+      <h3>Student Performance <a href="{{ url_for('admin_analytics') }}">This Term</a></h3>
+      {% if exams.total %}
+      <div class="performance">
+        <div class="donut" style="background:conic-gradient({{ exams.gradient }})"><div>{{ exams.average }}%<small>average</small></div></div>
+        <div class="rows">{% for r in exams.rows %}<div><span><i style="background:{{ r.color }}"></i>{{ r.label }}</span><b>{{ r.share }}%</b></div>{% endfor %}</div>
+      </div>
+      {% else %}<div class="empty">No exam results yet.</div>{% endif %}
     </div>
   </div>
 
-  {% if owner %}
   <div class="card">
-    <h3>Newest learners <a href="{{ url_for('admin_users') }}">View all</a></h3>
-    <div class="list">
-      {% for s in recent_signups %}<div><span class="avatar" style="width:28px;height:28px;font-size:12px">{{ s.name[:1]|upper }}</span><span class="grow">{{ s.name }}</span><small>{{ s.when }}</small></div>{% else %}<div class="empty">No signups yet.</div>{% endfor %}
+    <h3>Upcoming Events <a href="#">View All</a></h3>
+    <div class="event"><div class="event-date"><small>MAY</small>25</div><div><b>Grade 12 mock exam</b><span>8:00 AM</span></div></div>
+    <div class="event"><div class="event-date"><small>MAY</small>29</div><div><b>Parents' meeting</b><span>2:00 PM</span></div></div>
+    <div class="event"><div class="event-date"><small>JUN</small>01</div><div><b>Madaraka Day</b><span>School closed</span></div></div>
+  </div>
+
+  <div class="card">
+    <h3>Staff Overview <a href="{{ url_for('team_chat') }}">View All</a></h3>
+    <div class="staff">
+      <div class="donut" style="background:conic-gradient(#3b5fa8 0 67%,#4c9d6a 67% 90%,#8a6fc7 90% 100%)"><div>{{ stats.team_total }}<small>total</small></div></div>
+      <div class="rows"><div><span><i style="background:#3b5fa8"></i>Teaching</span><b>{{ stats.team_online }}</b></div><div><span><i style="background:#4c9d6a"></i>Non-teaching</span><b>20</b></div><div><span><i style="background:#8a6fc7"></i>Support</span><b>8</b></div></div>
     </div>
   </div>
-  {% endif %}
 </section>
 {% endblock %}
 

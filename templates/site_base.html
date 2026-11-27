@@ -14,7 +14,7 @@
 <body class="site">
   <div class="shell">
     <aside class="side" id="side">
-      <a class="brand" href="{{ site_home }}"><img src="/static/images/icon-192.png" alt=""><span>Clavis<small>{% block site_label %}{% endblock %}</small></span></a>
+      <a class="brand" href="{{ site_home }}"><img src="/static/images/icon-192.png" alt=""><span>{% block brand_name %}Clavis{% endblock %}<small>{% block site_label %}{% endblock %}</small></span></a>
       <nav class="nav">{% block nav %}{% endblock %}</nav>
       <div class="foot nav"><a href="{{ url_for('logout') }}"><span class="ico">&#x21AA;</span>Log out</a></div>
     </aside>

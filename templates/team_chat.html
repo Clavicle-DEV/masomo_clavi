@@ -2,12 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#14301f">
   <title>Clavis Team Chat</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/livekit-client@2/dist/livekit-client.umd.min.js"></script>
+  <!-- Pinned on purpose: "@2" silently upgrades every time LiveKit ships. Change the number deliberately. -->
+  <script src="https://cdn.jsdelivr.net/npm/livekit-client@2.23.0/dist/livekit-client.umd.min.js"></script>
   <style>
     :root { --bg:#f3eee3; --paper:#fffdf8; --chalk:#1f3b30; --gold:#d9a62e; --ink:#21281f; --muted:#6e7a6c; --line:#dbd5c5; --red:#b8433a; }
     * { box-sizing:border-box; }
@@ -18,15 +20,16 @@
     .back { color:var(--chalk); font-size:13px; font-weight:700; text-decoration:none; }
     .layout { display:grid; grid-template-columns:minmax(0,1fr) 310px; gap:16px; }
     .card { border:1px solid var(--line); border-radius:14px; background:var(--paper); box-shadow:0 8px 24px rgba(31,59,48,.06); }
-    .call-card { overflow:hidden; }
+    .call-card { position:relative; overflow:hidden; }
     .call-head { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:14px; border-bottom:1px solid var(--line); }
     .call-head strong { color:var(--chalk); font-family:'Fraunces',serif; }
+    .call-timer { font-variant-numeric:tabular-nums; font-size:13px; font-weight:600; }
     .call-status { color:var(--muted); font-size:12px; }
-    .call-grid { display:none; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:8px; width:100%; min-height:220px; height:min(620px,calc(100vh - 190px)); padding:8px; background:#111; }
+    .call-grid { display:none; position:relative; grid-template-columns:repeat(var(--cols,1),1fr); gap:6px; width:100%; min-height:220px; height:min(620px,calc(100vh - 190px)); padding:8px; background:#111; }
     .call-grid.open { display:grid; }
-    .call-video { position:relative; min-height:210px; overflow:hidden; border-radius:10px; background:#1b2420; }
+    .call-video { position:relative; min-height:0; overflow:hidden; border-radius:10px; background:#1b2420; }
     .call-video video { width:100%; height:100%; object-fit:cover; }
-    .call-video span { position:absolute; left:8px; bottom:8px; max-width:calc(100% - 16px); padding:5px 8px; border-radius:7px; background:rgba(0,0,0,.65); color:#fff; font-size:11px; }
+    .call-video span { position:absolute; left:8px; bottom:8px; max-width:calc(100% - 16px); padding:5px 8px; border-radius:7px; background:rgba(0,0,0,.65); color:#fff; font-size:12px; }
     .call-empty { min-height:220px; display:grid; place-items:center; padding:24px; color:var(--muted); text-align:center; }
     .call-permission { display:none; min-height:220px; place-items:center; padding:24px; text-align:center; background:#111; color:#fff; }
     .call-permission.open { display:grid; }
@@ -37,9 +40,7 @@
     .call-video.audio { display:grid; place-items:center; background:radial-gradient(circle at center,#2f5f45 0,#1b3025 220px); }
     .call-video.audio video { display:none; }
     .call-video.audio span { position:static; max-width:none; border-radius:999px; background:var(--gold); color:var(--chalk); font-size:13px; }
-    .call-actions { display:flex; gap:8px; padding:12px 14px; }
     button { min-height:42px; border:1px solid var(--line); border-radius:9px; background:var(--paper); color:var(--ink); font-family:inherit; font-size:13px; font-weight:700; cursor:pointer; }
-    .call-actions button { flex:1; }
     button.primary { border-color:var(--chalk); background:var(--chalk); color:#fff; }
     button.danger { border-color:var(--red); color:var(--red); }
     button:disabled { opacity:.55; cursor:wait; }
@@ -71,16 +72,84 @@
     .calling-bar button { min-height:34px; padding:0 12px; border-color:#fff; background:transparent; color:#fff; }
     .rejoin-bar { display:none; padding:12px 14px; background:#fff6dc; border-bottom:1px solid var(--line); font-size:13px; align-items:center; justify-content:space-between; gap:10px; }
     .rejoin-bar.open { display:flex; }
-    .call-controls { display:none; flex-wrap:wrap; gap:8px; padding:12px 14px; border-top:1px solid var(--line); }
-    .call-controls.open { display:flex; }
-    .call-controls button { flex:1 1 90px; }
-    .call-controls select { flex:1 1 130px; min-height:42px; border:1px solid var(--line); border-radius:9px; background:#fff; font-family:inherit; padding:0 8px; }
+    .call-controls { display:none; }
     .call-video.off span::after { content:' (mic off)'; }
     .call-video .avatar-letter { display:none; font-family:'Fraunces',serif; font-size:44px; color:#fff; }
     .call-video.audio .avatar-letter { display:block; }
     .call-video.audio { gap:10px; align-content:center; }
     .call-video.self video { transform:scaleX(-1); }
+    .call-video.self.rear video { transform:none; }
+    .net-bar { display:none; }
+    .sheet[hidden] { display:none; }
 
+    /* =========================================================
+       In a call: full-screen, WhatsApp-style
+       ========================================================= */
+    body.in-call { overflow:hidden; }
+    body.in-call .call-card { position:fixed; inset:0; z-index:9000; display:flex; flex-direction:column; border:0; border-radius:0; box-shadow:none; background:#0b120e; color:#fff; }
+
+    /* top bar: title, timer, status */
+    body.in-call .call-head { position:absolute; top:0; left:0; right:0; z-index:6; align-items:flex-start; padding:calc(env(safe-area-inset-top) + 14px) 18px 34px; border:0; background:linear-gradient(180deg, rgba(0,0,0,.7), transparent); pointer-events:none; }
+    body.in-call .call-head strong { display:block; color:#fff; font-size:19px; }
+    body.in-call .call-timer { color:#e7efe9; margin-top:2px; }
+    body.in-call .call-status { color:#e7efe9; font-size:13px; padding-top:4px; }
+
+    body.in-call .calling-bar { position:absolute; top:calc(env(safe-area-inset-top) + 70px); left:50%; transform:translateX(-50%); z-index:7; white-space:nowrap; padding:6px 6px 6px 16px; border-radius:999px; background:rgba(0,0,0,.6); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); }
+    body.in-call .calling-bar button { min-height:32px; border-radius:999px; }
+    body.in-call .net-bar.open { display:block; position:absolute; left:50%; bottom:calc(env(safe-area-inset-bottom) + 132px); transform:translateX(-50%); z-index:7; padding:8px 16px; border-radius:999px; background:rgba(224,160,40,.95); color:#2a1d00; font-size:13px; font-weight:700; }
+
+    /* stage */
+    body.in-call .call-grid { flex:1; min-height:0; height:auto; padding:0; gap:4px; background:#0b120e; grid-auto-rows:1fr; }
+    body.in-call .call-video { border-radius:0; background:#16221b; transition:box-shadow .15s; }
+    body.in-call .call-video span { background:rgba(0,0,0,.55); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
+    body.in-call .call-video.speaking { box-shadow:inset 0 0 0 3px #4ade80; }
+
+    /* solo / duo: the other person full-bleed, you in the corner (names clear the buttons) */
+    body.in-call .call-grid[data-mode="solo"] .call-video span,
+    body.in-call .call-grid[data-mode="duo"] .call-video:not(.self) span { bottom:calc(env(safe-area-inset-bottom) + 118px); left:16px; }
+    body.in-call .call-grid[data-mode="duo"] .call-video.self { position:absolute; z-index:5; right:12px; bottom:calc(env(safe-area-inset-bottom) + 126px); width:104px; height:146px; border-radius:16px; border:2px solid rgba(255,255,255,.4); box-shadow:0 10px 28px rgba(0,0,0,.55); }
+    body.in-call .call-grid[data-mode="duo"] .call-video.self span { display:none; }
+    @media (min-width:700px) {
+      body.in-call .call-grid[data-mode="duo"] .call-video.self { right:22px; bottom:134px; width:210px; height:126px; }
+    }
+    /* grid (3+ people, or two people with no video): leave room for the buttons */
+    body.in-call .call-grid[data-mode="grid"] { padding:calc(env(safe-area-inset-top) + 66px) 6px calc(env(safe-area-inset-bottom) + 108px); }
+    body.in-call .call-grid[data-mode="grid"] .call-video { border-radius:14px; }
+
+    /* avatar tiles (voice calls, camera off) */
+    body.in-call .call-video.audio { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; background:radial-gradient(circle at 50% 38%, #2f5f45, #0f1c15 72%); }
+    body.in-call .call-video .avatar-letter { display:none; width:104px; height:104px; border-radius:50%; background:#1f7a4a; align-items:center; justify-content:center; font-size:46px; transition:box-shadow .15s; }
+    body.in-call .call-video.audio .avatar-letter { display:flex; }
+    body.in-call .call-video.audio span { position:static; padding:0; background:none; backdrop-filter:none; -webkit-backdrop-filter:none; color:#fff; font-size:17px; font-weight:600; }
+    body.in-call .call-video.audio.speaking .avatar-letter { box-shadow:0 0 0 7px rgba(74,222,128,.5); }
+    body.in-call .call-video.audio.speaking { box-shadow:none; }
+
+    /* permission message sits on top of the call */
+    body.in-call .call-permission.open { position:absolute; inset:0; z-index:15; background:rgba(0,0,0,.84); }
+
+    /* round buttons */
+    .call-controls.open { display:flex; position:absolute; left:0; right:0; bottom:0; z-index:8; justify-content:center; align-items:flex-start; gap:12px; padding:26px 12px calc(env(safe-area-inset-bottom) + 18px); background:linear-gradient(0deg, rgba(0,0,0,.78), transparent); }
+    .call-controls .ctl { flex:none; width:64px; min-height:0; height:auto; padding:0; border:0; border-radius:0; background:none; color:#fff; display:flex; flex-direction:column; align-items:center; gap:7px; font-size:11.5px; font-weight:600; -webkit-tap-highlight-color:transparent; }
+    .call-controls .ctl[hidden] { display:none; }
+    .call-controls .ctl .disc { width:56px; height:56px; border-radius:50%; display:grid; place-items:center; background:rgba(255,255,255,.2); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); transition:background .15s, color .15s, transform .1s; }
+    .call-controls .ctl:active .disc { transform:scale(.92); }
+    .call-controls .ctl:focus-visible .disc { outline:3px solid #fff; outline-offset:2px; }
+    .call-controls .ctl svg { width:26px; height:26px; }
+    .call-controls .ctl .slash { display:none; }
+    .call-controls .ctl.off .slash { display:block; }
+    .call-controls .ctl.off .disc { background:#fff; color:#10201a; }
+    .call-controls .ctl.end .disc { background:#e5483b; color:#fff; }
+    @media (max-width:360px) { .call-controls.open { gap:6px; } .call-controls .ctl { width:58px; } }
+
+    /* "More" sheet: add a teammate / end for everyone */
+    .sheet { position:absolute; left:0; right:0; bottom:0; z-index:20; padding:18px 18px calc(env(safe-area-inset-bottom) + 18px); border-radius:20px 20px 0 0; background:var(--paper); color:var(--ink); box-shadow:0 -14px 44px rgba(0,0,0,.45); }
+    @media (min-width:700px) { .sheet { left:50%; right:auto; width:440px; transform:translateX(-50%); } }
+    .sheet h3 { margin:0 0 4px; color:var(--chalk); font-family:'Fraunces',serif; font-size:20px; }
+    .sheet p { margin:0 0 12px; color:var(--muted); font-size:13px; }
+    .sheet .row { display:flex; gap:8px; }
+    .sheet select { flex:1; min-width:0; min-height:46px; padding:0 10px; border:1px solid var(--line); border-radius:10px; background:#fff; color:var(--ink); font:inherit; }
+    .sheet button { min-height:46px; padding:0 16px; }
+    .sheet .full { width:100%; margin-top:10px; }
   </style>
 </head>
 <body data-team-name="{{ team_name|e }}" data-account-id="{{ current_user.id }}" data-is-owner="{{ '1' if is_full_admin_user else '0' }}">
@@ -98,10 +167,14 @@
 
     <div class="layout">
       <section class="card call-card">
-        <div class="call-head"><strong>Team call</strong><span class="call-status" id="callStatus">Checking...</span></div>
+        <div class="call-head">
+          <div><strong>Team call</strong><div class="call-timer" id="callTimer" aria-live="off"></div></div>
+          <span class="call-status" id="callStatus">Checking...</span>
+        </div>
         <div class="calling-bar" id="callingBar"><span id="callingText">Calling...</span><button type="button" id="cancelRing">Cancel</button></div>
         <div class="rejoin-bar" id="rejoinBar"><span>You are still in a call.</span><button class="primary" type="button" id="rejoinCall">Rejoin</button></div>
-        <div class="call-grid" id="callGrid"></div>
+        <div class="net-bar" id="netBar" role="status">Reconnecting&hellip;</div>
+        <div class="call-grid" id="callGrid" data-mode="solo"></div>
         <div class="call-permission" id="callPermission">
           <div class="call-permission-card">
             <strong id="callPermissionTitle">Allow microphone access</strong>
@@ -109,14 +182,41 @@
             <button type="button" id="callPermissionRetry">Try again</button>
           </div>
         </div>
+
         <div class="call-controls" id="callControls">
-          <button type="button" id="toggleMic">Mute</button>
-          <button type="button" id="toggleCam">Camera off</button>
-          <select id="addSelect" aria-label="Add a teammate"></select>
-          <button type="button" id="addPerson">Add</button>
-          <button class="danger" type="button" id="leaveCall">Leave</button>
-          {% if is_full_admin_user %}<button class="danger" id="endCall" type="button">End for all</button>{% endif %}
+          <button type="button" class="ctl" id="toggleMic" aria-label="Mute">
+            <span class="disc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z"/><path d="M19 11a7 7 0 0 1-14 0M12 18v3"/><line class="slash" x1="4" y1="4" x2="20" y2="20"/></svg></span>
+            <span class="lbl">Mute</span>
+          </button>
+          <button type="button" class="ctl" id="toggleCam" aria-label="Stop video">
+            <span class="disc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10.5l5-3v9l-5-3"/><line class="slash" x1="4" y1="4" x2="20" y2="20"/></svg></span>
+            <span class="lbl">Stop video</span>
+          </button>
+          <button type="button" class="ctl" id="flipCam" aria-label="Flip camera" hidden>
+            <span class="disc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 0 0-14-5.3L4 9M4 4v5h5"/><path d="M4 12a8 8 0 0 0 14 5.3L20 15M20 20v-5h-5"/></svg></span>
+            <span class="lbl">Flip</span>
+          </button>
+          <button type="button" class="ctl" id="moreBtn" aria-label="More options" aria-haspopup="dialog">
+            <span class="disc"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></span>
+            <span class="lbl">More</span>
+          </button>
+          <button type="button" class="ctl end" id="leaveCall" aria-label="Leave call">
+            <span class="disc"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3.2 14.6c5.2-5 12.4-5 17.6 0 .5.5.5 1.3 0 1.8l-1.7 1.7c-.4.4-1 .5-1.5.2l-2.3-1.2c-.5-.3-.8-.8-.7-1.3l.2-1.3c-1.4-.5-2.9-.5-4.3 0l.2 1.3c.1.5-.2 1-.7 1.3l-2.3 1.2c-.5.3-1.1.2-1.5-.2l-1.7-1.7c-.5-.5-.5-1.3 0-1.8z"/></svg></span>
+            <span class="lbl">Leave</span>
+          </button>
         </div>
+
+        <div class="sheet" id="moreSheet" role="dialog" aria-label="Call options" hidden>
+          <h3>Add to this call</h3>
+          <p>Pick a teammate. Only that person's phone rings.</p>
+          <div class="row">
+            <select id="addSelect" aria-label="Add a teammate"></select>
+            <button class="primary" type="button" id="addPerson">Add</button>
+          </div>
+          {% if is_full_admin_user %}<button class="danger full" id="endCall" type="button">End call for everyone</button>{% endif %}
+          <button class="full" type="button" id="closeSheet">Close</button>
+        </div>
+
         <div id="teamPanel">
           <div class="call-empty" id="callEmpty">Pick one teammate to call. Only that person's phone rings.</div>
           <div class="team-list" id="teamList"></div>
@@ -145,6 +245,7 @@
       var callGrid = $('callGrid'), callPermission = $('callPermission');
       var lastId = 0, seen = {};
       var room = null, connecting = false, activeCall = null, members = [], ringingInvite = null, announced = {};
+      var connectedAt = null, facing = 'user';
 
       /* ---------------- alerts / push ---------------- */
       function urlBase64ToUint8Array(base64String) {
@@ -332,10 +433,13 @@
       var answerParam = new URLSearchParams(location.search).get('answer');
       if (answerParam) { history.replaceState(null, '', '/team-chat'); answerInvite(parseInt(answerParam, 10)); }
 
-      /* ---------------- LiveKit room ---------------- */
+      /* ---------------- tiles and layout ---------------- */
       var wakeLock = null;
+
+      function tileId(p) { return 'tile_' + p.identity.replace(/[^a-zA-Z0-9_-]/g, '_'); }
+
       function tileFor(p) {
-        var id = 'tile_' + p.identity.replace(/[^a-zA-Z0-9_-]/g, '_');
+        var id = tileId(p);
         var tile = document.getElementById(id);
         if (tile) return tile;
         tile = document.createElement('div'); tile.id = id; tile.className = 'call-video audio' + (p.isLocal ? ' self' : '');
@@ -364,12 +468,46 @@
         refreshTile(p);
       }
 
+      // One person: you, full screen. Two with video: them full screen, you in the corner.
+      // Everyone else (3+, or voice only): an even grid.
+      function layoutTiles() {
+        var tiles = Array.prototype.slice.call(callGrid.querySelectorAll('.call-video'));
+        var n = tiles.length;
+        var remoteVideo = tiles.some(function (t) { return !t.classList.contains('self') && !t.classList.contains('audio'); });
+        var mode = n <= 1 ? 'solo' : (n === 2 && remoteVideo ? 'duo' : 'grid');
+        var narrow = window.innerWidth < 640;
+        var cols = 1;
+        if (mode === 'grid') cols = n === 2 ? (narrow ? 1 : 2) : (n <= 4 ? 2 : (narrow ? 2 : 3));
+        if (callGrid.dataset.mode !== mode) callGrid.dataset.mode = mode;
+        callGrid.style.setProperty('--cols', cols);
+      }
+      new MutationObserver(layoutTiles).observe(callGrid, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+      window.addEventListener('resize', layoutTiles);
+
       function setCallUi(inCall) {
         callGrid.classList.toggle('open', inCall);
         $('callControls').classList.toggle('open', inCall);
         $('teamPanel').style.display = inCall ? 'none' : '';
+        document.body.classList.toggle('in-call', inCall);
+        if (!inCall) {
+          $('moreSheet').hidden = true;
+          $('netBar').classList.remove('open');
+          connectedAt = null;
+          $('callTimer').textContent = '';
+        }
+        layoutTiles();
       }
 
+      /* call timer: starts when the other person is actually in the call */
+      function pad(n) { return (n < 10 ? '0' : '') + n; }
+      setInterval(function () {
+        if (!room || !connectedAt) return;
+        var s = Math.floor((Date.now() - connectedAt) / 1000);
+        var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+        $('callTimer').textContent = (h ? h + ':' + pad(m) : m) + ':' + pad(s % 60);
+      }, 1000);
+
+      /* ---------------- LiveKit room ---------------- */
       async function connectRoom(call) {
         if (!window.LivekitClient) throw new Error('The call library did not load. Check your connection and reload.');
         var LK = window.LivekitClient;
@@ -387,8 +525,19 @@
           .on(LK.RoomEvent.TrackMuted, function (pub, p) { refreshTile(p); syncButtons(); })
           .on(LK.RoomEvent.TrackUnmuted, function (pub, p) { refreshTile(p); syncButtons(); })
           .on(LK.RoomEvent.ParticipantConnected, function (p) { refreshTile(p); })
-          .on(LK.RoomEvent.ParticipantDisconnected, function (p) { var t = tileFor(p); if (t) t.remove(); })
-          .on(LK.RoomEvent.AudioPlaybackStatusChanged, function () { if (!room.canPlaybackAudio) showPermissionCard('Tap to hear the call', 'Your browser needs one tap before it plays call audio.'), $('callPermissionRetry').onclick = function () { room.startAudio(); callPermission.classList.remove('open'); }; })
+          .on(LK.RoomEvent.ParticipantDisconnected, function (p) { var t = document.getElementById(tileId(p)); if (t) t.remove(); })
+          .on(LK.RoomEvent.ActiveSpeakersChanged, function (speakers) {
+            callGrid.querySelectorAll('.call-video.speaking').forEach(function (t) { t.classList.remove('speaking'); });
+            (speakers || []).forEach(function (s) { var t = document.getElementById(tileId(s)); if (t) t.classList.add('speaking'); });
+          })
+          .on(LK.RoomEvent.Reconnecting, function () { $('netBar').classList.add('open'); })
+          .on(LK.RoomEvent.Reconnected, function () { $('netBar').classList.remove('open'); })
+          .on(LK.RoomEvent.AudioPlaybackStatusChanged, function () {
+            if (room && !room.canPlaybackAudio) {
+              showPermissionCard('Tap to hear the call', 'Your browser needs one tap before it plays call audio.');
+              $('callPermissionRetry').onclick = function () { room.startAudio(); callPermission.classList.remove('open'); };
+            }
+          })
           .on(LK.RoomEvent.Disconnected, function () { if (room) endLocal('Disconnected from the call'); });
 
         await room.connect(tokenData.url, tokenData.token);
@@ -414,11 +563,32 @@
         try { if (navigator.wakeLock) wakeLock = await navigator.wakeLock.request('screen'); } catch (_) {}
       }
 
+      /* ---------------- controls ---------------- */
+      function setCtl(id, off, label) {
+        var b = $(id);
+        b.classList.toggle('off', off);
+        b.querySelector('.lbl').textContent = label;
+        b.setAttribute('aria-label', label);
+        b.setAttribute('aria-pressed', off ? 'true' : 'false');
+      }
+
+      async function updateFlip() {
+        var show = false;
+        try {
+          if (room && room.localParticipant.isCameraEnabled && navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+            var devices = await navigator.mediaDevices.enumerateDevices();
+            show = devices.filter(function (d) { return d.kind === 'videoinput'; }).length > 1;
+          }
+        } catch (_) {}
+        $('flipCam').hidden = !show;
+      }
+
       function syncButtons() {
         if (!room) return;
         var lp = room.localParticipant;
-        $('toggleMic').textContent = lp.isMicrophoneEnabled ? 'Mute' : 'Unmute';
-        $('toggleCam').textContent = lp.isCameraEnabled ? 'Camera off' : 'Camera on';
+        setCtl('toggleMic', !lp.isMicrophoneEnabled, lp.isMicrophoneEnabled ? 'Mute' : 'Unmute');
+        setCtl('toggleCam', !lp.isCameraEnabled, lp.isCameraEnabled ? 'Stop video' : 'Start video');
+        updateFlip();
       }
 
       function endLocal(message) {
@@ -430,6 +600,7 @@
         $('callingBar').classList.remove('open');
         $('rejoinBar').classList.remove('open');
         if (wakeLock) { try { wakeLock.release(); } catch (_) {} wakeLock = null; }
+        facing = 'user';
         if (message) calls.toast(message);
         renderMembers();
       }
@@ -440,6 +611,20 @@
         try { await room.localParticipant.setCameraEnabled(!room.localParticipant.isCameraEnabled); syncButtons(); }
         catch (e) { var pm = permissionMessage(e, 'video'); showPermissionCard(pm[0], pm[1]); $('callPermissionRetry').onclick = function () { callPermission.classList.remove('open'); }; }
       });
+      $('flipCam').addEventListener('click', async function () {
+        if (!room) return;
+        var pub = room.localParticipant.getTrackPublication(LivekitClient.Track.Source.Camera);
+        if (!pub || !pub.videoTrack) return;
+        var next = facing === 'user' ? 'environment' : 'user';
+        try {
+          await pub.videoTrack.restartTrack({ facingMode: next });
+          facing = next;
+          var self = callGrid.querySelector('.call-video.self');
+          if (self) self.classList.toggle('rear', facing === 'environment');
+        } catch (e) { calls.toast('Could not switch the camera'); }
+      });
+      $('moreBtn').addEventListener('click', function () { renderAddSelect(); $('moreSheet').hidden = !$('moreSheet').hidden; });
+      $('closeSheet').addEventListener('click', function () { $('moreSheet').hidden = true; });
       $('leaveCall').addEventListener('click', async function () {
         try { await calls.post('/api/team/call/leave', {}); } catch (_) {}
         endLocal('You left the call');
@@ -462,6 +647,7 @@
           var data = await r.json();
           if (!r.ok) throw new Error(data.error || 'Could not add that person.');
           ringingInvite = data.inviteId;
+          $('moreSheet').hidden = true;
         } catch (e) { calls.toast(e.message); }
         calls.refresh();
       });
@@ -472,6 +658,9 @@
         catch (e) { var pm = permissionMessage(e, activeCall.kind); calls.toast(pm[1]); }
         finally { connecting = false; }
       });
+
+      // Guard against swiping back / closing the tab in the middle of a call.
+      window.addEventListener('beforeunload', function (e) { if (room) { e.preventDefault(); e.returnValue = ''; } });
 
       /* ---------------- server state ---------------- */
       document.addEventListener('clavis:call-state', function (e) {
@@ -492,9 +681,12 @@
           }
         });
 
+        // timer starts the first moment someone else is in the call with you
+        if (room && serverCall && !ringing && serverCall.participants.length >= 2 && !connectedAt) connectedAt = Date.now();
+
         $('rejoinBar').classList.toggle('open', !!serverCall && !room && !connecting);
         var status = 'Ready';
-        if (room && serverCall) status = ringing ? 'Calling ' + ringing.name + '...' : 'In call · ' + serverCall.participants.length + ' ' + (serverCall.participants.length === 1 ? 'person' : 'people');
+        if (room && serverCall) status = ringing ? 'Ringing...' : 'In call · ' + serverCall.participants.length + ' ' + (serverCall.participants.length === 1 ? 'person' : 'people');
         $('callStatus').textContent = status;
         if (room) renderAddSelect();
       });
