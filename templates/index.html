@@ -1070,6 +1070,16 @@
     <div class="settings-group">
       <div class="settings-row">
         <div>
+          <div class="settings-row-label">App permissions</div>
+          <div class="settings-row-sub">Allow microphone, camera, notifications and file access for calls and live lessons.</div>
+        </div>
+        <button type="button" style="padding:8px 16px;border:1px solid var(--chalk);border-radius:9px;background:transparent;color:var(--chalk);font-weight:700;cursor:pointer;" onclick="window.ClavisPermissions && ClavisPermissions.open()">Manage</button>
+      </div>
+    </div>
+
+    <div class="settings-group">
+      <div class="settings-row">
+        <div>
           <div class="settings-row-label">Studying at</div>
           <div class="settings-row-sub">{% if is_full_admin_user %}Open school-level setup to change this admin account's learning path or grade.{% else %}Switches your whole subject list and tutor style — takes a moment to reload.{% endif %}</div>
         </div>
@@ -1460,6 +1470,7 @@
   })();
 
 </script>
+<script src="{{ static_versioned('js/permissions.js') }}"></script>
 {% if is_team_member %}<script src="{{ static_versioned('js/team_ring.js') }}"></script>{% endif %}
 <script src="{{ static_versioned('js/app.js') }}"></script>
 {% include '_support_widget.html' %}

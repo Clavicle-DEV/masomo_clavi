@@ -93,6 +93,7 @@
     <section class="card alerts" id="alertsCard">
       <p id="alertsText">Turn on call alerts so your phone rings when a teammate calls, even when Clavis is closed.</p>
       <button class="primary" id="enableAlerts" type="button">Enable ringing</button>
+      <button id="openPerms" type="button">Permissions</button>
     </section>
 
     <div class="layout">
@@ -134,6 +135,7 @@
   </div>
 
   <script src="{{ static_versioned('js/team_ring.js') }}"></script>
+  <script src="{{ static_versioned('js/permissions.js') }}"></script>
   <script>
     (function () {
       var accountId = parseInt(document.body.dataset.accountId || '0', 10);
@@ -179,6 +181,7 @@
         $('alertsText').textContent = text;
       }
 
+      $('openPerms').addEventListener('click', function () { ClavisPermissions.open(); });
       $('enableAlerts').addEventListener('click', async function () {
         calls.unlockAudio();
         var result = await subscribeToTeamPush(true);
