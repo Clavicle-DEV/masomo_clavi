@@ -1834,6 +1834,10 @@ def resend_verification():
 @app.route('/')
 def home():
     if current_user.is_authenticated:
+        # Owner admin and co-admins land on their own Admin site.
+        # '?view=learner' lets them open the normal learner app when they want to.
+        if (is_full_admin(current_user) or is_co_admin(current_user)) and request.args.get('view') != 'learner':
+            return redirect(url_for('admin_dashboard'))
         if not current_user.onboarding_completed:
             return redirect(url_for('onboarding', step='name'))
         if onboarding_subject_choices(current_user) and not has_current_study_schedule(current_user):
@@ -5410,6 +5414,21 @@ def ensure_database_schema():
         except Exception as exc:
             app.logger.warning(f"Could not ensure admin column exists: {exc}")
 
+
+from admin_site import register_admin_site
+register_admin_site(
+    app, db,
+    models={
+        'User': User, 'PaymentLog': PaymentLog, 'StudySession': StudySession,
+        'ExamResult': ExamResult, 'School': School,
+        'CertificateApplication': CertificateApplication, 'TeamPresence': TeamPresence,
+    },
+    helpers={
+        'is_full_admin': is_full_admin, 'is_co_admin': is_co_admin,
+        'get_admin_emails': get_admin_emails, 'CO_ADMIN_EMAILS': CO_ADMIN_EMAILS,
+        'default_display_name': default_display_name,
+    },
+)
 
 ensure_database_schema()
 
