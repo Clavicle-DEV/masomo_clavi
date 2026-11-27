@@ -1675,13 +1675,20 @@
   }
 
   function cleanTutorText(text) {
-    if (!text) return text;
-    return escapeHtml(text)
-      .replace(/^[ \t]*\*[ \t]+/gm, '• ')                       // "* item" bullet lines -> "• item"
-      .replace(/^[ \t]*#{1,6}[ \t]*(.+)$/gm, '<strong>$1</strong>') // markdown headers (e.g. "# Conclusion") -> bold
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')         // **bold** -> real bold
-      .replace(/\*(.*?)\*/g, '$1')                              // *italic* -> plain text
-      .replace(/\*/g, '');                                      // any stray leftover asterisks
+    if (!text) return '';
+    return text
+      .replace(/^[ \t]*#{1,6}[ \t]*(.+)$/gm, '$1')
+      .replace(/^[ \t]*-{3,}[ \t]*$/gm, '')
+      .replace(/^[ \t]*\|?[ \t]*:?-{3,}:?[ \t]*(?:\|[ \t]*:?-{3,}:?[ \t]*)+\|?[ \t]*$/gm, '')
+      .replace(/^[ \t]*\*[ \t]+/gm, '- ')
+      .replace(/\*\*([^*]+)\*\*/g, '$1')
+      .replace(/__([^_]+)__/g, '$1')
+      .replace(/(^|[^*])\*([^*\n]+)\*/g, '$1$2')
+      .replace(/\*/g, '')
+      .replace(/^[ \t]*\|[ \t]*|[ \t]*\|[ \t]*$/gm, '')
+      .replace(/[ \t]*\|[ \t]*/g, '  ')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
   }
 
   function sanitizeDiagramSvg(raw) {
@@ -1716,7 +1723,7 @@
       if (i % 2 === 0) {
         if (!part.trim()) return;
         const span = document.createElement('span');
-        span.innerHTML = cleanTutorText(part.trim());
+        span.textContent = cleanTutorText(part.trim());
         container.appendChild(span);
       } else {
         const safeSvg = sanitizeDiagramSvg(part);

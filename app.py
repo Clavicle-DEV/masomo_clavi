@@ -1028,6 +1028,33 @@ MATH_NOTATION_INSTRUCTIONS = (
     "plain-text math (like \"x^2\" or \"sqrt(2)/2\") outside of these delimiters."
 )
 
+
+def plainize_tutor_answer(text):
+    if not text:
+        return text
+
+    text = re.sub(r'^[ \t]*#{1,6}[ \t]*(.+)$', r'\1', text, flags=re.MULTILINE)
+    text = re.sub(r'^[ \t]*-{3,}[ \t]*$', '', text, flags=re.MULTILINE)
+    text = re.sub(r'^[ \t]*\|?[ \t]*:?-{3,}:?[ \t]*(?:\|[ \t]*:?-{3,}:?[ \t]*)+\|?[ \t]*$', '', text, flags=re.MULTILINE)
+    text = re.sub(r'^([ \t]*)\*[ \t]+', r'\1- ', text, flags=re.MULTILINE)
+    text = re.sub(r'\*\*([^*]+)\*\*', r'\1', text)
+    text = re.sub(r'__([^_]+)__', r'\1', text)
+    text = re.sub(r'(^|[^*])\*([^*\n]+)\*', r'\1\2', text)
+    text = text.replace('*', '')
+
+    plain_lines = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if '|' in stripped:
+            cells = [cell.strip() for cell in stripped.strip('|').split('|')]
+            if cells:
+                line = '  '.join(cells)
+        plain_lines.append(line)
+
+    text = '\n'.join(plain_lines)
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    return text.strip()
+
 EXAM_DIAGRAM_INSTRUCTIONS = (
     "Real exam papers usually include a diagram for at least a few questions — a labelled geometric "
     "figure, a graph to read or sketch on, a number line, or a simple flowchart — wherever the question "
@@ -1074,9 +1101,9 @@ def build_system_prompt(subject, level, grade_form=None):
             f"it briefly the first time it comes up), and go a level deeper than a high-school explanation "
             f"would. It's fine to reference real frameworks, theories, or Kenyan/East African examples where "
             f"relevant, and to walk through the reasoning behind a concept rather than just stating it. "
-            f"Do not use markdown formatting like asterisks for bold or bullet points (no **word** and no "
-            f"lines starting with *). Write in plain sentences, and if you need a list, use a dash (-) or "
-            f"simply number the points (1., 2., 3.). " +
+            f"Never use Markdown formatting: no headings with #, no **bold**, no *italics*, no horizontal "
+            f"rules, and no tables. Write in natural plain-text paragraphs. If you need a list, use dashes (-) "
+            f"or numbered points (1., 2., 3.). " +
             MATH_NOTATION_INSTRUCTIONS +
             DIAGRAM_INSTRUCTIONS
         )
@@ -1088,9 +1115,9 @@ def build_system_prompt(subject, level, grade_form=None):
         f"gently step by step rather than jumping straight to the formal definition. Still be accurate and "
         f"complete enough for their level — simple language, not simplified content. Use examples relevant "
         f"to Kenya. "
-        f"Do not use markdown formatting like asterisks for bold or bullet points (no **word** and no lines "
-        f"starting with *). Write in plain sentences, and if you need a list, use a dash (-) or simply number "
-        f"the points (1., 2., 3.). " +
+        f"Never use Markdown formatting: no headings with #, no **bold**, no *italics*, no horizontal rules, "
+        f"and no tables. Write in natural plain-text paragraphs. If you need a list, use dashes (-) or "
+        f"numbered points (1., 2., 3.). " +
         MATH_NOTATION_INSTRUCTIONS +
         DIAGRAM_INSTRUCTIONS
     )
@@ -2899,6 +2926,8 @@ def api_tutor():
         answer = call_groq(groq_messages, vision_model, max_tokens=2500)
     except RuntimeError as e:
         return jsonify({"error": str(e)}), 502
+
+    answer = plainize_tutor_answer(answer)
 
     topic_complete = False
     if teach_topic and '[TOPIC_COMPLETE]' in answer:
