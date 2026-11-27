@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: clavi
+    name: mentis
     env: python
     plan: free
     region: oregon
@@ -18,7 +18,7 @@ services:
       - key: GROQ_API_KEY
         sync: false
       - key: APP_DOMAIN
-        value: https://clavi.onrender.com
+        value: https://mentis.onrender.com
       # Add other secrets and keys in Render dashboard, e.g.:
       # - key: MPESA_PRICE_DAY
       # - key: MPESA_PRICE_MONTH
