@@ -1,25 +1,25 @@
 {
   "name": "Clavis",
   "short_name": "Clavis",
-  "description": "An AI study tutor for students in Kenya — Maths, English, and more.",
+  "description": "An AI study tutor for students in Kenya \u2014 Maths, English, and more.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#F7F7F5",
   "theme_color": "#14301F",
-  "orientation": "portrait",
   "icons": [
     {
       "src": "/static/images/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/static/images/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
-  ]
+  ],
+  "id": "/"
 }

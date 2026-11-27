@@ -658,6 +658,29 @@ class TeamCallSignal(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
 
 
+class TeamCallInvite(db.Model):
+    """One person being rung. Calls ring ONE teammate at a time."""
+    id = db.Column(db.Integer, primary_key=True)
+    call_id = db.Column(db.Integer, db.ForeignKey('team_call.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    invited_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    status = db.Column(db.String(12), nullable=False, default='ringing')  # ringing/accepted/declined/missed/cancelled
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
+    responded_at = db.Column(db.DateTime, nullable=True)
+
+    __table_args__ = (
+        db.Index('ix_team_call_invite_user_status', 'user_id', 'status'),
+    )
+
+
+class TeamPresence(db.Model):
+    """Heartbeat: is this person's browser open, and are they really still in their call?"""
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
+    last_seen = db.Column(db.DateTime, nullable=True)
+    call_id = db.Column(db.Integer, nullable=True)
+    call_seen = db.Column(db.DateTime, nullable=True)
+
+
 class PaymentLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -2275,88 +2298,6 @@ def api_team_messages():
     })
 
 
-@app.route('/api/team/call', methods=['GET'])
-@login_required
-def api_team_call_status():
-    if not (is_full_admin(current_user) or is_co_admin(current_user)):
-        return jsonify({"error": "Team calls are only available to admins and co-admins."}), 403
-
-    call = TeamCall.query.filter_by(ended_at=None).order_by(TeamCall.started_at.desc()).first()
-    if not call:
-        return jsonify({"call": None})
-
-    starter = User.query.get(call.started_by_id)
-    participant_rows = TeamCallParticipant.query.filter_by(call_id=call.id, left_at=None).all()
-    participant_ids = [row.user_id for row in participant_rows]
-    participants = User.query.filter(User.id.in_(participant_ids)).all() if participant_ids else []
-    participants_by_id = {participant.id: participant for participant in participants}
-    return jsonify({
-        "call": {
-            "id": call.id,
-            "roomName": call.room_name,
-            "kind": call.kind,
-            "startedById": call.started_by_id,
-            "startedBy": starter.display_name or default_display_name(starter.email) if starter else "Team member",
-            "startedAt": call.started_at.isoformat() if call.started_at else None,
-            "participants": [
-                {
-                    "id": participant_id,
-                    "name": participants_by_id[participant_id].display_name or default_display_name(participants_by_id[participant_id].email)
-                    if participant_id in participants_by_id else "Team member",
-                }
-                for participant_id in participant_ids
-            ],
-            "iceServers": build_team_ice_servers(),
-        }
-    })
-
-
-@app.route('/api/team/call/token', methods=['POST'])
-@login_required
-@limiter.limit("20 per minute")
-def api_team_call_token():
-    if not (is_full_admin(current_user) or is_co_admin(current_user)):
-        return jsonify({"error": "Team calls are only available to admins and co-admins."}), 403
-
-    livekit_url = os.environ.get('LIVEKIT_URL', '').strip()
-    livekit_key = os.environ.get('LIVEKIT_API_KEY', '').strip()
-    livekit_secret = os.environ.get('LIVEKIT_API_SECRET', '').strip()
-    if livekit_api is None:
-        return jsonify({"error": "LiveKit server SDK is not installed."}), 503
-    if not livekit_url or not livekit_key or not livekit_secret:
-        return jsonify({"error": "LiveKit is not configured. Add LIVEKIT_URL, LIVEKIT_API_KEY, and LIVEKIT_API_SECRET."}), 503
-
-    call = TeamCall.query.filter_by(ended_at=None).order_by(TeamCall.started_at.desc()).first()
-    if not call:
-        return jsonify({"error": "No active team call."}), 404
-
-    display_name = current_user.display_name or default_display_name(current_user.email)
-    token = (
-        livekit_api.AccessToken(livekit_key, livekit_secret)
-        .with_identity(str(current_user.id))
-        .with_name(display_name)
-        .with_grants(livekit_api.VideoGrants(
-            room_join=True,
-            room=call.room_name,
-            can_publish=True,
-            can_subscribe=True,
-            can_publish_data=True,
-        ))
-    )
-    try:
-        jwt_token = token.to_jwt()
-    except Exception as exc:
-        app.logger.error("Could not create LiveKit token: %s", exc)
-        return jsonify({"error": "Could not create the LiveKit call token."}), 502
-
-    return jsonify({
-        "url": livekit_url,
-        "token": jwt_token,
-        "roomName": call.room_name,
-        "kind": call.kind,
-    })
-
-
 @app.route('/api/team/push/vapid-public-key', methods=['GET'])
 @login_required
 def api_team_push_vapid_public_key():
@@ -2397,22 +2338,147 @@ def api_team_push_subscribe():
     return jsonify({"status": "subscribed"})
 
 
-def build_team_ice_servers():
-    ice_servers = [{"urls": "stun:stun.l.google.com:19302"}]
-    turn_url = os.environ.get('TURN_URL', '')
-    turn_username = os.environ.get('TURN_USERNAME', '')
-    turn_credential = os.environ.get('TURN_CREDENTIAL', '')
-    if turn_url:
-        turn = {"urls": turn_url}
-        if turn_username:
-            turn["username"] = turn_username
-        if turn_credential:
-            turn["credential"] = turn_credential
-        ice_servers.append(turn)
-    return ice_servers
+TEAM_RING_SECONDS = 45        # how long one person's phone rings before it counts as missed
+TEAM_ALIVE_SECONDS = 40       # a participant whose browser stops checking in is dropped from the call
+TEAM_ONLINE_SECONDS = 15      # "online" dot in the teammate list
 
 
-def notify_team_of_call(call, sender):
+def is_team_member(user):
+    return bool(
+        user is not None
+        and getattr(user, 'is_authenticated', False)
+        and (is_full_admin(user) or is_co_admin(user))
+    )
+
+
+@app.context_processor
+def inject_team_member_flag():
+    try:
+        return {'is_team_member': is_team_member(current_user)}
+    except Exception:
+        return {'is_team_member': False}
+
+
+def _team_forbidden():
+    return jsonify({"error": "Team calls are only available to admins and co-admins."}), 403
+
+
+def _team_name(user):
+    if not user:
+        return "Team member"
+    return user.display_name or default_display_name(user.email)
+
+
+def _touch_presence(user_id, in_call_id=None):
+    """Remember that this person's browser is open (and, if given, still in a call)."""
+    try:
+        now = datetime.now()
+        row = db.session.get(TeamPresence, user_id)
+        if row is None:
+            row = TeamPresence(user_id=user_id)
+            db.session.add(row)
+        row.last_seen = now
+        if in_call_id:
+            row.call_id = in_call_id
+            row.call_seen = now
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+
+def _my_active_call(user_id):
+    row = (
+        TeamCallParticipant.query
+        .join(TeamCall, TeamCall.id == TeamCallParticipant.call_id)
+        .filter(
+            TeamCallParticipant.user_id == user_id,
+            TeamCallParticipant.left_at.is_(None),
+            TeamCall.ended_at.is_(None),
+        )
+        .order_by(TeamCallParticipant.id.desc())
+        .first()
+    )
+    return db.session.get(TeamCall, row.call_id) if row else None
+
+
+def _close_call_if_empty(call):
+    """A call stays open only while 2+ people are in it, or someone is still being rung."""
+    if call is None or call.ended_at:
+        return
+    in_call = TeamCallParticipant.query.filter_by(call_id=call.id, left_at=None).count()
+    ringing = TeamCallInvite.query.filter_by(call_id=call.id, status='ringing').count()
+    if in_call < 2 and ringing == 0:
+        now = datetime.now()
+        call.ended_at = now
+        for row in TeamCallParticipant.query.filter_by(call_id=call.id, left_at=None).all():
+            row.left_at = now
+        db.session.commit()
+
+
+def _housekeeping(call):
+    """Expire unanswered rings and drop participants whose browser went away."""
+    now = datetime.now()
+    ring_cutoff = now - timedelta(seconds=TEAM_RING_SECONDS)
+    stale = TeamCallInvite.query.filter(
+        TeamCallInvite.status == 'ringing',
+        TeamCallInvite.created_at < ring_cutoff,
+    ).all()
+    touched_calls = set()
+    for invite in stale:
+        invite.status = 'missed'
+        invite.responded_at = now
+        touched_calls.add(invite.call_id)
+        _send_team_push(invite.user_id, {
+            'type': 'missed',
+            'title': 'Missed team call',
+            'body': f"You missed a call from {_team_name(db.session.get(User, invite.invited_by_id))}",
+            'url': '/team-chat',
+            'tag': f"team-call-{invite.id}",
+        }, ttl=3600)
+    if stale:
+        db.session.commit()
+
+    if call is not None and not call.ended_at:
+        alive_cutoff = now - timedelta(seconds=TEAM_ALIVE_SECONDS)
+        dropped = False
+        for row in TeamCallParticipant.query.filter_by(call_id=call.id, left_at=None).all():
+            presence = db.session.get(TeamPresence, row.user_id)
+            checked_in = presence is not None and presence.call_id == call.id and presence.call_seen and presence.call_seen >= alive_cutoff
+            if not checked_in and row.joined_at < alive_cutoff:
+                row.left_at = now
+                dropped = True
+        if dropped:
+            db.session.commit()
+        touched_calls.add(call.id)
+
+    for call_id in touched_calls:
+        _close_call_if_empty(db.session.get(TeamCall, call_id))
+
+
+def _call_payload(call):
+    starter = db.session.get(User, call.started_by_id)
+    rows = TeamCallParticipant.query.filter_by(call_id=call.id, left_at=None).all()
+    people = {u.id: u for u in User.query.filter(User.id.in_([r.user_id for r in rows])).all()} if rows else {}
+    return {
+        "id": call.id,
+        "roomName": call.room_name,
+        "kind": call.kind,
+        "startedById": call.started_by_id,
+        "startedBy": _team_name(starter),
+        "startedAt": call.started_at.isoformat() if call.started_at else None,
+        "participants": [{"id": r.user_id, "name": _team_name(people.get(r.user_id))} for r in rows],
+    }
+
+
+def _user_busy_reason(user):
+    if _my_active_call(user.id):
+        return f"{_team_name(user)} is already on a call."
+    if TeamCallInvite.query.filter_by(user_id=user.id, status='ringing').first():
+        return f"{_team_name(user)} is being called by someone else right now."
+    return None
+
+
+def _vapid_private_key():
     private_key = os.environ.get('VAPID_PRIVATE_KEY', '')
     if private_key and not private_key.startswith('-----BEGIN'):
         private_path = Path(private_key)
@@ -2420,187 +2486,316 @@ def notify_team_of_call(call, sender):
             private_path = PROJECT_ROOT / private_path
         if private_path.is_file():
             private_key = private_path.read_text(encoding='utf-8')
+    return private_key
+
+
+def _send_team_push(user_id, payload, ttl=45):
+    """Fire-and-forget Web Push to ONE person's devices (never blocks the request)."""
+    private_key = _vapid_private_key()
     public_key = os.environ.get('VAPID_PUBLIC_KEY', '')
-    subject = os.environ.get('VAPID_SUBJECT', 'mailto:admin@Clavis.local')
     if not private_key or not public_key or webpush is None:
         return
+    subject = os.environ.get('VAPID_SUBJECT', 'mailto:admin@clavis.local')
+    body = json.dumps(payload)
 
-    subscriptions = TeamPushSubscription.query.filter(
-        TeamPushSubscription.user_id != sender.id
-    ).all()
-    sender_name = sender.display_name or default_display_name(sender.email)
-    payload = json.dumps({
-        'title': f"{sender_name} is calling",
+    def worker():
+        with app.app_context():
+            for sub in TeamPushSubscription.query.filter_by(user_id=user_id).all():
+                try:
+                    webpush(
+                        subscription_info={'endpoint': sub.endpoint, 'keys': {'p256dh': sub.p256dh, 'auth': sub.auth}},
+                        data=body,
+                        vapid_private_key=private_key,
+                        vapid_claims={'sub': subject},
+                        ttl=ttl,
+                        headers={'Urgency': 'high'},
+                    )
+                except Exception as exc:
+                    status = getattr(getattr(exc, 'response', None), 'status_code', None)
+                    if status in (404, 410):
+                        db.session.delete(sub)
+                        db.session.commit()
+                    else:
+                        app.logger.warning("Team push failed: %s", exc)
+
+    threading.Thread(target=worker, daemon=True).start()
+
+
+def _ring(call, caller, callee):
+    """Create the invite for exactly one teammate and ring only them."""
+    invite = TeamCallInvite(call_id=call.id, user_id=callee.id, invited_by_id=caller.id)
+    db.session.add(invite)
+    db.session.commit()
+    _send_team_push(callee.id, {
+        'type': 'incoming',
+        'title': f"{_team_name(caller)} is calling",
         'body': f"Incoming {call.kind} call from the Clavis team",
-        'url': '/team-chat',
-        'tag': f"team-call-{call.id}",
+        'url': f"/team-chat?answer={invite.id}",
+        'inviteId': invite.id,
+        'tag': f"team-call-{invite.id}",
+    }, ttl=TEAM_RING_SECONDS)
+    return invite
+
+
+@app.route('/api/team/members', methods=['GET'])
+@login_required
+def api_team_members():
+    if not is_team_member(current_user):
+        return _team_forbidden()
+    managed = get_admin_emails() | CO_ADMIN_EMAILS
+    users = User.query.filter(or_(User.is_admin.is_(True), func.lower(User.email).in_(managed))).all()
+    now = datetime.now()
+    members = []
+    for user in users:
+        if user.id == current_user.id or not is_team_member(user):
+            continue
+        presence = db.session.get(TeamPresence, user.id)
+        online = bool(presence and presence.last_seen and (now - presence.last_seen).total_seconds() <= TEAM_ONLINE_SECONDS)
+        has_push = TeamPushSubscription.query.filter_by(user_id=user.id).first() is not None
+        members.append({
+            "id": user.id,
+            "name": _team_name(user),
+            "role": "Admin" if is_full_admin(user) else "Co-admin",
+            "online": online,
+            "canRing": online or has_push,
+            "busy": _user_busy_reason(user) is not None,
+        })
+    members.sort(key=lambda m: (not m["online"], m["name"].lower()))
+    return jsonify({"members": members})
+
+
+@app.route('/api/team/call', methods=['GET'])
+@login_required
+def api_team_call_status():
+    """One poll answers everything: my call, who is ringing me, and who I am ringing."""
+    if not is_team_member(current_user):
+        return _team_forbidden()
+
+    in_call_id = request.args.get('inCall', type=int)
+    mine = _my_active_call(current_user.id)
+    _touch_presence(current_user.id, in_call_id if mine and in_call_id == mine.id else None)
+    _housekeeping(mine)
+    mine = _my_active_call(current_user.id)
+
+    incoming = None
+    invite = TeamCallInvite.query.filter_by(user_id=current_user.id, status='ringing').order_by(TeamCallInvite.id.desc()).first()
+    if invite:
+        call = db.session.get(TeamCall, invite.call_id)
+        caller = db.session.get(User, invite.invited_by_id)
+        incoming = {
+            "inviteId": invite.id,
+            "callId": invite.call_id,
+            "kind": call.kind if call else "audio",
+            "fromId": invite.invited_by_id,
+            "from": _team_name(caller),
+            "secondsLeft": max(0, TEAM_RING_SECONDS - int((datetime.now() - invite.created_at).total_seconds())),
+        }
+
+    # Invites I sent: still ringing, or answered/missed in the last 15 seconds
+    # (kept even after the call closes, so the caller can be told "Silas declined").
+    outgoing = []
+    recent = datetime.now() - timedelta(seconds=15)
+    for inv in TeamCallInvite.query.filter(
+        TeamCallInvite.invited_by_id == current_user.id,
+        TeamCallInvite.created_at >= datetime.now() - timedelta(minutes=3),
+    ).order_by(TeamCallInvite.id.desc()).limit(10).all():
+        if inv.status == 'ringing' or (inv.responded_at and inv.responded_at >= recent and inv.status in ('declined', 'missed')):
+            outgoing.append({
+                "inviteId": inv.id,
+                "name": _team_name(db.session.get(User, inv.user_id)),
+                "status": inv.status,
+            })
+
+    return jsonify({
+        "call": _call_payload(mine) if mine else None,
+        "incoming": incoming,
+        "outgoing": outgoing,
     })
-    for subscription in subscriptions:
-        try:
-            webpush(
-                subscription_info={
-                    'endpoint': subscription.endpoint,
-                    'keys': {'p256dh': subscription.p256dh, 'auth': subscription.auth},
-                },
-                data=payload,
-                vapid_private_key=private_key,
-                vapid_claims={'sub': subject},
-                ttl=30,
-            )
-        except Exception as exc:
-            app.logger.warning("Team call push failed: %s", exc)
 
 
 @app.route('/api/team/call', methods=['POST'])
 @login_required
-@limiter.limit("10 per minute")
+@limiter.limit("15 per minute")
 def api_team_start_call():
-    if not (is_full_admin(current_user) or is_co_admin(current_user)):
-        return jsonify({"error": "Team calls are only available to admins and co-admins."}), 403
-
+    """Start a call by ringing ONE teammate. Nobody else is notified."""
+    if not is_team_member(current_user):
+        return _team_forbidden()
     data = request.get_json(silent=True) or {}
     kind = data.get('kind', 'video')
     if kind not in {'audio', 'video'}:
         return jsonify({"error": "Call type must be audio or video."}), 400
+    callee = db.session.get(User, int(data['calleeId'])) if str(data.get('calleeId', '')).isdigit() else None
+    if not callee or callee.id == current_user.id or not is_team_member(callee):
+        return jsonify({"error": "Choose a teammate to call."}), 400
+    if _my_active_call(current_user.id):
+        return jsonify({"error": "You're already in a call."}), 409
+    busy = _user_busy_reason(callee)
+    if busy:
+        return jsonify({"error": busy}), 409
 
-    active_call = TeamCall.query.filter_by(ended_at=None).order_by(TeamCall.started_at.desc()).first()
-    if active_call:
-        existing_participant = TeamCallParticipant.query.filter_by(
-            call_id=active_call.id,
-            user_id=current_user.id,
-            left_at=None,
-        ).first()
-        if not existing_participant:
-            db.session.add(TeamCallParticipant(call_id=active_call.id, user_id=current_user.id))
-            db.session.commit()
-        starter = User.query.get(active_call.started_by_id)
-        participant_rows = TeamCallParticipant.query.filter_by(call_id=active_call.id, left_at=None).all()
-        participant_ids = [row.user_id for row in participant_rows]
-        participants = User.query.filter(User.id.in_(participant_ids)).all() if participant_ids else []
-        participants_by_id = {participant.id: participant for participant in participants}
-        return jsonify({
-            "call": {
-                "id": active_call.id,
-                "roomName": active_call.room_name,
-                "kind": active_call.kind,
-                "startedById": active_call.started_by_id,
-                "startedBy": starter.display_name or default_display_name(starter.email) if starter else "Team member",
-                "startedAt": active_call.started_at.isoformat() if active_call.started_at else None,
-                "participants": [
-                    {
-                        "id": participant_id,
-                        "name": participants_by_id[participant_id].display_name or default_display_name(participants_by_id[participant_id].email)
-                        if participant_id in participants_by_id else "Team member",
-                    }
-                    for participant_id in participant_ids
-                ],
-                "iceServers": build_team_ice_servers(),
-            },
-            "joined": True,
-        })
-
-    call = TeamCall(
-        room_name=f"Clavis-Team-{secrets.token_hex(8)}",
-        kind=kind,
-        started_by_id=current_user.id,
-    )
+    call = TeamCall(room_name=f"Clavis-Team-{secrets.token_hex(8)}", kind=kind, started_by_id=current_user.id)
     db.session.add(call)
     db.session.flush()
     db.session.add(TeamCallParticipant(call_id=call.id, user_id=current_user.id))
     db.session.commit()
-    notify_team_of_call(call, current_user)
-
-    return jsonify({
-        "call": {
-            "id": call.id,
-            "roomName": call.room_name,
-            "kind": call.kind,
-            "startedById": current_user.id,
-            "startedBy": current_user.display_name or default_display_name(current_user.email),
-            "startedAt": call.started_at.isoformat() if call.started_at else None,
-            "iceServers": build_team_ice_servers(),
-        },
-        "joined": False,
-    }), 201
+    invite = _ring(call, current_user, callee)
+    return jsonify({"call": _call_payload(call), "inviteId": invite.id, "calling": _team_name(callee)}), 201
 
 
-@app.route('/api/team/call/signals', methods=['GET', 'POST'])
+@app.route('/api/team/call/invite', methods=['POST'])
 @login_required
-def api_team_call_signals():
-    if not (is_full_admin(current_user) or is_co_admin(current_user)):
-        return jsonify({"error": "Team calls are only available to admins and co-admins."}), 403
-
-    call = TeamCall.query.filter_by(ended_at=None).order_by(TeamCall.started_at.desc()).first()
+@limiter.limit("15 per minute")
+def api_team_invite_to_call():
+    """Add one more teammate to a call that is already running (one at a time)."""
+    if not is_team_member(current_user):
+        return _team_forbidden()
+    call = _my_active_call(current_user.id)
     if not call:
-        return jsonify({"signals": []})
+        return jsonify({"error": "You are not in a call."}), 404
+    data = request.get_json(silent=True) or {}
+    callee = db.session.get(User, int(data['calleeId'])) if str(data.get('calleeId', '')).isdigit() else None
+    if not callee or not is_team_member(callee) or callee.id == current_user.id:
+        return jsonify({"error": "Choose a teammate to add."}), 400
+    if TeamCallInvite.query.filter_by(call_id=call.id, status='ringing').first():
+        return jsonify({"error": "Wait until the current person answers before adding someone else."}), 409
+    if TeamCallParticipant.query.filter_by(call_id=call.id, left_at=None).count() >= 6:
+        return jsonify({"error": "This call is full."}), 409
+    busy = _user_busy_reason(callee)
+    if busy:
+        return jsonify({"error": busy}), 409
+    invite = _ring(call, current_user, callee)
+    return jsonify({"inviteId": invite.id, "calling": _team_name(callee)}), 201
 
-    if request.method == 'POST':
-        data = request.get_json(silent=True) or {}
-        receiver_id = data.get('receiverId')
-        payload = data.get('payload')
-        try:
-            receiver_id = int(receiver_id)
-        except (TypeError, ValueError):
-            return jsonify({"error": "receiverId is required."}), 400
-        if receiver_id == current_user.id or not isinstance(payload, dict):
-            return jsonify({"error": "Invalid signal."}), 400
-        participant = TeamCallParticipant.query.filter_by(call_id=call.id, user_id=receiver_id, left_at=None).first()
-        if not participant:
-            return jsonify({"error": "Receiver is not in the call."}), 404
-        signal = TeamCallSignal(
-            call_id=call.id,
-            sender_id=current_user.id,
-            receiver_id=receiver_id,
-            payload_json=json.dumps(payload),
-        )
-        db.session.add(signal)
+
+@app.route('/api/team/call/respond', methods=['POST'])
+@login_required
+def api_team_call_respond():
+    if not is_team_member(current_user):
+        return _team_forbidden()
+    data = request.get_json(silent=True) or {}
+    action = data.get('action')
+    invite = db.session.get(TeamCallInvite, int(data['inviteId'])) if str(data.get('inviteId', '')).isdigit() else None
+    if not invite or invite.user_id != current_user.id or action not in {'accept', 'decline'}:
+        return jsonify({"error": "Call not found."}), 404
+    call = db.session.get(TeamCall, invite.call_id)
+    if invite.status != 'ringing' or not call or call.ended_at:
+        return jsonify({"error": "That call is no longer ringing.", "status": invite.status}), 410
+
+    now = datetime.now()
+    if action == 'decline':
+        invite.status = 'declined'
+        invite.responded_at = now
         db.session.commit()
-        return jsonify({"status": "sent", "id": signal.id}), 201
+        _close_call_if_empty(call)
+        return jsonify({"status": "declined"})
 
-    after_id = request.args.get('after', 0, type=int)
-    signals = TeamCallSignal.query.filter(
-        TeamCallSignal.call_id == call.id,
-        TeamCallSignal.receiver_id == current_user.id,
-        TeamCallSignal.id > after_id,
-    ).order_by(TeamCallSignal.id.asc()).limit(100).all()
-    return jsonify({
-        "signals": [
-            {
-                "id": signal.id,
-                "senderId": signal.sender_id,
-                "payload": json.loads(signal.payload_json),
-            }
-            for signal in signals
-        ]
-    })
+    if _my_active_call(current_user.id):
+        return jsonify({"error": "You're already in a call."}), 409
+    invite.status = 'accepted'
+    invite.responded_at = now
+    if not TeamCallParticipant.query.filter_by(call_id=call.id, user_id=current_user.id, left_at=None).first():
+        db.session.add(TeamCallParticipant(call_id=call.id, user_id=current_user.id))
+    db.session.commit()
+    return jsonify({"status": "accepted", "call": _call_payload(call)})
+
+
+@app.route('/api/team/call/cancel', methods=['POST'])
+@login_required
+def api_team_call_cancel():
+    """The caller hangs up before the other person answers."""
+    if not is_team_member(current_user):
+        return _team_forbidden()
+    data = request.get_json(silent=True) or {}
+    invite = db.session.get(TeamCallInvite, int(data['inviteId'])) if str(data.get('inviteId', '')).isdigit() else None
+    if not invite or invite.invited_by_id != current_user.id:
+        return jsonify({"error": "Call not found."}), 404
+    if invite.status == 'ringing':
+        invite.status = 'cancelled'
+        invite.responded_at = datetime.now()
+        db.session.commit()
+        _send_team_push(invite.user_id, {
+            'type': 'missed',
+            'title': 'Missed team call',
+            'body': f"You missed a call from {_team_name(current_user)}",
+            'url': '/team-chat',
+            'tag': f"team-call-{invite.id}",
+        }, ttl=3600)
+    _close_call_if_empty(db.session.get(TeamCall, invite.call_id))
+    return jsonify({"status": "cancelled"})
+
+
+@app.route('/api/team/call/token', methods=['POST'])
+@login_required
+@limiter.limit("20 per minute")
+def api_team_call_token():
+    if not is_team_member(current_user):
+        return _team_forbidden()
+
+    livekit_url = os.environ.get('LIVEKIT_URL', '').strip()
+    livekit_key = os.environ.get('LIVEKIT_API_KEY', '').strip()
+    livekit_secret = os.environ.get('LIVEKIT_API_SECRET', '').strip()
+    if livekit_api is None:
+        return jsonify({"error": "LiveKit server SDK is not installed."}), 503
+    if not livekit_url or not livekit_key or not livekit_secret:
+        return jsonify({"error": "LiveKit is not configured. Add LIVEKIT_URL, LIVEKIT_API_KEY, and LIVEKIT_API_SECRET."}), 503
+
+    # Only people who are actually IN this call (the caller, or someone who answered) get a token.
+    call = _my_active_call(current_user.id)
+    if not call:
+        return jsonify({"error": "You are not in an active team call."}), 404
+
+    token = (
+        livekit_api.AccessToken(livekit_key, livekit_secret)
+        .with_identity(f"{current_user.id}-{secrets.token_hex(3)}")   # unique per device, so two devices don't kick each other out
+        .with_name(_team_name(current_user))
+        .with_grants(livekit_api.VideoGrants(
+            room_join=True,
+            room=call.room_name,
+            can_publish=True,
+            can_subscribe=True,
+            can_publish_data=True,
+        ))
+    )
+    try:
+        jwt_token = token.to_jwt()
+    except Exception as exc:
+        app.logger.error("Could not create LiveKit token: %s", exc)
+        return jsonify({"error": "Could not create the LiveKit call token."}), 502
+
+    return jsonify({"url": livekit_url, "token": jwt_token, "roomName": call.room_name, "kind": call.kind, "callId": call.id})
 
 
 @app.route('/api/team/call/leave', methods=['POST'])
 @login_required
 def api_team_leave_call():
-    if not (is_full_admin(current_user) or is_co_admin(current_user)):
-        return jsonify({"error": "Team calls are only available to admins and co-admins."}), 403
-
-    call = TeamCall.query.filter_by(ended_at=None).order_by(TeamCall.started_at.desc()).first()
+    if not is_team_member(current_user):
+        return _team_forbidden()
+    call = _my_active_call(current_user.id)
     if call:
-        participant = TeamCallParticipant.query.filter_by(call_id=call.id, user_id=current_user.id, left_at=None).first()
-        if participant:
-            participant.left_at = datetime.now()
+        row = TeamCallParticipant.query.filter_by(call_id=call.id, user_id=current_user.id, left_at=None).first()
+        if row:
+            row.left_at = datetime.now()
             db.session.commit()
+        _close_call_if_empty(call)
     return jsonify({"status": "left"})
 
 
 @app.route('/api/team/call', methods=['DELETE'])
 @login_required
 def api_team_end_call():
+    """Owner admin only: end the call for everyone."""
     if not is_full_admin(current_user):
-        return jsonify({"error": "Only the owner admin can end a team call."}), 403
-
-    call = TeamCall.query.filter_by(ended_at=None).order_by(TeamCall.started_at.desc()).first()
+        return jsonify({"error": "Only the owner admin can end a team call for everyone."}), 403
+    call = _my_active_call(current_user.id)
     if not call:
         return jsonify({"status": "already-ended"})
-
-    call.ended_at = datetime.now()
+    now = datetime.now()
+    call.ended_at = now
+    for row in TeamCallParticipant.query.filter_by(call_id=call.id, left_at=None).all():
+        row.left_at = now
+    for inv in TeamCallInvite.query.filter_by(call_id=call.id, status='ringing').all():
+        inv.status = 'cancelled'
+        inv.responded_at = now
     db.session.commit()
     return jsonify({"status": "ended"})
 

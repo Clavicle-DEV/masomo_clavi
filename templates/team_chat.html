@@ -52,16 +52,35 @@
     .chat-form { display:grid; grid-template-columns:1fr 42px; gap:8px; padding:10px; border-top:1px solid var(--line); }
     .chat-input { min-width:0; height:42px; padding:0 11px; border:1px solid var(--line); border-radius:9px; background:#fff; color:var(--ink); font-family:inherit; }
     .send { width:42px; background:var(--gold); color:var(--chalk); }
-    .incoming-ring { position:fixed; z-index:5000; inset:0; display:none; place-items:center; padding:20px; background:rgba(10,24,16,.82); }
-    .incoming-ring.open { display:grid; }
-    .incoming-card { width:min(390px,100%); padding:28px 22px 22px; border-radius:18px; background:var(--paper); text-align:center; box-shadow:0 24px 80px rgba(0,0,0,.38); }
-    .incoming-avatar { width:82px; height:82px; margin:0 auto 16px; display:grid; place-items:center; border-radius:50%; background:var(--chalk); color:#fff; font-family:'Fraunces',serif; font-size:34px; }
-    .incoming-card h2 { margin:0 0 4px; color:var(--chalk); font-family:'Fraunces',serif; }
-    .incoming-card p { margin:0 0 20px; color:var(--muted); }
-    .incoming-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-    .accept { border-color:#2f6b45; background:#2f6b45; color:#fff; }
-    .decline { border-color:var(--red); color:var(--red); }
     @media(max-width:820px) { .layout { grid-template-columns:1fr; } .chat-card { height:520px; } .call-grid { height:520px; } }
+
+    .alerts { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 14px; margin-bottom:16px; }
+    .alerts p { margin:0; font-size:12.5px; color:var(--muted); line-height:1.45; }
+    .alerts button { flex:none; padding:0 14px; }
+    .team-list { display:flex; flex-direction:column; }
+    .member { display:flex; align-items:center; gap:10px; padding:10px 14px; border-bottom:1px solid var(--line); }
+    .member:last-child { border-bottom:0; }
+    .dot { width:10px; height:10px; border-radius:50%; background:#c9c4b4; flex:none; }
+    .dot.on { background:#2f9e5b; }
+    .member .who { flex:1; min-width:0; }
+    .member .who b { display:block; font-size:14px; color:var(--chalk); }
+    .member .who small { color:var(--muted); font-size:11.5px; }
+    .member button { min-height:38px; padding:0 12px; }
+    .calling-bar { display:none; align-items:center; justify-content:space-between; gap:10px; padding:12px 14px; background:#14301f; color:#fff; font-size:13px; }
+    .calling-bar.open { display:flex; }
+    .calling-bar button { min-height:34px; padding:0 12px; border-color:#fff; background:transparent; color:#fff; }
+    .rejoin-bar { display:none; padding:12px 14px; background:#fff6dc; border-bottom:1px solid var(--line); font-size:13px; align-items:center; justify-content:space-between; gap:10px; }
+    .rejoin-bar.open { display:flex; }
+    .call-controls { display:none; flex-wrap:wrap; gap:8px; padding:12px 14px; border-top:1px solid var(--line); }
+    .call-controls.open { display:flex; }
+    .call-controls button { flex:1 1 90px; }
+    .call-controls select { flex:1 1 130px; min-height:42px; border:1px solid var(--line); border-radius:9px; background:#fff; font-family:inherit; padding:0 8px; }
+    .call-video.off span::after { content:' (mic off)'; }
+    .call-video .avatar-letter { display:none; font-family:'Fraunces',serif; font-size:44px; color:#fff; }
+    .call-video.audio .avatar-letter { display:block; }
+    .call-video.audio { gap:10px; align-content:center; }
+    .call-video.self video { transform:scaleX(-1); }
+
   </style>
 </head>
 <body data-team-name="{{ team_name|e }}" data-account-id="{{ current_user.id }}" data-is-owner="{{ '1' if is_full_admin_user else '0' }}">
@@ -70,9 +89,17 @@
       <h1>Admin team</h1>
       <a class="back" href="{{ url_for('home') }}">&larr; Back to dashboard</a>
     </div>
+
+    <section class="card alerts" id="alertsCard">
+      <p id="alertsText">Turn on call alerts so your phone rings when a teammate calls, even when Clavis is closed.</p>
+      <button class="primary" id="enableAlerts" type="button">Enable ringing</button>
+    </section>
+
     <div class="layout">
       <section class="card call-card">
         <div class="call-head"><strong>Team call</strong><span class="call-status" id="callStatus">Checking...</span></div>
+        <div class="calling-bar" id="callingBar"><span id="callingText">Calling...</span><button type="button" id="cancelRing">Cancel</button></div>
+        <div class="rejoin-bar" id="rejoinBar"><span>You are still in a call.</span><button class="primary" type="button" id="rejoinCall">Rejoin</button></div>
         <div class="call-grid" id="callGrid"></div>
         <div class="call-permission" id="callPermission">
           <div class="call-permission-card">
@@ -81,11 +108,17 @@
             <button type="button" id="callPermissionRetry">Try again</button>
           </div>
         </div>
-        <div class="call-empty" id="callEmpty">No active call. Start a video or audio room for the team.</div>
-        <div class="call-actions">
-          <button class="primary" id="videoCall" type="button">Start video call</button>
-          <button id="audioCall" type="button">Start audio call</button>
-          {% if is_full_admin_user %}<button class="danger" id="endCall" type="button" hidden>End call</button>{% endif %}
+        <div class="call-controls" id="callControls">
+          <button type="button" id="toggleMic">Mute</button>
+          <button type="button" id="toggleCam">Camera off</button>
+          <select id="addSelect" aria-label="Add a teammate"></select>
+          <button type="button" id="addPerson">Add</button>
+          <button class="danger" type="button" id="leaveCall">Leave</button>
+          {% if is_full_admin_user %}<button class="danger" id="endCall" type="button">End for all</button>{% endif %}
+        </div>
+        <div id="teamPanel">
+          <div class="call-empty" id="callEmpty">Pick one teammate to call. Only that person's phone rings.</div>
+          <div class="team-list" id="teamList"></div>
         </div>
       </section>
 
@@ -100,70 +133,69 @@
     </div>
   </div>
 
-  <div class="incoming-ring" id="incomingRing" role="dialog" aria-modal="true" aria-label="Incoming team call">
-    <div class="incoming-card">
-      <div class="incoming-avatar" id="incomingAvatar">C</div>
-      <h2 id="incomingName">Incoming team call</h2>
-      <p id="incomingKind">Clavis team is calling...</p>
-      <div class="incoming-actions">
-        <button class="decline" id="declineCall" type="button">Decline</button>
-        <button class="accept" id="acceptCall" type="button">Answer</button>
-      </div>
-    </div>
-  </div>
-
+  <script src="{{ static_versioned('js/team_ring.js') }}"></script>
   <script>
     (function () {
-      var teamName = document.body.dataset.teamName || 'Team member';
       var accountId = parseInt(document.body.dataset.accountId || '0', 10);
-      var isOwner = document.body.dataset.isOwner === '1';
-      var chatLog = document.getElementById('chatLog');
-      var chatForm = document.getElementById('chatForm');
-      var chatInput = document.getElementById('chatInput');
-      var chatSend = document.getElementById('chatSend');
-      var lastId = 0;
-      var seen = {};
-      var activeCall = null;
-      var incomingCallShown = false;
+      var calls = window.ClavisCalls;
+      var $ = function (id) { return document.getElementById(id); };
+      var chatLog = $('chatLog'), chatForm = $('chatForm'), chatInput = $('chatInput'), chatSend = $('chatSend');
+      var callGrid = $('callGrid'), callPermission = $('callPermission');
+      var lastId = 0, seen = {};
+      var room = null, connecting = false, activeCall = null, members = [], ringingInvite = null, announced = {};
 
-      async function subscribeToTeamPush() {
-        if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return;
-        try {
-          if (Notification.permission === 'default') await Notification.requestPermission();
-          if (Notification.permission !== 'granted') return;
-          var registration = await navigator.serviceWorker.ready;
-          var keyResponse = await fetch('/api/team/push/vapid-public-key', { credentials:'same-origin' });
-          var keyData = await keyResponse.json();
-          if (!keyData.publicKey) return;
-          var convertedKey = urlBase64ToUint8Array(keyData.publicKey);
-          var subscription = await registration.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: convertedKey
-          });
-          await fetch('/api/team/push/subscribe', {
-            method:'POST',
-            credentials:'same-origin',
-            headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({subscription:subscription.toJSON()})
-          });
-        } catch (_) {}
-      }
-
+      /* ---------------- alerts / push ---------------- */
       function urlBase64ToUint8Array(base64String) {
         var padding = '='.repeat((4 - base64String.length % 4) % 4);
         var base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-        var raw = window.atob(base64);
-        var output = new Uint8Array(raw.length);
-        for (var i = 0; i < raw.length; i++) output[i] = raw.charCodeAt(i);
-        return output;
+        var raw = window.atob(base64), out = new Uint8Array(raw.length);
+        for (var i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+        return out;
       }
 
+      async function subscribeToTeamPush(askPermission) {
+        if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return 'unsupported';
+        try {
+          if (Notification.permission === 'default' && askPermission) await Notification.requestPermission();
+          if (Notification.permission !== 'granted') return Notification.permission;
+          var registration = await navigator.serviceWorker.ready;
+          var keyData = await (await fetch('/api/team/push/vapid-public-key', { credentials: 'same-origin' })).json();
+          if (!keyData.publicKey) return 'no-key';
+          var subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(keyData.publicKey) });
+          await fetch('/api/team/push/subscribe', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscription: subscription.toJSON() }) });
+          return 'granted';
+        } catch (_) { return 'error'; }
+      }
+
+      function describeAlerts(result) {
+        var ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+        var standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+        var text, button = $('enableAlerts');
+        if (result === 'granted') { text = 'Ringing is on for this device. Keep sound up. You will get a call alert even when Clavis is closed.'; button.textContent = 'Test ring'; }
+        else if (result === 'denied') { text = 'Notifications are blocked for Clavis. Allow them in your browser or phone settings, then reload.'; button.textContent = 'Try again'; }
+        else if (result === 'unsupported' && ios && !standalone) { text = 'On iPhone/iPad, first tap Share, then Add to Home Screen, and open Clavis from there to get call alerts.'; button.textContent = 'OK'; }
+        else if (result === 'no-key') { text = 'Push is not set up on the server yet (VAPID keys missing). In-app ringing still works while Clavis is open.'; button.textContent = 'Test ring'; }
+        else { text = 'Turn on call alerts so your phone rings when a teammate calls, even when Clavis is closed.'; button.textContent = 'Enable ringing'; }
+        $('alertsText').textContent = text;
+      }
+
+      $('enableAlerts').addEventListener('click', async function () {
+        calls.unlockAudio();
+        var result = await subscribeToTeamPush(true);
+        describeAlerts(result);
+        calls.toast(result === 'granted' ? 'Ringing enabled on this device' : 'Ringing sound is on while Clavis is open');
+      });
+
+      if ('Notification' in window && Notification.permission === 'granted') subscribeToTeamPush(false).then(describeAlerts);
+      else describeAlerts(!('Notification' in window) ? 'unsupported' : (Notification.permission === 'denied' ? 'denied' : 'default'));
+
+      /* ---------------- chat ---------------- */
       function addMessage(message) {
         if (seen[message.id]) return;
         seen[message.id] = true;
         if (message.id > lastId) lastId = message.id;
         var item = document.createElement('div');
-        item.className = 'message' + (message.senderName === teamName ? ' mine' : '');
+        item.className = 'message' + (message.senderId === accountId ? ' mine' : '');
         var sender = document.createElement('strong');
         sender.textContent = message.senderName + ' · ' + message.senderRole;
         item.appendChild(sender);
@@ -174,7 +206,7 @@
 
       async function pollMessages(initial) {
         try {
-          var response = await fetch('/api/team/messages?after=' + (initial ? '0' : lastId), { credentials:'same-origin' });
+          var response = await fetch('/api/team/messages?after=' + (initial ? '0' : lastId), { credentials: 'same-origin' });
           var data = await response.json();
           if (!response.ok) return;
           (data.messages || []).forEach(addMessage);
@@ -187,7 +219,7 @@
         if (!body || chatSend.disabled) return;
         chatSend.disabled = true;
         try {
-          var response = await fetch('/api/team/messages', { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({body:body}) });
+          var response = await fetch('/api/team/messages', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ body: body }) });
           var data = await response.json();
           if (!response.ok) throw new Error(data.error || 'Could not send message.');
           chatInput.value = '';
@@ -196,214 +228,277 @@
         finally { chatSend.disabled = false; chatInput.focus(); }
       });
 
-      var callGrid = document.getElementById('callGrid');
-      var callEmpty = document.getElementById('callEmpty');
-      var callPermission = document.getElementById('callPermission');
-      var callPermissionTitle = document.getElementById('callPermissionTitle');
-      var callPermissionText = document.getElementById('callPermissionText');
-      var callPermissionRetry = document.getElementById('callPermissionRetry');
-      var callStatus = document.getElementById('callStatus');
-      var videoButton = document.getElementById('videoCall');
-      var audioButton = document.getElementById('audioCall');
-      var endButton = document.getElementById('endCall');
-      var incomingRing = document.getElementById('incomingRing');
-      var incomingName = document.getElementById('incomingName');
-      var incomingKind = document.getElementById('incomingKind');
-      var incomingAvatar = document.getElementById('incomingAvatar');
-      var acceptCall = document.getElementById('acceptCall');
-      var declineCall = document.getElementById('declineCall');
-
-      var livekitRoom = null;
-
-      function ensureLiveKitTile(identity, name, kind) {
-        var tileId = 'livekit_' + identity;
-        var tile = document.getElementById(tileId);
-        if (!tile) {
-          tile = document.createElement('div');
-          tile.id = tileId;
-          tile.className = 'call-video' + (kind === 'audio' ? ' audio' : '');
-          var label = document.createElement('span');
-          label.textContent = name;
-          tile.appendChild(label);
-          callGrid.appendChild(tile);
-        }
-        return tile;
-      }
-
-      function attachLiveKitTrack(track, identity, name, kind) {
-        var tile = ensureLiveKitTile(identity, name, kind);
-        if (track.kind === 'video' || track.kind === 'audio') {
-          var media = track.attach();
-          media.autoplay = true;
-          media.playsInline = true;
-          if (identity === String(accountId)) media.muted = true;
-          var label = tile.querySelector('span');
-          tile.querySelectorAll('video,audio').forEach(function (element) { element.remove(); });
-          tile.insertBefore(media, label);
-        }
-      }
-
-      function detachLiveKitTrack(track) {
-        track.detach().forEach(function (media) { media.remove(); });
-      }
-
-      async function openCall(call) {
-        activeCall = call;
-        callPermission.classList.remove('open');
-
-        if (!window.LivekitClient) {
-          callEmpty.hidden = true;
-          callPermission.classList.add('open');
-          callPermissionTitle.textContent = 'LiveKit player is unavailable';
-          callPermissionText.textContent = 'Refresh the page and try again. A network connection is required to load the secure call player.';
-          callStatus.textContent = 'Call player unavailable';
-          return;
-        }
-        if (!window.isSecureContext) {
-          callEmpty.hidden = true;
-          callPermission.classList.add('open');
-          callPermissionTitle.textContent = 'HTTPS permission required';
-          callPermissionText.textContent = 'Microphone and camera access require HTTPS or localhost. Open Clavis over a secure HTTPS address, then try again.';
-          callStatus.textContent = 'Secure connection required';
-          return;
-        }
-
+      /* ---------------- teammate list ---------------- */
+      async function loadMembers() {
         try {
-          var tokenResponse = await fetch('/api/team/call/token', {
-            method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:'{}'
-          });
-          var tokenData = await tokenResponse.json();
-          if (!tokenResponse.ok) throw new Error(tokenData.error || 'Could not create the LiveKit call token.');
-
-          livekitRoom = new window.LivekitClient.Room({
-            adaptiveStream: true,
-            dynacast: true,
-            publishDefaults: { dtx: true, red: true }
-          });
-
-          livekitRoom
-            .on(window.LivekitClient.RoomEvent.TrackSubscribed, function (track, publication, participant) {
-              attachLiveKitTrack(track, participant.identity, participant.name || 'Team member', call.kind);
-            })
-            .on(window.LivekitClient.RoomEvent.TrackUnsubscribed, function (track) {
-              detachLiveKitTrack(track);
-            })
-            .on(window.LivekitClient.RoomEvent.Disconnected, function () {
-              stopLocalCall();
-            });
-
-          await livekitRoom.connect(tokenData.url, tokenData.token);
-          await livekitRoom.localParticipant.setMicrophoneEnabled(true);
-          if (call.kind === 'video') await livekitRoom.localParticipant.setCameraEnabled(true);
-
-          callGrid.classList.add('open');
-          callEmpty.hidden = true;
-          ensureLiveKitTile(String(accountId), teamName + ' (You)', call.kind);
-          callStatus.textContent = 'In LiveKit call · ' + call.kind;
-          if (endButton) endButton.hidden = !isOwner;
-        } catch (error) {
-          var isVideo = call.kind === 'video';
-          callEmpty.hidden = true;
-          callGrid.classList.remove('open');
-          callPermission.classList.add('open');
-          callPermissionTitle.textContent = error.name === 'NotAllowedError'
-            ? 'Allow access in browser settings'
-            : 'Could not join the call';
-          callPermissionText.textContent = isVideo
-            ? 'Clavis needs microphone and camera access. Allow both in the browser permission prompt or site settings, then try again.'
-            : 'Clavis needs microphone access. Allow it in the browser permission prompt or site settings, then try again.';
-          callStatus.textContent = 'Permission required';
-          await fetch('/api/team/call/leave', {method:'POST', credentials:'same-origin'}).catch(function () {});
-        }
-      }
-
-      async function startOrJoin(kind) {
-        try {
-          var response = await fetch('/api/team/call', { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({kind:kind}) });
-          var data = await response.json();
-          if (!response.ok) throw new Error(data.error || 'Could not start the call.');
-          openCall(data.call);
-        } catch (error) { alert(error.message); }
-      }
-
-      async function pollCallStatus() {
-        try {
-          var response = await fetch('/api/team/call', { credentials:'same-origin' });
-          var data = await response.json();
-          if (!response.ok) return;
-          if (data.call) {
-            activeCall = data.call;
-            callStatus.textContent = 'Active call · ' + data.call.kind;
-            videoButton.textContent = 'Join video call';
-            audioButton.textContent = 'Join audio call';
-            if (!incomingCallShown && data.call.startedById !== accountId && !callGrid.classList.contains('open')) {
-              incomingCallShown = true;
-              incomingName.textContent = data.call.startedBy || 'Incoming team call';
-              incomingKind.textContent = 'Incoming ' + data.call.kind + ' call from the Clavis team';
-              incomingAvatar.textContent = (data.call.startedBy || 'C').charAt(0).toUpperCase();
-              incomingRing.classList.add('open');
-            }
-          } else {
-            activeCall = null;
-            incomingCallShown = false;
-            incomingRing.classList.remove('open');
-            callStatus.textContent = 'No active call';
-            videoButton.textContent = 'Start video call';
-            audioButton.textContent = 'Start audio call';
-            if (callGrid.classList.contains('open')) {
-              callGrid.classList.remove('open');
-              callGrid.textContent = '';
-              if (livekitRoom) livekitRoom.disconnect();
-              livekitRoom = null;
-              callEmpty.hidden = false;
-            }
-            if (endButton) endButton.hidden = true;
-          }
+          var r = await fetch('/api/team/members', { credentials: 'same-origin', cache: 'no-store' });
+          if (!r.ok) return;
+          members = (await r.json()).members || [];
+          renderMembers();
         } catch (_) {}
       }
 
-      acceptCall.addEventListener('click', function () {
-        incomingRing.classList.remove('open');
-        incomingCallShown = false;
-        if (activeCall) openCall(activeCall);
-      });
-      function stopLocalCall() {
-        if (livekitRoom) livekitRoom.disconnect();
-        livekitRoom = null;
-        callGrid.classList.remove('open');
-        callGrid.textContent = '';
-        callEmpty.hidden = false;
+      function renderMembers() {
+        var list = $('teamList');
+        list.innerHTML = '';
+        members.forEach(function (m) {
+          var row = document.createElement('div'); row.className = 'member';
+          var dot = document.createElement('span'); dot.className = 'dot' + (m.online ? ' on' : '');
+          var who = document.createElement('div'); who.className = 'who';
+          var name = document.createElement('b'); name.textContent = m.name;
+          var sub = document.createElement('small');
+          sub.textContent = m.busy ? 'On a call' : (m.online ? 'Online · ' + m.role : (m.canRing ? 'Away · will get a notification' : 'Offline · has not enabled alerts'));
+          who.appendChild(name); who.appendChild(sub);
+          var audio = document.createElement('button'); audio.type = 'button'; audio.textContent = 'Audio';
+          var video = document.createElement('button'); video.type = 'button'; video.className = 'primary'; video.textContent = 'Video';
+          [audio, video].forEach(function (b) { b.disabled = m.busy || !!room || connecting; });
+          audio.addEventListener('click', function () { startCall(m, 'audio'); });
+          video.addEventListener('click', function () { startCall(m, 'video'); });
+          row.appendChild(dot); row.appendChild(who); row.appendChild(audio); row.appendChild(video);
+          list.appendChild(row);
+        });
+        if (!members.length) list.innerHTML = '<div class="call-empty">No other admins or co-admins have signed up yet.</div>';
+        renderAddSelect();
       }
 
-      callPermissionRetry.addEventListener('click', function () {
-        if (activeCall) openCall(activeCall);
-      });
-
-      declineCall.addEventListener('click', function () {
-        incomingRing.classList.remove('open');
-        incomingCallShown = false;
-      });
-
-      videoButton.addEventListener('click', function () { startOrJoin(activeCall ? activeCall.kind === 'audio' ? 'video' : 'video' : 'video'); });
-      audioButton.addEventListener('click', function () { startOrJoin(activeCall ? activeCall.kind : 'audio'); });
-      if (endButton) endButton.addEventListener('click', async function () {
-        if (!confirm('End the team call for everyone?')) return;
-        await fetch('/api/team/call', { method:'DELETE', credentials:'same-origin' });
-        stopLocalCall();
-        pollCallStatus();
-      });
-
-      window.addEventListener('beforeunload', function () {
-        fetch('/api/team/call/leave', { method:'POST', credentials:'same-origin', keepalive:true });
-      });
-
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js').catch(function () {});
+      function renderAddSelect() {
+        var sel = $('addSelect'), inCall = {};
+        (activeCall ? activeCall.participants : []).forEach(function (p) { inCall[p.id] = true; });
+        var current = sel.value;
+        sel.innerHTML = '';
+        members.filter(function (m) { return !inCall[m.id] && !m.busy; }).forEach(function (m) {
+          var o = document.createElement('option'); o.value = m.id; o.textContent = m.name; sel.appendChild(o);
+        });
+        if (current) sel.value = current;
+        $('addPerson').disabled = !sel.options.length || !!ringingInvite;
       }
+
+      /* ---------------- permissions ---------------- */
+      function showPermissionCard(title, text) {
+        $('callPermissionTitle').textContent = title;
+        $('callPermissionText').textContent = text;
+        callPermission.classList.add('open');
+      }
+
+      function permissionMessage(error, kind) {
+        var needs = kind === 'video' ? 'camera and microphone' : 'microphone';
+        if (!window.isSecureContext) return ['Secure connection needed', 'Calls only work on https (or localhost).'];
+        if (error && (error.name === 'NotAllowedError' || error.name === 'SecurityError')) return ['Allow ' + needs + ' access', 'Your browser blocked ' + needs + '. Tap the lock icon next to the address (or the app settings on your phone), allow it, then try again.'];
+        if (error && (error.name === 'NotFoundError' || error.name === 'OverconstrainedError')) return ['No ' + needs + ' found', 'Plug in or enable a ' + needs + ' and try again.'];
+        if (error && error.name === 'NotReadableError') return ['Device is busy', 'Another app is using your camera or microphone. Close it and try again.'];
+        return ['Could not start the call', (error && error.message) || 'Something went wrong.'];
+      }
+
+      async function preflightMedia(kind) {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw Object.assign(new Error('This browser cannot access the microphone.'), { name: 'SecurityError' });
+        var stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: kind === 'video' });
+        stream.getTracks().forEach(function (t) { t.stop(); });
+      }
+
+      /* ---------------- starting, answering ---------------- */
+      async function startCall(member, kind) {
+        if (room || connecting) return;
+        connecting = true; renderMembers();
+        calls.unlockAudio();
+        try {
+          try { await preflightMedia(kind); }
+          catch (e) { var pm = permissionMessage(e, kind); showPermissionCard(pm[0], pm[1]); $('callPermissionRetry').onclick = function () { callPermission.classList.remove('open'); startCall(member, kind); }; connecting = false; renderMembers(); return; }
+          var r = await calls.post('/api/team/call', { calleeId: member.id, kind: kind });
+          var data = await r.json();
+          if (!r.ok) throw new Error(data.error || 'Could not start the call.');
+          ringingInvite = data.inviteId;
+          await connectRoom(data.call);
+        } catch (e) { calls.toast(e.message); }
+        finally { connecting = false; renderMembers(); calls.refresh(); }
+      }
+
+      async function answerInvite(inviteId) {
+        if (room || connecting) return;
+        connecting = true;
+        calls.unlockAudio();
+        try {
+          var r = await calls.post('/api/team/call/respond', { inviteId: inviteId, action: 'accept' });
+          var data = await r.json();
+          if (!r.ok) { calls.toast(data.error || 'That call has ended.'); return; }
+          await connectRoom(data.call);
+        } catch (e) { calls.toast(e.message); }
+        finally { connecting = false; renderMembers(); calls.refresh(); }
+      }
+
+      document.addEventListener('clavis:answer', function (e) { answerInvite(e.detail.inviteId); });
+      var answerParam = new URLSearchParams(location.search).get('answer');
+      if (answerParam) { history.replaceState(null, '', '/team-chat'); answerInvite(parseInt(answerParam, 10)); }
+
+      /* ---------------- LiveKit room ---------------- */
+      var wakeLock = null;
+      function tileFor(p) {
+        var id = 'tile_' + p.identity.replace(/[^a-zA-Z0-9_-]/g, '_');
+        var tile = document.getElementById(id);
+        if (tile) return tile;
+        tile = document.createElement('div'); tile.id = id; tile.className = 'call-video audio' + (p.isLocal ? ' self' : '');
+        var letter = document.createElement('div'); letter.className = 'avatar-letter'; letter.textContent = ((p.name || '?').charAt(0) || '?').toUpperCase();
+        var label = document.createElement('span'); label.textContent = (p.name || 'Team member') + (p.isLocal ? ' (You)' : '');
+        tile.appendChild(letter); tile.appendChild(label);
+        callGrid.appendChild(tile);
+        return tile;
+      }
+
+      function refreshTile(p) {
+        var tile = tileFor(p);
+        var cam = p.getTrackPublication && p.getTrackPublication(LivekitClient.Track.Source.Camera);
+        var mic = p.getTrackPublication && p.getTrackPublication(LivekitClient.Track.Source.Microphone);
+        tile.classList.toggle('audio', !(cam && cam.track && !cam.isMuted));
+        tile.classList.toggle('off', !!(mic ? mic.isMuted : true));
+      }
+
+      function attach(track, p) {
+        var tile = tileFor(p);
+        if (track.kind === 'audio' && p.isLocal) return;
+        var el = track.attach();
+        el.dataset.sid = track.sid || '';
+        if (track.kind === 'video') { el.playsInline = true; el.muted = true; }
+        tile.insertBefore(el, tile.firstChild);
+        refreshTile(p);
+      }
+
+      function setCallUi(inCall) {
+        callGrid.classList.toggle('open', inCall);
+        $('callControls').classList.toggle('open', inCall);
+        $('teamPanel').style.display = inCall ? 'none' : '';
+      }
+
+      async function connectRoom(call) {
+        if (!window.LivekitClient) throw new Error('The call library did not load. Check your connection and reload.');
+        var LK = window.LivekitClient;
+        callPermission.classList.remove('open');
+        var r = await calls.post('/api/team/call/token', {});
+        var tokenData = await r.json();
+        if (!r.ok) throw new Error(tokenData.error || 'Could not join the call.');
+
+        room = new LK.Room({ adaptiveStream: true, dynacast: true });
+        room
+          .on(LK.RoomEvent.TrackSubscribed, function (track, pub, p) { attach(track, p); })
+          .on(LK.RoomEvent.TrackUnsubscribed, function (track, pub, p) { track.detach().forEach(function (e) { e.remove(); }); refreshTile(p); })
+          .on(LK.RoomEvent.LocalTrackPublished, function (pub, p) { if (pub.track) attach(pub.track, p); })
+          .on(LK.RoomEvent.LocalTrackUnpublished, function (pub, p) { if (pub.track) pub.track.detach().forEach(function (e) { e.remove(); }); refreshTile(p); })
+          .on(LK.RoomEvent.TrackMuted, function (pub, p) { refreshTile(p); syncButtons(); })
+          .on(LK.RoomEvent.TrackUnmuted, function (pub, p) { refreshTile(p); syncButtons(); })
+          .on(LK.RoomEvent.ParticipantConnected, function (p) { refreshTile(p); })
+          .on(LK.RoomEvent.ParticipantDisconnected, function (p) { var t = tileFor(p); if (t) t.remove(); })
+          .on(LK.RoomEvent.AudioPlaybackStatusChanged, function () { if (!room.canPlaybackAudio) showPermissionCard('Tap to hear the call', 'Your browser needs one tap before it plays call audio.'), $('callPermissionRetry').onclick = function () { room.startAudio(); callPermission.classList.remove('open'); }; })
+          .on(LK.RoomEvent.Disconnected, function () { if (room) endLocal('Disconnected from the call'); });
+
+        await room.connect(tokenData.url, tokenData.token);
+        activeCall = call;
+        calls.setInCall(call.id);
+        setCallUi(true);
+        tileFor(room.localParticipant);
+        try {
+          await room.localParticipant.setMicrophoneEnabled(true);
+          if (call.kind === 'video') await room.localParticipant.setCameraEnabled(true);
+        } catch (e) {
+          var pm = permissionMessage(e, call.kind);
+          showPermissionCard(pm[0], pm[1]);
+          $('callPermissionRetry').onclick = async function () {
+            callPermission.classList.remove('open');
+            try { await room.localParticipant.setMicrophoneEnabled(true); if (call.kind === 'video') await room.localParticipant.setCameraEnabled(true); }
+            catch (err) { var m2 = permissionMessage(err, call.kind); showPermissionCard(m2[0], m2[1]); }
+          };
+        }
+        room.startAudio().catch(function () {});
+        room.remoteParticipants.forEach(function (p) { refreshTile(p); });
+        syncButtons();
+        try { if (navigator.wakeLock) wakeLock = await navigator.wakeLock.request('screen'); } catch (_) {}
+      }
+
+      function syncButtons() {
+        if (!room) return;
+        var lp = room.localParticipant;
+        $('toggleMic').textContent = lp.isMicrophoneEnabled ? 'Mute' : 'Unmute';
+        $('toggleCam').textContent = lp.isCameraEnabled ? 'Camera off' : 'Camera on';
+      }
+
+      function endLocal(message) {
+        var r = room; room = null; activeCall = null; ringingInvite = null;
+        calls.setInCall(null); calls.stopTone();
+        if (r) { try { r.disconnect(); } catch (_) {} }
+        callGrid.innerHTML = '';
+        setCallUi(false);
+        $('callingBar').classList.remove('open');
+        $('rejoinBar').classList.remove('open');
+        if (wakeLock) { try { wakeLock.release(); } catch (_) {} wakeLock = null; }
+        if (message) calls.toast(message);
+        renderMembers();
+      }
+
+      $('toggleMic').addEventListener('click', async function () { if (room) { await room.localParticipant.setMicrophoneEnabled(!room.localParticipant.isMicrophoneEnabled); syncButtons(); } });
+      $('toggleCam').addEventListener('click', async function () {
+        if (!room) return;
+        try { await room.localParticipant.setCameraEnabled(!room.localParticipant.isCameraEnabled); syncButtons(); }
+        catch (e) { var pm = permissionMessage(e, 'video'); showPermissionCard(pm[0], pm[1]); $('callPermissionRetry').onclick = function () { callPermission.classList.remove('open'); }; }
+      });
+      $('leaveCall').addEventListener('click', async function () {
+        try { await calls.post('/api/team/call/leave', {}); } catch (_) {}
+        endLocal('You left the call');
+      });
+      var endBtn = $('endCall');
+      if (endBtn) endBtn.addEventListener('click', async function () {
+        try { await fetch('/api/team/call', { method: 'DELETE', credentials: 'same-origin' }); } catch (_) {}
+        endLocal('Call ended for everyone');
+      });
+      $('cancelRing').addEventListener('click', async function () {
+        if (ringingInvite) { try { await calls.post('/api/team/call/cancel', { inviteId: ringingInvite }); } catch (_) {} }
+        endLocal('Call cancelled');
+      });
+      $('addPerson').addEventListener('click', async function () {
+        var id = parseInt($('addSelect').value, 10);
+        if (!id) return;
+        $('addPerson').disabled = true;
+        try {
+          var r = await calls.post('/api/team/call/invite', { calleeId: id });
+          var data = await r.json();
+          if (!r.ok) throw new Error(data.error || 'Could not add that person.');
+          ringingInvite = data.inviteId;
+        } catch (e) { calls.toast(e.message); }
+        calls.refresh();
+      });
+      $('rejoinCall').addEventListener('click', async function () {
+        if (!activeCall || room || connecting) return;
+        connecting = true;
+        try { await preflightMedia(activeCall.kind); await connectRoom(activeCall); }
+        catch (e) { var pm = permissionMessage(e, activeCall.kind); calls.toast(pm[1]); }
+        finally { connecting = false; }
+      });
+
+      /* ---------------- server state ---------------- */
+      document.addEventListener('clavis:call-state', function (e) {
+        var st = e.detail;
+        var serverCall = st.call;
+        if (serverCall && !room) { activeCall = serverCall; }
+        if (!serverCall && room && !connecting) endLocal('The call ended');
+
+        var ringing = (st.outgoing || []).filter(function (o) { return o.status === 'ringing'; })[0];
+        ringingInvite = ringing ? ringing.inviteId : null;
+        $('callingBar').classList.toggle('open', !!ringing && !!room);
+        if (ringing) $('callingText').textContent = 'Calling ' + ringing.name + '...';
+
+        (st.outgoing || []).forEach(function (o) {
+          if ((o.status === 'declined' || o.status === 'missed') && !announced[o.inviteId]) {
+            announced[o.inviteId] = true;
+            calls.toast(o.status === 'declined' ? o.name + ' declined the call' : o.name + ' did not answer');
+          }
+        });
+
+        $('rejoinBar').classList.toggle('open', !!serverCall && !room && !connecting);
+        var status = 'Ready';
+        if (room && serverCall) status = ringing ? 'Calling ' + ringing.name + '...' : 'In call · ' + serverCall.participants.length + ' ' + (serverCall.participants.length === 1 ? 'person' : 'people');
+        $('callStatus').textContent = status;
+        if (room) renderAddSelect();
+      });
+
       pollMessages(true);
-      pollCallStatus();
-      subscribeToTeamPush();
-      setInterval(function () { if (!document.hidden) { pollMessages(false); pollCallStatus(); } }, 2000);
+      loadMembers();
+      setInterval(function () { if (!document.hidden) { pollMessages(false); loadMembers(); } }, 4000);
     })();
   </script>
 </body>
