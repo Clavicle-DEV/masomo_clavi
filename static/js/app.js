@@ -1478,10 +1478,14 @@
       saveTeachState();
     }
     if (saved && saved.length) {
-      conversationHistory = saved;
+      conversationHistory = saved.map(m => ({
+        role: m.role === 'assistant' ? 'assistant' : 'user',
+        content: m.role === 'assistant' ? cleanTutorText(m.content || '') : (m.content || '')
+      }));
+      saveChatProgress();
       emptyHint.style.display = 'none';
       teachStarter.hidden = true;
-      saved.forEach(m => addMessage(m.role === 'assistant' ? 'tutor' : 'user', m.content));
+      conversationHistory.forEach(m => addMessage(m.role === 'assistant' ? 'tutor' : 'user', m.content));
       if (saved[saved.length - 1].role === 'assistant') showExplainDifferentlyButton();
     } else {
       conversationHistory = [];
@@ -1680,6 +1684,7 @@
       .replace(/^[ \t]*#{1,6}[ \t]*(.+)$/gm, '$1')
       .replace(/^[ \t]*[-*_]{3,}[ \t]*$/gm, '')
       .replace(/^[ \t]*>[ \t]?/gm, '')
+      .replace(/[1-9]️⃣|0️⃣/g, '')
       .replace(/^[ \t]*\|?[ \t]*:?-{3,}:?[ \t]*(?:\|[ \t]*:?-{3,}:?[ \t]*)+\|?[ \t]*$/gm, '')
       .replace(/^[ \t]*\*[ \t]+/gm, '- ')
       .replace(/\*\*([^*]+)\*\*/g, '$1')

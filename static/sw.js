@@ -1,5 +1,5 @@
 // Clavis service worker: installable PWA + team call ringing.
-// v2026-11-27-calls
+// v2026-11-27-plain-chat
 self.addEventListener('install', (event) => {
   self.skipWaiting();
 });

@@ -1037,6 +1037,7 @@ def plainize_tutor_answer(text):
     text = re.sub(r'^[ \t]*[-*_]{3,}[ \t]*$', '', text, flags=re.MULTILINE)
     text = re.sub(r'^[ \t]*\|?[ \t]*:?-{3,}:?[ \t]*(?:\|[ \t]*:?-{3,}:?[ \t]*)+\|?[ \t]*$', '', text, flags=re.MULTILINE)
     text = re.sub(r'^[ \t]*>[ \t]?', '', text, flags=re.MULTILINE)
+    text = re.sub(r'[1-9]️⃣|0️⃣', '', text)
     text = re.sub(r'^([ \t]*)\*[ \t]+', r'\1- ', text, flags=re.MULTILINE)
     text = re.sub(r'\*\*([^*]+)\*\*', r'\1', text)
     text = re.sub(r'__([^_]+)__', r'\1', text)
@@ -2936,7 +2937,9 @@ def api_tutor():
         topic_complete = True
         answer = answer.replace('[TOPIC_COMPLETE]', '').rstrip()
 
-    return jsonify({"answer": answer, "topicComplete": topic_complete})
+    response = jsonify({"answer": answer, "topicComplete": topic_complete})
+    response.headers['Cache-Control'] = 'private, no-store, max-age=0'
+    return response
 
 
 @app.route('/api/topics', methods=['POST'])
