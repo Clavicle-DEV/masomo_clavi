@@ -48,7 +48,7 @@
   function platformHelp() {
     var ua = navigator.userAgent;
     if (/iphone|ipad|ipod/i.test(ua)) return 'Open the iPhone Settings app, find Clavis (or Safari, then Camera / Microphone), and switch it to Allow.';
-    if (/android/i.test(ua)) return 'Open Android Settings, then Apps, then Clavis, then Permissions, and switch it to Allow. (In Chrome: lock icon in the address bar, then Permissions.)';
+    if (/android/i.test(ua)) return 'On Android the installed app uses Chrome\'s permissions. Open Chrome, tap the 3 dots, Settings, Site settings, then allow this site. Also check Android Settings, Apps, Chrome, Permissions, and allow Microphone and Camera.';
     return 'Click the lock icon next to the address bar, set it to Allow, then reload.';
   }
 
