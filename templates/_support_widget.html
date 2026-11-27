@@ -1,4 +1,4 @@
-{# Clavis support widget, included at the bottom of every student-facing page.
+{# Mentis support widget, included at the bottom of every student-facing page.
    The AI assistant answers first. "Talk to an agent" hands the chat to the team.
    Self-contained: it brings its own colours, so it looks the same on every page. #}
 <style>
@@ -53,20 +53,20 @@
   <div class="cvs-head">
     <div class="cvs-title">
       <span class="cvs-avatar" aria-hidden="true">C</span>
-      <div><b id="cvsTitle">Clavis Support</b><small id="cvsSubtitle">Usually replies instantly</small></div>
+      <div><b id="cvsTitle">Mentis Support</b><small id="cvsSubtitle">Usually replies instantly</small></div>
     </div>
     <button class="cvs-close" id="cvsClose" type="button" aria-label="Close support chat">&times;</button>
   </div>
   <div class="cvs-log" id="cvsLog" aria-live="polite">
-    <div class="cvs-msg cvs-bot">Hi! I can help with signing up, schools, subscriptions, M-Pesa, exams, and using Clavis. What can I help with?</div>
+    <div class="cvs-msg cvs-bot">Hi! I can help with signing up, schools, subscriptions, M-Pesa, exams, and using Mentis. What can I help with?</div>
   </div>
   <form class="cvs-form" id="cvsForm">
-    <label for="cvsInput" hidden>Message Clavis Support</label>
+    <label for="cvsInput" hidden>Message Mentis Support</label>
     <input class="cvs-input" id="cvsInput" name="message" maxlength="800" autocomplete="off" placeholder="Ask a question...">
     <button class="cvs-send" id="cvsSend" type="submit" aria-label="Send message">&rarr;</button>
   </form>
 </div>
-<button class="cvs-launcher" id="cvsLauncher" type="button" aria-label="Open Clavis support chat" aria-expanded="false" aria-controls="cvsPanel">
+<button class="cvs-launcher" id="cvsLauncher" type="button" aria-label="Open Mentis support chat" aria-expanded="false" aria-controls="cvsPanel">
   <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/><path d="M8.5 12h.01M12 12h.01M15.5 12h.01"/></svg>
 </button>
 
@@ -87,7 +87,7 @@
     var BOT_URL = panel.dataset.botUrl;
     var AGENT_URL = panel.dataset.agentUrl;
     var AGENT_MSG_URL = panel.dataset.agentMsgUrl;
-    var STORE = 'ClavisAgentChat';          // set while this browser has an open agent chat
+    var STORE = 'MentisAgentChat';          // set while this browser has an open agent chat
 
     var history = [];       // the chat with the assistant
     var mode = 'bot';       // 'bot' (assistant) or 'agent' (a person on the team)
@@ -172,7 +172,7 @@
     function setMode(next) {
       mode = next;
       var agent = next === 'agent';
-      subtitle.textContent = agent ? 'Chatting with the Clavis team' : 'Usually replies instantly';
+      subtitle.textContent = agent ? 'Chatting with the Mentis team' : 'Usually replies instantly';
       input.placeholder = agent ? 'Message the team...' : 'Ask a question...';
       if (agent && isOpen()) startPolling(); else stopPolling();
     }
@@ -189,7 +189,7 @@
       log.textContent = '';
       seen = {}; lastId = 0; convId = c.id;
       c.messages.forEach(showAgentMessage);
-      note('You are chatting with the Clavis team. An agent will reply here.');
+      note('You are chatting with the Mentis team. An agent will reply here.');
       writeFlag(true);
       setMode('agent');
     }
@@ -229,7 +229,7 @@
         var fresh = c.messages.some(function (m) { return m.sender === 'agent'; });
         if (fresh) {
           launcher.classList.add('has-unread');
-          launcher.setAttribute('aria-label', 'Open Clavis support chat. New reply from an agent.');
+          launcher.setAttribute('aria-label', 'Open Mentis support chat. New reply from an agent.');
         }
       });
     }
@@ -241,7 +241,7 @@
       launcher.setAttribute('aria-expanded', open ? 'true' : 'false');
       if (!open) { stopPolling(); return; }
       launcher.classList.remove('has-unread');
-      launcher.setAttribute('aria-label', 'Open Clavis support chat');
+      launcher.setAttribute('aria-label', 'Open Mentis support chat');
       if (authed && !restored && readFlag() !== null) {
         restored = true;
         restore().then(function () { input.focus(); });
@@ -303,7 +303,7 @@
           // The chat so far is already on screen, so only remember its ids.
           convId = c.id; seen = {}; lastId = 0;
           markSeenOnly(c.messages);
-          note('Your chat was passed to the Clavis team. An agent will reply here. You can close this and come back.');
+          note('Your chat was passed to the Mentis team. An agent will reply here. You can close this and come back.');
           writeFlag(true);
           setMode('agent');
         } else {
@@ -313,7 +313,7 @@
         input.focus();
       }).catch(function () {
         agentBtn.disabled = false;
-        note('Can\'t reach Clavis. Check your connection and try again.');
+        note('Can\'t reach Mentis. Check your connection and try again.');
       });
     }
 
@@ -349,7 +349,7 @@
         showAgentMessage(res.data.message);
         writeFlag(true);
       }).catch(function () {
-        note('Can\'t reach Clavis. Check your connection and try again.');
+        note('Can\'t reach Mentis. Check your connection and try again.');
         input.value = message;
       });
     }

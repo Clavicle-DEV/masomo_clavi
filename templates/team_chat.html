@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#14301f">
-  <title>Clavis Team Chat</title>
+  <title>Mentis Team Chat</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -160,7 +160,7 @@
     </div>
 
     <section class="card alerts" id="alertsCard">
-      <p id="alertsText">Turn on call alerts so your phone rings when a teammate calls, even when Clavis is closed.</p>
+      <p id="alertsText">Turn on call alerts so your phone rings when a teammate calls, even when Mentis is closed.</p>
       <button class="primary" id="enableAlerts" type="button">Enable ringing</button>
       <button id="openPerms" type="button">Permissions</button>
     </section>
@@ -178,7 +178,7 @@
         <div class="call-permission" id="callPermission">
           <div class="call-permission-card">
             <strong id="callPermissionTitle">Allow microphone access</strong>
-            <p id="callPermissionText">Clavis needs access to your microphone for this call.</p>
+            <p id="callPermissionText">Mentis needs access to your microphone for this call.</p>
             <button type="button" id="callPermissionRetry">Try again</button>
           </div>
         </div>
@@ -239,7 +239,7 @@
   <script>
     (function () {
       var accountId = parseInt(document.body.dataset.accountId || '0', 10);
-      var calls = window.ClavisCalls;
+      var calls = window.MentisCalls;
       var $ = function (id) { return document.getElementById(id); };
       var chatLog = $('chatLog'), chatForm = $('chatForm'), chatInput = $('chatInput'), chatSend = $('chatSend');
       var callGrid = $('callGrid'), callPermission = $('callPermission');
@@ -274,20 +274,20 @@
         var ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
         var standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
         var text, button = $('enableAlerts');
-        if (result === 'granted') { text = 'Ringing is on for this device. Keep sound up. You will get a call alert even when Clavis is closed.'; button.textContent = 'Test ring'; }
-        else if (result === 'denied') { text = 'Notifications are blocked for Clavis. Allow them in your browser or phone settings, then reload.'; button.textContent = 'Try again'; }
-        else if (result === 'unsupported' && ios && !standalone) { text = 'On iPhone/iPad, first tap Share, then Add to Home Screen, and open Clavis from there to get call alerts.'; button.textContent = 'OK'; }
-        else if (result === 'no-key') { text = 'Push is not set up on the server yet (VAPID keys missing). In-app ringing still works while Clavis is open.'; button.textContent = 'Test ring'; }
-        else { text = 'Turn on call alerts so your phone rings when a teammate calls, even when Clavis is closed.'; button.textContent = 'Enable ringing'; }
+        if (result === 'granted') { text = 'Ringing is on for this device. Keep sound up. You will get a call alert even when Mentis is closed.'; button.textContent = 'Test ring'; }
+        else if (result === 'denied') { text = 'Notifications are blocked for Mentis. Allow them in your browser or phone settings, then reload.'; button.textContent = 'Try again'; }
+        else if (result === 'unsupported' && ios && !standalone) { text = 'On iPhone/iPad, first tap Share, then Add to Home Screen, and open Mentis from there to get call alerts.'; button.textContent = 'OK'; }
+        else if (result === 'no-key') { text = 'Push is not set up on the server yet (VAPID keys missing). In-app ringing still works while Mentis is open.'; button.textContent = 'Test ring'; }
+        else { text = 'Turn on call alerts so your phone rings when a teammate calls, even when Mentis is closed.'; button.textContent = 'Enable ringing'; }
         $('alertsText').textContent = text;
       }
 
-      $('openPerms').addEventListener('click', function () { ClavisPermissions.open(); });
+      $('openPerms').addEventListener('click', function () { MentisPermissions.open(); });
       $('enableAlerts').addEventListener('click', async function () {
         calls.unlockAudio();
         var result = await subscribeToTeamPush(true);
         describeAlerts(result);
-        calls.toast(result === 'granted' ? 'Ringing enabled on this device' : 'Ringing sound is on while Clavis is open');
+        calls.toast(result === 'granted' ? 'Ringing enabled on this device' : 'Ringing sound is on while Mentis is open');
       });
 
       if ('Notification' in window && Notification.permission === 'granted') subscribeToTeamPush(false).then(describeAlerts);
@@ -429,7 +429,7 @@
         finally { connecting = false; renderMembers(); calls.refresh(); }
       }
 
-      document.addEventListener('clavis:answer', function (e) { answerInvite(e.detail.inviteId); });
+      document.addEventListener('mentis:answer', function (e) { answerInvite(e.detail.inviteId); });
       var answerParam = new URLSearchParams(location.search).get('answer');
       if (answerParam) { history.replaceState(null, '', '/team-chat'); answerInvite(parseInt(answerParam, 10)); }
 
@@ -663,7 +663,7 @@
       window.addEventListener('beforeunload', function (e) { if (room) { e.preventDefault(); e.returnValue = ''; } });
 
       /* ---------------- server state ---------------- */
-      document.addEventListener('clavis:call-state', function (e) {
+      document.addEventListener('mentis:call-state', function (e) {
         var st = e.detail;
         var serverCall = st.call;
         if (serverCall && !room) { activeCall = serverCall; }

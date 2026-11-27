@@ -1,6 +1,6 @@
-# Clavis — Deployment Guide
+# Mentis — Deployment Guide
 
-Clavis is a Flask application that serves the student tutor and calls Groq's
+Mentis is a Flask application that serves the student tutor and calls Groq's
 API from the server. API credentials must only be configured as environment
 variables; never put them in browser code or commit them to the repository.
 
@@ -146,7 +146,7 @@ the lockout.
 The signup page lets a registrant choose an individual or school account.
 School applications include the school's contact and location details plus a
 PNG/JPEG badge (up to 2 MB). The badge is stored in the database, not on the
-web service's temporary filesystem. A full Clavis admin can review applications
+web service's temporary filesystem. A full Mentis admin can review applications
 at **School requests** from the admin area and approve or reject them. Approval
 activates the applicant's school-admin account; rejection can include a reason.
 
@@ -158,7 +158,7 @@ settings:
 
 - `RESEND_API_KEY`: the Resend API key (keep it secret).
 - `RESEND_FROM`: a sender using the verified domain, such as
-  `Clavis <accounts@your-verified-domain.com>`.
+  `Mentis <accounts@your-verified-domain.com>`.
 
 The app only reports a reset email as sent after Resend accepts the request.
 If either setting is missing or Resend rejects the request, check the service

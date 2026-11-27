@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Clavis</title>
+    <title>Mentis</title>
 
     <link rel="icon"
           type="image/x-icon"
@@ -27,14 +27,14 @@
 <div class="app-vignette"></div>
 
 <div class="app-splash" id="appSplash">
-  <img class="app-splash-badge" src="{{ static_versioned('images/icon-192.png') }}" alt="Clavis">
-  <div class="app-splash-name">Clavis</div>
+  <img class="app-splash-badge" src="{{ static_versioned('images/icon-192.png') }}" alt="Mentis">
+  <div class="app-splash-name">Mentis</div>
   <div class="app-splash-tagline">Learn with clarity</div>
 </div>
 
 <div class="welcome-overlay" id="welcomeOverlay" style="display:none;">
   <div class="welcome-card">
-    <div class="brand"><img class="brand-badge" src="{{ static_versioned('images/icon-192.png') }}" alt="Clavis"><span class="brand-wordmark">Clavis</span></div>
+    <div class="brand"><img class="brand-badge" src="{{ static_versioned('images/icon-192.png') }}" alt="Mentis"><span class="brand-wordmark">Mentis</span></div>
     <div id="welcomeStepType">
       <h2>Karibu, welcome! 👋</h2>
       <p>First, tell us where you're studying so we can show you the right subjects.</p>
@@ -65,8 +65,8 @@
 <div class="layout">
   <nav class="main-nav" id="mainNav">
     <div class="nav-brand">
-      <img class="brand-badge" src="{{ static_versioned('images/icon-192.png') }}" alt="Clavis">
-      <span class="nav-brand-text">Clavis</span>
+      <img class="brand-badge" src="{{ static_versioned('images/icon-192.png') }}" alt="Mentis">
+      <span class="nav-brand-text">Mentis</span>
     </div>
     <button data-screen="homeScreen" class="active" title="Learning" aria-label="Learning">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11l9-7 9 7M5 10v9a1 1 0 001 1h4v-6h4v6h4a1 1 0 001-1v-9" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -169,7 +169,7 @@
   {% if subscription_expired %}
   <div class="paywall-container" style="background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); padding: 40px 24px; text-align: center; margin-top: 20px;">
     <h2 style="font-family: 'Fraunces', serif; font-size: 28px; color: var(--chalk); margin-bottom: 12px;">⚠️ Free Trial Ended</h2>
-    <p style="color: var(--muted); font-size: 15px; max-width: 480px; margin: 0 auto 32px; line-height: 1.6;">Choose a plan below to keep using your Clavis tutor.</p>
+    <p style="color: var(--muted); font-size: 15px; max-width: 480px; margin: 0 auto 32px; line-height: 1.6;">Choose a plan below to keep using your Mentis tutor.</p>
 
     <div style="max-width: 480px; margin: 0 auto;">
       <label class="pricing-tier-option" style="border: 2px solid var(--line); border-radius: var(--radius-md); padding: 16px; margin-bottom: 16px; text-align: left; display: flex; align-items: center; justify-content: space-between; background: var(--paper); cursor: pointer; transition: border-color .15s ease, box-shadow .15s ease;" for="day">
@@ -215,7 +215,7 @@
 
   <header class="top">
     <div class="brand-block">
-      <div class="brand"><img class="brand-badge theme-logo-light" src="{{ static_versioned('images/shield-icon-light.png') }}" alt="Clavis"><img class="brand-badge theme-logo-dark" src="{{ static_versioned('images/shield-icon-dark.png') }}" alt="Clavis"><span class="brand-wordmark">Clavis</span></div>
+      <div class="brand"><img class="brand-badge theme-logo-light" src="{{ static_versioned('images/shield-icon-light.png') }}" alt="Mentis"><img class="brand-badge theme-logo-dark" src="{{ static_versioned('images/shield-icon-dark.png') }}" alt="Mentis"><span class="brand-wordmark">Mentis</span></div>
       <div class="tagline">Learn with clarity — Maths, English &amp; more</div>
     </div>
   </header>
@@ -224,7 +224,7 @@
     <div id="streakReminderBanner" style="display:none; background: linear-gradient(120deg, rgba(217,166,46,.18), rgba(217,166,46,.08)); border:1px solid rgba(217,166,46,.35); border-radius:14px; padding:14px 18px; margin-bottom:18px; font-size:14px; color:var(--chalk); font-weight:600;"></div>
     <div id="onboardingChecklist" style="display:none; background:var(--paper); border:1px solid var(--line); border-radius:14px; padding:18px; margin-bottom:18px;"></div>
     <div id="installAppBanner" style="display:none; align-items:center; justify-content:space-between; gap:12px; background: var(--chalk); color: #fff; border-radius:14px; padding:14px 18px; margin-bottom:18px; font-size:14px;">
-      <span>📲 Install Clavis on your phone for quick access — no browser needed.</span>
+      <span>📲 Install Mentis on your phone for quick access — no browser needed.</span>
       <div style="display:flex; gap:8px; flex-shrink:0;">
         <button type="button" id="installAppBtn" style="background:#fff; color:var(--chalk); border:none; border-radius:var(--radius-sm); padding:8px 14px; font-weight:700; font-size:13px; cursor:pointer; white-space:nowrap;">Install</button>
         <button type="button" id="dismissInstallBtn" style="background:none; border:none; color:rgba(255,255,255,.75); font-size:18px; cursor:pointer; line-height:1;">&times;</button>
@@ -233,7 +233,7 @@
 
     <div id="dailyChallengeCard" style="display:none; background:linear-gradient(135deg, var(--chalk), #1c3a2c); color:#fff; border-radius:16px; padding:20px; margin-bottom:16px; position:relative; overflow:hidden;">
       <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
-        <div style="font-size:11.5px; text-transform:uppercase; letter-spacing:.06em; font-weight:700; opacity:.85;">⚡ Daily Challenge</div>
+        <div style="font-size:11.5px; text-transform:uppercase; letter-spacing:.06em; font-weight:700; opacity:.85;">âš¡ Daily Challenge</div>
         <div id="dcStreakBadge" style="font-size:12px; font-weight:700; background:rgba(255,255,255,.15); padding:4px 10px; border-radius:99px; display:none;"></div>
       </div>
       <div id="dcSubject" style="font-size:12px; font-weight:600; opacity:.8; margin-bottom:6px;"></div>
@@ -256,7 +256,7 @@
       <span style="font-size:17px; line-height:1.3;">💡</span>
       <div>
         <span id="dailySparkHeading" style="font-weight:700;">A fresh fact from around the world </span>
-        <span id="dailySparkText">Finding today’s fact…</span>
+        <span id="dailySparkText">Finding today's fact…</span>
         <a id="dailySparkSource" class="daily-spark-source" href="#" target="_blank" rel="noopener noreferrer" hidden></a>
         <div id="dailySparkQuote" class="daily-spark-quote" hidden>
           <span id="dailySparkQuoteText"></span>
@@ -322,7 +322,7 @@
 
     <div class="hero">
       <h1>Ask a question.<br>Get a clear explanation.</h1>
-      <p>Choose a subject to start a focused study session, then ask Clavis for help whenever you need it.</p>
+      <p>Choose a subject to start a focused study session, then ask Mentis for help whenever you need it.</p>
 
       <div class="level-toggle" id="levelToggle">
         <button data-level="cbc">CBC</button>
@@ -790,14 +790,14 @@
       <div class="empty-hint" id="emptyHint">Type a question below to get started — e.g. "How do I factorise a quadratic equation?"</div>
       <div class="teach-starter" id="teachStarter" hidden>
         <div class="teach-starter-title">New to this subject?</div>
-        <div class="teach-starter-sub">Let Clavis teach you everything here, topic by topic — pick up right where you left off next time.</div>
+        <div class="teach-starter-sub">Let Mentis teach you everything here, topic by topic — pick up right where you left off next time.</div>
         <button type="button" class="teach-starter-btn" id="teachStarterBtn">🎓 Teach me everything</button>
       </div>
     </div>
 
     <div class="teach-bar" id="teachBar" hidden>
       <span class="teach-bar-label" id="teachBarLabel"></span>
-      <button type="button" class="teach-continue-btn" id="teachContinueBtn">Continue ▶</button>
+      <button type="button" class="teach-continue-btn" id="teachContinueBtn">Continue â–¶</button>
       <button type="button" class="teach-exit-btn" id="teachExitBtn">Exit</button>
     </div>
     <div class="goal-banner" id="goalBanner" hidden></div>
@@ -806,11 +806,11 @@
         <button type="button" class="tool-trigger" id="toolsBtn" aria-label="More learning tools" aria-expanded="false">+</button>
         <div class="tools-menu" id="toolsMenu" hidden>
           <button type="button" id="attachFileBtn"><span class="tool-icon">⌁</span><span class="tool-copy">Add a file<small>Attach notes or a question image</small></span></button>
-          <button type="button" id="cameraBtn"><span class="tool-icon">◉</span><span class="tool-copy">Take a photo<small>Ask Clavis about what you see</small></span></button>
-          <button type="button" id="goalBtn"><span class="tool-icon">✦</span><span class="tool-copy">Set a study goal<small>Save today’s focus</small></span></button>
+          <button type="button" id="cameraBtn"><span class="tool-icon">â—‰</span><span class="tool-copy">Take a photo<small>Ask Mentis about what you see</small></span></button>
+          <button type="button" id="goalBtn"><span class="tool-icon">✦</span><span class="tool-copy">Set a study goal<small>Save today's focus</small></span></button>
         </div>
         <div class="goal-popover" id="goalPopover" hidden>
-          <strong>Today’s study goal</strong><p>Keep it small and specific.</p>
+          <strong>Today's study goal</strong><p>Keep it small and specific.</p>
           <input id="goalInput" type="text" maxlength="120" placeholder="e.g. Finish 10 algebra questions">
           <button type="button" id="saveGoalBtn">Save goal</button>
         </div>
@@ -887,7 +887,7 @@
       <div>
         <span class="dashboard-hero-eyebrow">YOUR STUDY SPACE</span>
         <h2 class="dash-title">Your progress</h2>
-        <p>Every question is a step forward. Here’s how your learning is taking shape.</p>
+        <p>Every question is a step forward. Here's how your learning is taking shape.</p>
       </div>
       <div class="dashboard-hero-mark" aria-hidden="true"><span>✦</span><small>Keep going</small></div>
     </header>
@@ -939,7 +939,7 @@
         </div>
         <div class="learning-focus-callout" id="learningFocusCallout"></div>
         <h4 class="learning-subheading">Progress by subject</h4>
-        <p class="learning-progress-note">Topic totals count topics you’ve opened in Clavis; they don’t represent the full course syllabus.</p>
+        <p class="learning-progress-note">Topic totals count topics you've opened in Mentis; they don't represent the full course syllabus.</p>
         <div class="learning-subject-grid" id="learningSubjectGrid"></div>
         <div class="learning-lower-grid">
           <section class="learning-panel">
@@ -950,7 +950,7 @@
             <h4 class="learning-subheading">Daily study plan</h4>
             <div id="dashboardTimetable"></div>
             <div class="study-time-dashboard">
-              <h4 class="learning-subheading">Today’s study time</h4>
+              <h4 class="learning-subheading">Today's study time</h4>
               <div class="study-time-summary">
                 <strong id="studyTimeToday">0 min</strong>
                 <span id="studyGoalLabel">Daily goal not set</span>
@@ -1073,7 +1073,7 @@
           <div class="settings-row-label">App permissions</div>
           <div class="settings-row-sub">Allow microphone, camera, notifications and file access for calls and live lessons.</div>
         </div>
-        <button type="button" style="padding:8px 16px;border:1px solid var(--chalk);border-radius:9px;background:transparent;color:var(--chalk);font-weight:700;cursor:pointer;" onclick="window.ClavisPermissions && ClavisPermissions.open()">Manage</button>
+        <button type="button" style="padding:8px 16px;border:1px solid var(--chalk);border-radius:9px;background:transparent;color:var(--chalk);font-weight:700;cursor:pointer;" onclick="window.MentisPermissions && MentisPermissions.open()">Manage</button>
       </div>
     </div>
 
@@ -1113,7 +1113,7 @@
       <div class="settings-row profile-name-row">
         <div>
           <div class="settings-row-label">Your nickname</div>
-          <div class="settings-row-sub">This name appears across Clavis and on the leaderboard. Your email stays private.</div>
+          <div class="settings-row-sub">This name appears across Mentis and on the leaderboard. Your email stays private.</div>
         </div>
         <div class="profile-name-controls">
           <input type="text" id="displayNameInput" maxlength="40" placeholder="Your name" value="{{ profile_name }}">
@@ -1174,7 +1174,7 @@
       <div class="settings-row">
         <div>
           <div class="settings-row-label">Install app</div>
-          <div class="settings-row-sub">Add Clavis to your home screen for quick, browser-free access</div>
+          <div class="settings-row-sub">Add Mentis to your home screen for quick, browser-free access</div>
         </div>
         <button type="button" id="settingsInstallBtn" style="background:var(--chalk); color:var(--paper); border:none; border-radius:var(--radius-sm); padding:10px 16px; font-weight:600; font-size:13px; cursor:pointer; white-space:nowrap;">Install</button>
       </div>
@@ -1195,7 +1195,7 @@
       <div class="settings-row settings-row-column">
         <div>
           <div class="settings-row-label">Default level</div>
-          <div class="settings-row-sub">Used when you open Clavis</div>
+          <div class="settings-row-sub">Used when you open Mentis</div>
         </div>
         <div class="settings-row-controls">
           <div class="level-toggle" id="defaultLevelToggle">
@@ -1271,7 +1271,7 @@
     <div class="schools-page-heading">
       <div>
         <p class="schools-eyebrow">LEARN TOGETHER</p>
-        <h2 class="dash-title">Schools on Clavis</h2>
+        <h2 class="dash-title">Schools on Mentis</h2>
         <p class="schools-intro">Find your school, request to join, and connect with learners after the school admin approves you.</p>
       </div>
       <span class="schools-privacy-note">School communities are visible only to approved members.</span>
@@ -1281,7 +1281,7 @@
 
     <section class="school-panel" aria-labelledby="schoolRequestTitle">
       <h3 id="schoolRequestTitle">Request a school listing</h3>
-      <p class="school-panel-copy">A Clavis platform admin reviews each request. The person submitting becomes the school admin if it is approved.</p>
+      <p class="school-panel-copy">A Mentis platform admin reviews each request. The person submitting becomes the school admin if it is approved.</p>
       <p class="school-panel-copy" id="schoolVerificationNote" hidden>Verify your account email before requesting a school listing or joining a community.</p>
       <form id="schoolListingForm" class="school-request-form">
         <label>School name<input name="name" type="text" minlength="2" maxlength="120" required></label>
@@ -1294,7 +1294,7 @@
     </section>
 
     <section class="school-admin-section" id="schoolListingReviewSection" hidden>
-      <h3>School listings awaiting Clavis review</h3>
+      <h3>School listings awaiting Mentis review</h3>
       <div class="school-request-list" id="schoolListingReviewList"></div>
     </section>
 
@@ -1305,7 +1305,7 @@
 
     <section class="school-directory-section">
       <div class="school-directory-heading">
-        <div><h3>Browse approved schools</h3><p>Only Clavis-approved school listings appear here.</p></div>
+        <div><h3>Browse approved schools</h3><p>Only Mentis-approved school listings appear here.</p></div>
         <button type="button" class="school-refresh-btn" id="refreshSchoolsBtn">Refresh</button>
       </div>
       <div class="school-directory-grid" id="schoolDirectory" aria-live="polite">
@@ -1367,7 +1367,7 @@
     <div id="paperNameGateView" style="display:none;">
       <button class="back-btn" id="paperNameGateBackBtn">&larr; Back</button>
       <div class="exam-paper" style="margin-top: 16px; text-align:center; padding: 32px 22px;">
-        <div style="font-family:'Fraunces',serif; font-weight:700; font-size:22px; color:var(--chalk);">clavis</div>
+        <div style="font-family:'Fraunces',serif; font-weight:700; font-size:22px; color:var(--chalk);">mentis</div>
         <div style="color:var(--muted); font-size:13px; margin: 4px 0 20px;">Kenya Certificate of Secondary Education (style) Examination</div>
         <div id="paperGateSubtitle" style="font-weight:600; margin-bottom: 20px;"></div>
         <input type="text" id="paperStudentNameInput" placeholder="Enter your name"

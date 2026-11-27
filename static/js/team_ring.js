@@ -1,12 +1,12 @@
-/* Clavis team calls: real ringing on every page for admins and co-admins.
+/* Mentis team calls: real ringing on every page for admins and co-admins.
  *
- * - Polls /api/team/call and broadcasts 'clavis:call-state' to the page.
+ * - Polls /api/team/call and broadcasts 'mentis:call-state' to the page.
  * - Plays a looping phone ring + vibration while someone is calling you.
  * - Plays a ringback tone for the caller while the other person's phone rings.
  * - Shows its own "incoming call" overlay so it works outside /team-chat too.
  */
 (function () {
-  if (window.ClavisCalls) return;
+  if (window.MentisCalls) return;
 
   var POLL_VISIBLE_MS = 2000;
   var POLL_HIDDEN_MS = 4000;
@@ -107,52 +107,52 @@
   /* ---------- UI (injected so it works on every page) ---------- */
   var css = document.createElement('style');
   css.textContent =
-    '#clavisRing{position:fixed;inset:0;z-index:99999;display:none;align-items:center;justify-content:center;' +
+    '#mentisRing{position:fixed;inset:0;z-index:99999;display:none;align-items:center;justify-content:center;' +
     'background:rgba(8,20,13,.88);backdrop-filter:blur(6px);padding:24px;font-family:inherit}' +
-    '#clavisRing.show{display:flex}' +
-    '#clavisRing .card{width:100%;max-width:340px;text-align:center;color:#fff}' +
-    '#clavisRing .avatar{width:96px;height:96px;border-radius:50%;margin:0 auto 18px;background:#1f7a4a;' +
+    '#mentisRing.show{display:flex}' +
+    '#mentisRing .card{width:100%;max-width:340px;text-align:center;color:#fff}' +
+    '#mentisRing .avatar{width:96px;height:96px;border-radius:50%;margin:0 auto 18px;background:#1f7a4a;' +
     'display:flex;align-items:center;justify-content:center;font-size:40px;font-weight:800;position:relative}' +
-    '#clavisRing .avatar::before,#clavisRing .avatar::after{content:"";position:absolute;inset:0;border-radius:50%;' +
-    'border:2px solid rgba(74,222,128,.7);animation:clavisPulse 1.8s ease-out infinite}' +
-    '#clavisRing .avatar::after{animation-delay:.9s}' +
-    '@keyframes clavisPulse{from{transform:scale(1);opacity:.9}to{transform:scale(1.9);opacity:0}}' +
-    '#clavisRing h2{margin:0 0 4px;font-size:24px}#clavisRing p{margin:0 0 28px;opacity:.8;font-size:15px}' +
-    '#clavisRing .row{display:flex;justify-content:center;gap:48px}' +
-    '#clavisRing button{border:0;border-radius:50%;width:68px;height:68px;font-size:28px;cursor:pointer;color:#fff}' +
-    '#clavisRing .ans{background:#16a34a;animation:clavisShake 1s ease-in-out infinite}' +
-    '#clavisRing .dec{background:#dc2626}' +
-    '#clavisRing small{display:block;margin-top:8px;font-size:12px;opacity:.85}' +
-    '@keyframes clavisShake{0%,100%{transform:rotate(0)}20%{transform:rotate(-12deg)}40%{transform:rotate(12deg)}60%{transform:rotate(-8deg)}80%{transform:rotate(8deg)}}' +
-    '#clavisSoundHint{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:100000;display:none;' +
+    '#mentisRing .avatar::before,#mentisRing .avatar::after{content:"";position:absolute;inset:0;border-radius:50%;' +
+    'border:2px solid rgba(74,222,128,.7);animation:mentisPulse 1.8s ease-out infinite}' +
+    '#mentisRing .avatar::after{animation-delay:.9s}' +
+    '@keyframes mentisPulse{from{transform:scale(1);opacity:.9}to{transform:scale(1.9);opacity:0}}' +
+    '#mentisRing h2{margin:0 0 4px;font-size:24px}#mentisRing p{margin:0 0 28px;opacity:.8;font-size:15px}' +
+    '#mentisRing .row{display:flex;justify-content:center;gap:48px}' +
+    '#mentisRing button{border:0;border-radius:50%;width:68px;height:68px;font-size:28px;cursor:pointer;color:#fff}' +
+    '#mentisRing .ans{background:#16a34a;animation:mentisShake 1s ease-in-out infinite}' +
+    '#mentisRing .dec{background:#dc2626}' +
+    '#mentisRing small{display:block;margin-top:8px;font-size:12px;opacity:.85}' +
+    '@keyframes mentisShake{0%,100%{transform:rotate(0)}20%{transform:rotate(-12deg)}40%{transform:rotate(12deg)}60%{transform:rotate(-8deg)}80%{transform:rotate(8deg)}}' +
+    '#mentisSoundHint{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:100000;display:none;' +
     'background:#14301f;color:#fff;padding:12px 18px;border-radius:999px;font-size:14px;box-shadow:0 6px 24px rgba(0,0,0,.35);cursor:pointer}' +
-    '#clavisToast{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:100000;display:none;' +
+    '#mentisToast{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:100000;display:none;' +
     'background:#14301f;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;max-width:90vw}';
   document.head.appendChild(css);
 
   var overlay = document.createElement('div');
-  overlay.id = 'clavisRing';
+  overlay.id = 'mentisRing';
   overlay.setAttribute('role', 'alertdialog');
   overlay.setAttribute('aria-live', 'assertive');
   overlay.innerHTML =
-    '<div class="card"><div class="avatar" id="clavisRingAvatar">?</div>' +
-    '<h2 id="clavisRingName">Incoming call</h2><p id="clavisRingKind">Clavis team call</p>' +
-    '<div class="row"><div><button class="dec" id="clavisDecline" aria-label="Decline">&#10005;</button><small>Decline</small></div>' +
-    '<div><button class="ans" id="clavisAnswer" aria-label="Answer">&#128222;</button><small>Answer</small></div></div></div>';
+    '<div class="card"><div class="avatar" id="mentisRingAvatar">?</div>' +
+    '<h2 id="mentisRingName">Incoming call</h2><p id="mentisRingKind">Mentis team call</p>' +
+    '<div class="row"><div><button class="dec" id="mentisDecline" aria-label="Decline">&#10005;</button><small>Decline</small></div>' +
+    '<div><button class="ans" id="mentisAnswer" aria-label="Answer">&#128222;</button><small>Answer</small></div></div></div>';
 
   var hint = document.createElement('div');
-  hint.id = 'clavisSoundHint';
+  hint.id = 'mentisSoundHint';
   hint.textContent = '\uD83D\uDD14 Tap anywhere to turn on ringing sound';
 
   var toast = document.createElement('div');
-  toast.id = 'clavisToast';
+  toast.id = 'mentisToast';
 
   function mount() {
     document.body.appendChild(overlay);
     document.body.appendChild(hint);
     document.body.appendChild(toast);
-    document.getElementById('clavisAnswer').addEventListener('click', answer);
-    document.getElementById('clavisDecline').addEventListener('click', decline);
+    document.getElementById('mentisAnswer').addEventListener('click', answer);
+    document.getElementById('mentisDecline').addEventListener('click', decline);
   }
   if (document.body) mount(); else document.addEventListener('DOMContentLoaded', mount);
 
@@ -180,9 +180,9 @@
   }
 
   function showIncoming(inc) {
-    document.getElementById('clavisRingName').textContent = inc.from;
-    document.getElementById('clavisRingAvatar').textContent = (inc.from || '?').charAt(0).toUpperCase();
-    document.getElementById('clavisRingKind').textContent = 'Incoming ' + inc.kind + ' call \u00B7 Clavis team';
+    document.getElementById('mentisRingName').textContent = inc.from;
+    document.getElementById('mentisRingAvatar').textContent = (inc.from || '?').charAt(0).toUpperCase();
+    document.getElementById('mentisRingKind').textContent = 'Incoming ' + inc.kind + ' call \u00B7 Mentis team';
     overlay.classList.add('show');
     startTone('incoming');
     flashTitle(true, inc.from + ' is calling');
@@ -210,7 +210,7 @@
     unlockAudio();
     hideIncoming();
     if (onTeamChat) {
-      document.dispatchEvent(new CustomEvent('clavis:answer', { detail: inc }));
+      document.dispatchEvent(new CustomEvent('mentis:answer', { detail: inc }));
     } else {
       location.href = '/team-chat?answer=' + inc.inviteId;
     }
@@ -266,13 +266,13 @@
     if (someoneRinging && !state.incoming) startTone('outgoing');
     else if (tone === 'outgoing') stopTone();
 
-    document.dispatchEvent(new CustomEvent('clavis:call-state', { detail: state }));
+    document.dispatchEvent(new CustomEvent('mentis:call-state', { detail: state }));
   }
 
   document.addEventListener('visibilitychange', function () { if (!document.hidden) poll(); });
   window.addEventListener('online', poll);
 
-  window.ClavisCalls = {
+  window.MentisCalls = {
     getState: function () { return state; },
     setInCall: function (id) { inCallId = id || null; if (id) poll(); },
     refresh: poll,

@@ -1,14 +1,14 @@
-"""Connects Clavis's support bot to the agent inbox on the hub site.
+"""Connects Mentis's support bot to the agent inbox on the hub site.
 
-Clavis's server talks to the hub, not the browser, so the secret key never
+Mentis's server talks to the hub, not the browser, so the secret key never
 reaches a student's phone. The browser only calls the three routes below.
 
-Setup, in Clavis's .env:
+Setup, in Mentis's .env:
 
     HUB_URL=http://127.0.0.1:5001
     HUB_PARTNER_KEY=<a long random key>
 
-The same key goes in the hub's .env as:  PARTNER_KEYS=Clavis:<that key>
+The same key goes in the hub's .env as:  PARTNER_KEYS=Mentis:<that key>
 
 Then in app.py, after ensure_database_schema() and before
 `if __name__ == '__main__':`, add:
@@ -67,7 +67,7 @@ def _json(response):
 
 
 def _identity():
-    """Who the agent sees: the Clavis account id, a display name and the email."""
+    """Who the agent sees: the Mentis account id, a display name and the email."""
     email = (current_user.email or "").strip()
     name = (getattr(current_user, "display_name", None) or email.split("@")[0] or "Student").strip()
     return str(current_user.id), name[:120], email[:255]

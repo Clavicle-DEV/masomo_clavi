@@ -201,7 +201,7 @@
       managedSection.hidden = !data.managedSchools.length;
       managedList.innerHTML = data.managedSchools.map(school => {
         const content = school.status !== 'approved'
-          ? `<p class="school-pending-note">Your listing is awaiting Clavis review.</p>`
+          ? `<p class="school-pending-note">Your listing is awaiting Mentis review.</p>`
           : `
             <div class="school-admin-subsection">
               <h5>Join requests (${school.joinRequests.length})</h5>
@@ -246,7 +246,7 @@
             const community = school.membershipStatus === 'approved'
               ? `<div class="school-community"><h5>School learners (${school.members.length})</h5>${school.members.length ? school.members.map(learner => `
                   <div class="school-member-row"><span>${escapeHtml(learner.displayName)}</span><small>${escapeHtml(learner.grade)}</small></div>
-                `).join('') : '<p class="school-panel-copy">You’re the first listed learner here.</p>'}</div>`
+                `).join('') : '<p class="school-panel-copy">You're the first listed learner here.</p>'}</div>`
               : '';
             return `
               <article class="school-directory-card">
@@ -259,7 +259,7 @@
               </article>
             `;
           }).join('')
-        : '<div class="school-empty-state"><strong>No schools listed yet.</strong><span>School listings appear here after Clavis approves their request.</span></div>';
+        : '<div class="school-empty-state"><strong>No schools listed yet.</strong><span>School listings appear here after Mentis approves their request.</span></div>';
     } catch (error) {
       if (requestId !== schoolsRequestId) return;
       directory.innerHTML = `<p class="school-load-error">${escapeHtml(error.message)} Refresh the page to try again.</p>`;
@@ -860,15 +860,15 @@
     try {
       const response = await fetch('/api/daily-fact');
       const result = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(result.error || 'Today’s fact is unavailable right now.');
+      if (!response.ok) throw new Error(result.error || 'Today's fact is unavailable right now.');
       textEl.textContent = result.fact;
       sourceLink.href = result.sourceUrl;
       sourceLink.textContent = isCampus
         ? `Read ${result.category} ${result.title} biography`
-        : `Read “${result.title}” on ${result.source}`;
+        : `Read "${result.title}" on ${result.source}`;
       sourceLink.hidden = false;
       if (isCampus && result.quote && result.quoteSourceUrl) {
-        quoteText.textContent = `“${result.quote}”`;
+        quoteText.textContent = `"${result.quote}"`;
         quoteSource.href = result.quoteSourceUrl;
         quoteSource.textContent = `Quote source: ${result.quoteSource}`;
         quoteWrap.hidden = false;
@@ -876,7 +876,7 @@
     } catch (error) {
       textEl.textContent = error.message && error.message !== 'Failed to fetch'
         ? error.message
-        : 'Today’s fact is unavailable right now. Please try again later.';
+        : 'Today's fact is unavailable right now. Please try again later.';
       sourceLink.hidden = true;
     }
   }
@@ -976,7 +976,7 @@
 
   function shareDailyChallengeStreak(streak) {
     const link = REFERRAL_LINK || window.location.origin;
-    const message = `🔥 I'm on a ${streak}-day Daily Challenge streak on Clavis! Think you can beat me? Try it here: ${link}`;
+    const message = `🔥 I'm on a ${streak}-day Daily Challenge streak on Mentis! Think you can beat me? Try it here: ${link}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
   }
 
@@ -1111,7 +1111,7 @@
 
   const LEVEL_TITLES = [
     'Fresh Start', 'Curious Mind', 'Sharp Thinker', 'Rising Scholar', 'Dedicated Learner',
-    'Subject Explorer', 'Knowledge Seeker', 'Study Champion', 'Clavis Scholar', 'Clavis Legend'
+    'Subject Explorer', 'Knowledge Seeker', 'Study Champion', 'Mentis Scholar', 'Mentis Legend'
   ];
   const QUESTIONS_PER_LEVEL = 15;
 
@@ -1235,8 +1235,8 @@
       focusCallout.textContent = focusSubject
         ? `Suggested next focus: ${focusSubject}. Open its topics to continue learning and work toward a 30/30 mastery score.`
         : data.topicTotals.started
-          ? 'You’ve mastered every topic you have started. Open a subject and begin its next topic when you’re ready.'
-          : 'Choose a subject and start your first topic. Clavis will track lessons and mastery tests here.';
+          ? 'You've mastered every topic you have started. Open a subject and begin its next topic when you're ready.'
+          : 'Choose a subject and start your first topic. Mentis will track lessons and mastery tests here.';
 
       document.getElementById('learningSubjectGrid').innerHTML = data.subjects.map(item => {
         const status = item.topicsStarted === 0
@@ -1377,7 +1377,7 @@
   const LB_PERIOD_META = {
     all: { subtitle: "Ranked by questions asked, all time. Only students who've chosen to appear are shown.", totalLabel: 'Your questions', unit: 'questions', showStreak: true },
     week: { subtitle: "Ranked by questions asked this week — resets every Monday, so it's a fresh start for everyone.", totalLabel: 'Your questions this week', unit: 'questions', showStreak: true },
-    inviters: { subtitle: 'Ranked by friends invited to Clavis. Share your link from Settings to climb the board!', totalLabel: 'Friends invited', unit: 'invited', showStreak: false },
+    inviters: { subtitle: 'Ranked by friends invited to Mentis. Share your link from Settings to climb the board!', totalLabel: 'Friends invited', unit: 'invited', showStreak: false },
   };
 
   function renderLeaderboard() {
@@ -1586,7 +1586,7 @@
 
       const latestResponse = await fetch('/api/study-sessions');
       const latest = await latestResponse.json();
-      if (!latestResponse.ok) throw new Error(latest.error || 'Could not refresh today’s study total.');
+      if (!latestResponse.ok) throw new Error(latest.error || 'Could not refresh today's study total.');
       renderStudySummary(latest);
     } catch (error) {
       const status = document.getElementById('studySessionSaveStatus');
@@ -1798,9 +1798,9 @@
       .replace(/\\parallel\b/g, '∥')
       .replace(/\\perp\b/g, '⊥')
       .replace(/\\angle\b/g, '∠')
-      .replace(/\\triangle\b/g, '△')
+      .replace(/\\triangle\b/g, 'â–³')
       .replace(/\\infty\b/g, '∞')
-      .replace(/\\pi\b/g, 'π')
+      .replace(/\\pi\b/g, 'Ï€')
       .replace(/\\theta\b/g, 'θ')
       .replace(/\\alpha\b/g, 'α')
       .replace(/\\beta\b/g, 'β')
@@ -1868,7 +1868,7 @@
       .replace(/≡/g, ' is equivalent to ')
       .replace(/°/g, ' degrees')
       .replace(/·/g, ' times ')
-      .replace(/π/g, ' pi ')
+      .replace(/Ï€/g, ' pi ')
       .replace(/θ/g, ' theta ')
       .replace(/α/g, ' alpha ')
       .replace(/β/g, ' beta ')
@@ -1886,7 +1886,7 @@
       .replace(/∀/g, ' for all ')
       .replace(/∃/g, ' there exists ')
       .replace(/∠/g, ' angle ')
-      .replace(/△/g, ' triangle ')
+      .replace(/â–³/g, ' triangle ')
       .replace(/∥/g, ' is parallel to ')
       .replace(/⊥/g, ' is perpendicular to ')
       .replace(/→/g, ' leads to ')
@@ -2061,7 +2061,7 @@
     clearAttachment();
     sendBtn.disabled = true;
     typingIndicator.style.visibility = 'visible';
-    typingLabel.textContent = 'Clavis is thinking...';
+    typingLabel.textContent = 'Mentis is thinking...';
     playAvatarState('thinking', true);
 
     try {
@@ -2087,7 +2087,7 @@
       playAvatarState('yes', false);
       setTimeout(() => { typingIndicator.style.visibility = 'hidden'; }, 900);
     } catch (err) {
-      addMessage('tutor', err.message || "Something went wrong reaching Clavis. Please try again.");
+      addMessage('tutor', err.message || "Something went wrong reaching Mentis. Please try again.");
       console.error(err);
       typingLabel.textContent = 'Something went wrong';
       playAvatarState('alert', false);
@@ -3293,8 +3293,8 @@
     paperTakingView.innerHTML = `
       <div class="exam-paper printable-paper">
         <div class="paper-header">
-          <img src="/static/images/logo.png" alt="Clavis" class="paper-logo" />
-          <div class="paper-header-name">CLAVIS</div>
+          <img src="/static/images/logo.png" alt="Mentis" class="paper-logo" />
+          <div class="paper-header-name">MENTIS</div>
           <div class="paper-header-sub">Practice Paper — styled on the ${papersLevelLabel()} exam format</div>
           <div class="paper-header-title">${papersSubject} — Paper ${papersPaperNum}${papersPaperCount > 1 ? ' of ' + papersPaperCount : ''}</div>
           <div class="paper-header-sub">${papersLevelLabel()} — ${papersGradeForm} &nbsp;•&nbsp; Total: ${test.total_marks} marks</div>
@@ -3446,8 +3446,8 @@
 
   function shareExamResult(subject, paperNum, percent, passed) {
     const text = passed
-      ? `I scored ${percent}% on ${subject} Paper ${paperNum} using Clavis — an AI study tutor for Kenyan students! 🎉`
-      : `Just took a ${subject} Paper ${paperNum} practice exam on Clavis and scored ${percent}%. Studying to improve! 📚`;
+      ? `I scored ${percent}% on ${subject} Paper ${paperNum} using Mentis — an AI study tutor for Kenyan students! 🎉`
+      : `Just took a ${subject} Paper ${paperNum} practice exam on Mentis and scored ${percent}%. Studying to improve! 📚`;
     const url = window.location.origin;
     if (navigator.share) {
       navigator.share({ text: text + ' ' + url }).catch(() => { /* user cancelled — no action needed */ });
@@ -3678,7 +3678,7 @@
     const topic = currentTeachTopic();
     const total = teachState.topics.length;
     teachBarLabel.textContent = `📖 Topic ${teachState.topicIndex + 1}/${total}: ${topic}`;
-    teachContinueBtn.textContent = teachState.pendingTopicStart ? 'Start next topic ▶' : 'Continue ▶';
+    teachContinueBtn.textContent = teachState.pendingTopicStart ? 'Start next topic â–¶' : 'Continue â–¶';
   }
 
   async function startTeachingTopic(topics, topicIndex) {
@@ -3771,7 +3771,7 @@
       saveTeachState();
       sendTeachTurn(`Please start teaching me "${currentTeachTopic()}" from the very beginning, one small step at a time.`, `🎓 Teach me: ${currentTeachTopic()}`);
     } else {
-      sendTeachTurn('Please continue with the next step.', 'Continue ▶');
+      sendTeachTurn('Please continue with the next step.', 'Continue â–¶');
     }
   });
 

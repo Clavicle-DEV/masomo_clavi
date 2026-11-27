@@ -1,4 +1,4 @@
-"""Updates Clavis's app.py for agent support. Run it from the folder that holds app.py:
+"""Updates Mentis's app.py for agent support. Run it from the folder that holds app.py:
 
     python patch_app.py
 
@@ -45,13 +45,13 @@ if "[[AGENT]]" in func:
     skipped.append("api_support already updated")
 else:
     old_prompt_end = (
-        '        "school data, or support contacts. If the question is unrelated to Clavis, politely redirect it."\n'
+        '        "school data, or support contacts. If the question is unrelated to Mentis, politely redirect it."\n'
         "    )\n"
     )
     new_prompt_end = (
-        '        "school data, or support contacts. If the question is unrelated to Clavis, politely redirect it. "\n'
+        '        "school data, or support contacts. If the question is unrelated to Mentis, politely redirect it. "\n'
         '        "If you cannot fully answer, or the person needs help you cannot give (account, payment or technical "\n'
-        '        "problems), or they ask to speak to a person, tell them an agent from the Clavis team can help, and end "\n'
+        '        "problems), or they ask to speak to a person, tell them an agent from the Mentis team can help, and end "\n'
         '        "your reply with the exact text [[AGENT]] on its own line. Never write [[AGENT]] in any other situation."\n'
         "    )\n"
     )
@@ -60,7 +60,7 @@ else:
         "    needs_agent = '[[AGENT]]' in answer\n"
         "    answer = answer.replace('[[AGENT]]', '').strip()\n"
         "    if not answer:\n"
-        "        answer = 'I can\\'t help with that one, but an agent from the Clavis team can.'\n"
+        "        answer = 'I can\\'t help with that one, but an agent from the Mentis team can.'\n"
         "        needs_agent = True\n"
         '    return jsonify({"answer": answer, "needs_agent": needs_agent})\n'
     )

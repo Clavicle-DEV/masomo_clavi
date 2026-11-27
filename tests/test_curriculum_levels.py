@@ -89,7 +89,7 @@ Meditations, Book 5
 
     def test_password_and_verification_emails_are_sent_through_resend(self):
         with patch("app.RESEND_API_KEY", "re_test_key"), \
-             patch("app.RESEND_FROM", "Clavis <accounts@example.com>"), \
+             patch("app.RESEND_FROM", "Mentis <accounts@example.com>"), \
              patch("app.requests.post") as post:
             post.return_value.raise_for_status.return_value = None
             send_reset_email("learner@example.com", "https://example.com/reset/token")
@@ -105,7 +105,7 @@ Meditations, Book 5
 
     def test_resend_rejection_is_reported_as_a_send_failure(self):
         with patch("app.RESEND_API_KEY", "re_test_key"), \
-             patch("app.RESEND_FROM", "Clavis <accounts@example.com>"), \
+             patch("app.RESEND_FROM", "Mentis <accounts@example.com>"), \
              patch("app.requests.post") as post:
             post.return_value.raise_for_status.side_effect = RuntimeError("Resend rejected request")
             with self.assertRaisesRegex(RuntimeError, "Resend rejected request"):

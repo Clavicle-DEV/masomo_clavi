@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Certificate application · Clavis</title>
+  <title>Certificate application · Mentis</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
   <style>
@@ -28,13 +28,13 @@
 </head>
 <body>
   <main class="card">
-    <a class="back" href="{{ url_for('home') }}">← Back to Clavis</a>
+    <a class="back" href="{{ url_for('home') }}">← Back to Mentis</a>
     <h1>Certificate application</h1>
     <p>
       {% if is_admin_applicant %}
         Admin applications are always available. Choose the Campus course and year, enter the full name, and upload a portrait photo. An admin must still review and issue the certificate.
       {% else %}
-        You’ve completed {{ course_level }}. Submit your full name and a clear portrait photo. An admin will review your application; after approval, you can download your certificate PDF.
+        You've completed {{ course_level }}. Submit your full name and a clear portrait photo. An admin will review your application; after approval, you can download your certificate PDF.
       {% endif %}
       Application photos and review records are admin-only.
     </p>
@@ -52,7 +52,7 @@
         {% if application.status == 'issued' %}
           Your certificate is ready. <a href="{{ url_for('download_certificate', application_id=application.id) }}">Download your certificate PDF</a>.
         {% else %}
-          We’ll update the status after admin review.
+          We'll update the status after admin review.
         {% endif %}
       </div>
     {% else %}

@@ -1,4 +1,4 @@
-# Add agent support to Clavis
+# Add agent support to Mentis
 
 What this does: your existing support bot now shows on every student page (not only
 the landing page). When the bot can't help (or the student asks for a person), it
@@ -12,11 +12,11 @@ The old bot code inside `landing.html` is removed (it is now in one shared file)
 there is only ever one bot. `/api/support` in app.py is unchanged and still answers.
 
 ## 1. Back up
-Copy your Clavis folder somewhere safe first.
+Copy your Mentis folder somewhere safe first.
 
 ## 2. Copy the files
 - `hub_support.py`  ->  next to `app.py`
-- everything in `templates\`  ->  your Clavis `templates\` folder (say yes to replace).
+- everything in `templates\`  ->  your Mentis `templates\` folder (say yes to replace).
   This adds `_support_widget.html` and replaces 7 pages, each by one added line
   (`{% include '_support_widget.html' %}` before `</body>`). On `landing.html` the old
   inline bot is also removed.
@@ -43,9 +43,9 @@ Make the key (run once, copy the output):
 
 In the **hub's** `.env`:
 
-    PARTNER_KEYS=Clavis:PASTE_THE_KEY_HERE
+    PARTNER_KEYS=Mentis:PASTE_THE_KEY_HERE
 
-In **Clavis's** `.env`:
+In **Mentis's** `.env`:
 
     HUB_URL=http://127.0.0.1:5001
     HUB_PARTNER_KEY=PASTE_THE_KEY_HERE
@@ -53,11 +53,11 @@ In **Clavis's** `.env`:
 No spaces around `=`, no quotes. The key must be 24+ characters.
 
 ## 5. Run both (two terminals)
-- Clavis as you do now (port 5000)
+- Mentis as you do now (port 5000)
 - Hub: `venv\Scripts\python.exe run.py` (port 5001 now)
 
 ## 6. Try it
-1. Sign in to Clavis, open the chat button, ask the bot something it can answer. No agent button.
+1. Sign in to Mentis, open the chat button, ask the bot something it can answer. No agent button.
 2. Ask something it can't do, like "my payment didn't go through". The bot says an agent can
    help and a single **Talk to an agent** button appears. Tap it.
 3. In the hub, log in and open **Inbox** (`/staff/inbox`). Reply.
@@ -71,9 +71,9 @@ No spaces around `=`, no quotes. The key must be 24+ characters.
 - The button is never always-on. It appears only when the bot flags a reply, or when the
   bot itself is down. Only one is ever on screen.
 - Each student has at most one open agent chat. A second handover adds to it.
-- Limits (Clavis side): 10 handovers per hour, 12 agent messages per minute.
+- Limits (Mentis side): 10 handovers per hour, 12 agent messages per minute.
 - If the hub is off or the key is wrong, students see "Agents can't be reached right
-  now" and the bot keeps working. Details go to Clavis's log, never to the student.
+  now" and the bot keeps working. Details go to Mentis's log, never to the student.
 - In production use `https://` for `HUB_URL`, keep the key secret, and use a
   different key for each app.
 - I could not see `static/css/app.css` or `static/js/app.js`, so check the main app

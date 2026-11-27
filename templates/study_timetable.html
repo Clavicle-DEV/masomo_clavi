@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Your study plan · Clavis</title>
+  <title>Your study plan · Mentis</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
   <style>
@@ -38,9 +38,9 @@
 </head>
 <body>
   <main class="card">
-    <a class="back" href="{{ url_for('home') }}">← Back to Clavis</a>
+    <a class="back" href="{{ url_for('home') }}">← Back to Mentis</a>
     <h1>Your study plan</h1>
-    <p class="intro">Choose your favourite, mark every subject that feels challenging, and decide what belongs on your daily timetable. Clavis splits your study hours evenly across the selected subjects.</p>
+    <p class="intro">Choose your favourite, mark every subject that feels challenging, and decide what belongs on your daily timetable. Mentis splits your study hours evenly across the selected subjects.</p>
 
     {% with flashed = get_flashed_messages(with_categories=true) %}
       {% for category, message in flashed %}

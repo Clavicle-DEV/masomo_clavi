@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Set up your learning path · Clavis</title>
+  <title>Set up your learning path · Mentis</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
@@ -45,7 +45,7 @@
 </head>
 <body>
   <main class="shell">
-    <div class="brand">Clavis<span style="color:#79a83a">.</span></div>
+    <div class="brand">Mentis<span style="color:#79a83a">.</span></div>
     <section class="card">
       <div class="progress-label"><span>{{ 'School level setup' if admin_path_editor else 'Your learning setup' }}</span><span>Step {{ step_number }} of {{ step_count }}</span></div>
       <div class="progress" aria-label="Step {{ step_number }} of {{ step_count }}"><span style="--progress-width: {{ (step_number / step_count * 100)|int }}%"></span></div>
@@ -54,8 +54,8 @@
       {% endwith %}
 
       {% if step == 'name' %}
-        <h1>What should Clavis call you?</h1>
-        <p class="intro">Let’s make this learning space feel like yours. You can change your display name later.</p>
+        <h1>What should Mentis call you?</h1>
+        <p class="intro">Let's make this learning space feel like yours. You can change your display name later.</p>
         <form method="post">
           <label for="display_name">Your name</label>
           <input id="display_name" name="display_name" maxlength="40" autocomplete="given-name" value="{{ user.display_name or '' }}" placeholder="e.g. Amina" required autofocus>
@@ -64,7 +64,7 @@
 
       {% elif step == 'path' %}
         <h1>Where are you learning?</h1>
-        <p class="intro">{% if admin_path_editor %}Choose the learning path for your admin account. You can update this again whenever you sign in.{% else %}Choose a path so Clavis can set up the right subjects and learning journey for you.{% endif %}</p>
+        <p class="intro">{% if admin_path_editor %}Choose the learning path for your admin account. You can update this again whenever you sign in.{% else %}Choose a path so Mentis can set up the right subjects and learning journey for you.{% endif %}</p>
         <form method="post">
           <div class="choice-grid">
             <label class="choice"><input type="radio" name="student_track" value="elementary" {% if user.student_track == 'highschool' %}checked{% endif %} required><strong>Elementary</strong><small>Lower, Junior, and Senior School · Grades 3–12</small></label>
@@ -76,7 +76,7 @@
       {% elif step == 'level' %}
         {% if user.student_track == 'campus' %}
           <h1>Choose your Campus course</h1>
-          <p class="intro">Choose the subject or course you’re studying and your current year.</p>
+          <p class="intro">Choose the subject or course you're studying and your current year.</p>
           <form method="post">
             <label for="campus_course">Course or subject</label>
             <select id="campus_course" name="campus_course" required>
@@ -132,7 +132,7 @@
 
       {% elif step == 'schedule' %}
         <h1>Build your daily timetable</h1>
-        <p class="intro">Choose whether to include every subject for {{ user.campus_course if user.student_track == 'campus' else user.elementary_grade }}, or only the subjects you want to study. Clavis will divide your daily study time equally between them.</p>
+        <p class="intro">Choose whether to include every subject for {{ user.campus_course if user.student_track == 'campus' else user.elementary_grade }}, or only the subjects you want to study. Mentis will divide your daily study time equally between them.</p>
         <form method="post">
           <label>Subjects to show in my timetable</label>
           <div class="choice-grid">

@@ -147,7 +147,7 @@
     </aside>
     <div class="brainstorm-chat">
       <div class="brainstorm-messages" id="brainstormMessages" role="log" aria-live="polite">
-        <div class="brain-message assistant"><b>Clavis</b><p>Select a Form and subject, enter a topic, then start. You can ask follow-up questions in this chat.</p></div>
+        <div class="brain-message assistant"><b>Mentis</b><p>Select a Form and subject, enter a topic, then start. You can ask follow-up questions in this chat.</p></div>
       </div>
       <form class="brainstorm-compose" id="brainstormForm">
         <input id="brainstormQuestion" type="text" autocomplete="off" placeholder="Ask a follow-up question...">
@@ -193,7 +193,7 @@
     const item = document.createElement('div');
     item.className = 'brain-message ' + role;
     const name = document.createElement('b');
-    name.textContent = role === 'user' ? 'You' : 'Clavis';
+    name.textContent = role === 'user' ? 'You' : 'Mentis';
     const body = document.createElement('p');
     body.textContent = text;
     item.append(name, body);

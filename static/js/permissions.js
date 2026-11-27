@@ -1,11 +1,11 @@
-/* Clavis app permissions screen.
+/* Mentis app permissions screen.
  * A web app (PWA) cannot declare permissions in a manifest. The phone only lists
- * Microphone / Camera / Notifications under Clavis in Settings AFTER the app has
+ * Microphone / Camera / Notifications under Mentis in Settings AFTER the app has
  * asked for them. This screen asks for each one on a tap, shows the current
  * status, and explains how to fix a blocked one.
  */
 (function () {
-  if (window.ClavisPermissions) return;
+  if (window.MentisPermissions) return;
 
   var ITEMS = [
     { key: 'microphone', icon: '\uD83C\uDFA4', title: 'Microphone', why: 'Voice calls, live lessons and speaking practice.' },
@@ -34,7 +34,7 @@
   var overlay = document.createElement('div');
   overlay.id = 'cpOverlay';
   overlay.innerHTML = '<div id="cpSheet" role="dialog" aria-modal="true" aria-label="App permissions"><h2>App permissions</h2>' +
-    '<p class="sub">Clavis only asks for what a feature needs. You can change these any time.</p><div id="cpList"></div>' +
+    '<p class="sub">Mentis only asks for what a feature needs. You can change these any time.</p><div id="cpList"></div>' +
     '<input type="file" id="cpFile" accept="image/*,application/pdf,.doc,.docx,.txt" hidden>' +
     '<button class="cp-close" id="cpClose" type="button">Done</button></div>';
 
@@ -47,7 +47,7 @@
 
   function platformHelp() {
     var ua = navigator.userAgent;
-    if (/iphone|ipad|ipod/i.test(ua)) return 'Open the iPhone Settings app, find Clavis (or Safari, then Camera / Microphone), and switch it to Allow.';
+    if (/iphone|ipad|ipod/i.test(ua)) return 'Open the iPhone Settings app, find Mentis (or Safari, then Camera / Microphone), and switch it to Allow.';
     if (/android/i.test(ua)) return 'On Android the installed app uses Chrome\'s permissions. Open Chrome, tap the 3 dots, Settings, Site settings, then allow this site. Also check Android Settings, Apps, Chrome, Permissions, and allow Microphone and Camera.';
     return 'Click the lock icon next to the address bar, set it to Allow, then reload.';
   }
@@ -113,5 +113,5 @@
   function open() { overlay.classList.add('open'); render(); }
   function close() { overlay.classList.remove('open'); }
 
-  window.ClavisPermissions = { open: open, close: close, refresh: render };
+  window.MentisPermissions = { open: open, close: close, refresh: render };
 })();

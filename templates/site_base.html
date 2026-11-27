@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Clavis{% endblock %}</title>
+  <title>{% block title %}Mentis{% endblock %}</title>
   <link rel="manifest" href="/static/manifest.json">
   <meta name="theme-color" content="#14301f">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -14,7 +14,7 @@
 <body class="site">
   <div class="shell">
     <aside class="side" id="side">
-      <a class="brand" href="{{ site_home }}"><img src="/static/images/icon-192.png" alt=""><span>{% block brand_name %}Clavis{% endblock %}<small>{% block site_label %}{% endblock %}</small></span></a>
+      <a class="brand" href="{{ site_home }}"><img src="/static/images/icon-192.png" alt=""><span>{% block brand_name %}Mentis{% endblock %}<small>{% block site_label %}{% endblock %}</small></span></a>
       <nav class="nav">{% block nav %}{% endblock %}</nav>
       <div class="foot nav"><a href="{{ url_for('logout') }}"><span class="ico">&#x21AA;</span>Log out</a></div>
     </aside>

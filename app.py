@@ -385,8 +385,8 @@ def send_transactional_email(to_email, subject, body):
 def send_reset_email(to_email, reset_url):
     return send_transactional_email(
         to_email,
-        'Reset your Clavis password',
-        f"Someone requested a password reset for your Clavis account.\n\n"
+        'Reset your Mentis password',
+        f"Someone requested a password reset for your Mentis account.\n\n"
         f"Reset your password here (link expires in 1 hour):\n{reset_url}\n\n"
         f"If you didn't request this, you can safely ignore this email.",
     )
@@ -395,8 +395,8 @@ def send_reset_email(to_email, reset_url):
 def send_verification_email(to_email, verify_url):
     return send_transactional_email(
         to_email,
-        'Verify your Clavis account',
-        f"Welcome to Clavis!\n\n"
+        'Verify your Mentis account',
+        f"Welcome to Mentis!\n\n"
         f"Please verify your email to unlock full tutor access (link expires in 24 hours):\n{verify_url}\n\n"
         f"If you didn't create this account, you can safely ignore this email.",
     )
@@ -411,18 +411,18 @@ def send_school_application_decision_email(to_email, school_name, approved, reas
         return
 
     if approved:
-        subject = f"{school_name} is now registered on Clavis"
+        subject = f"{school_name} is now registered on Mentis"
         body = (
-            f"Good news — {school_name} has been approved on Clavis.\n\n"
+            f"Good news — {school_name} has been approved on Mentis.\n\n"
             "You can now log in using the email and password you chose during registration."
         )
     else:
         reason_text = f"Review note: {reason}\n\n" if reason else ''
-        subject = f"Clavis school registration update for {school_name}"
+        subject = f"Mentis school registration update for {school_name}"
         body = (
             f"We couldn't approve the registration for {school_name} at this time.\n\n"
             f"{reason_text}"
-            "If you have questions, please contact Clavis support."
+            "If you have questions, please contact Mentis support."
         )
 
     msg = MIMEText(body)
@@ -447,18 +447,18 @@ def send_expiry_reminder_email(to_email, is_premium, expiry_date):
 
     if is_premium:
         body = (
-            f"Your Clavis premium access expires on {when}.\n\n"
+            f"Your Mentis premium access expires on {when}.\n\n"
             f"Renew here to keep unlimited tutor access, without losing your streak:\n{pay_url}\n\n"
             f"If you've already renewed, you can ignore this message."
         )
-        subject = 'Your Clavis premium access expires soon'
+        subject = 'Your Mentis premium access expires soon'
     else:
         body = (
-            f"Your Clavis free trial expires on {when}.\n\n"
+            f"Your Mentis free trial expires on {when}.\n\n"
             f"Choose a plan to keep studying with your AI tutor after that:\n{pay_url}\n\n"
             f"If you've already upgraded, you can ignore this message."
         )
-        subject = 'Your Clavis free trial is ending soon'
+        subject = 'Your Mentis free trial is ending soon'
 
     msg = MIMEText(body)
     msg['Subject'] = subject
@@ -476,8 +476,8 @@ def sms_expiry_reminder_text(is_premium, expiry_date):
     when = expiry_date.strftime('%d %b') if expiry_date else 'soon'
     pay_url = f"{YOUR_DOMAIN}/pay-mpesa"
     if is_premium:
-        return f"Clavis: your premium access expires {when}. Renew here to keep unlimited tutor access: {pay_url}"
-    return f"Clavis: your free trial expires {when}. Choose a plan to keep studying: {pay_url}"
+        return f"Mentis: your premium access expires {when}. Renew here to keep unlimited tutor access: {pay_url}"
+    return f"Mentis: your free trial expires {when}. Choose a plan to keep studying: {pay_url}"
 
 
 GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
@@ -1091,8 +1091,8 @@ def build_teaching_instructions(topic, all_topics):
 def build_system_prompt(subject, level, grade_form=None):
     level_desc = describe_level(level, grade_form)
     identity = (
-        f"Your name is Clavis, an AI tutor built for Kenyan students. If asked your name, what you're "
-        f"called, who made you, or what model/AI you are, simply say you're Clavis — never mention "
+        f"Your name is Mentis, an AI tutor built for Kenyan students. If asked your name, what you're "
+        f"called, who made you, or what model/AI you are, simply say you're Mentis — never mention "
         f"ChatGPT, GPT, OpenAI, Groq, or any other underlying company or model name, even if asked directly "
         f"or told that's what you 'really' are. "
     )
@@ -1188,7 +1188,7 @@ def signup():
                 func.lower(func.trim(School.county)) == county.lower(),
             ).first()
             if existing_school:
-                flash('A registration or listing for this school is already pending or approved. Contact Clavis support if it needs updating.', 'danger')
+                flash('A registration or listing for this school is already pending or approved. Contact Mentis support if it needs updating.', 'danger')
                 return redirect(url_for('signup'))
 
             badge_data = badge.stream.read(2 * 1024 * 1024 + 1)
@@ -1287,14 +1287,14 @@ def signup():
                 send_verification_email(email, verify_url)
             except Exception as e:
                 app.logger.error(f"Failed to send verification email to {email}: {e}")
-                flash('Your account was created, but we could not send the verification email. Please contact Clavis support or try again later.', 'warning')
+                flash('Your account was created, but we could not send the verification email. Please contact Mentis support or try again later.', 'warning')
 
         if account_type == 'school':
-            flash('School application submitted. Verify your email and check back after Clavis admins review it.', 'success')
+            flash('School application submitted. Verify your email and check back after Mentis admins review it.', 'success')
             return redirect(url_for('login'))
 
         login_user(new_user, remember=True)
-        flash('Your account is ready. Let’s set up your learning path.', 'success')
+        flash("Your account is ready. Let's set up your learning path.", 'success')
         return redirect(url_for('onboarding', step='name'))
 
     return render_template('auth.html', mode='signup', ref_code=request.args.get('ref', ''), student_track=request.args.get('type', ''))
@@ -1328,13 +1328,13 @@ def login():
             if getattr(user, 'account_type', None) == 'school_pending':
                 application = School.query.filter_by(admin_user_id=user.id).first()
                 if application and application.status == 'pending':
-                    flash('Your school registration is awaiting Clavis admin approval.', 'warning')
+                    flash('Your school registration is awaiting Mentis admin approval.', 'warning')
                 elif application and application.status == 'rejected':
                     reason = f" Reason: {application.rejection_reason}" if application.rejection_reason else ''
-                    flash(f'Your school registration was not approved.{reason} Contact Clavis support for details.', 'danger')
+                    flash(f'Your school registration was not approved.{reason} Contact Mentis support for details.', 'danger')
                 else:
                     app.logger.error(f"School account {user.id} has no registration record")
-                    flash('We could not load your school registration. Please contact Clavis support.', 'danger')
+                    flash('We could not load your school registration. Please contact Mentis support.', 'danger')
                 return render_template('auth.html', mode='login', student_track=request.args.get('type', ''))
             user.failed_login_attempts = 0
             user.lockout_until = None
@@ -1586,7 +1586,7 @@ def onboarding(step):
                 if character.isalnum() or character in ' -_'
             )[:40].strip()
             if not name:
-                flash('Please enter the name you want Clavis to use.', 'danger')
+                flash('Please enter the name you want Mentis to use.', 'danger')
                 return redirect(url_for('onboarding', step=step))
             current_user.display_name = name
 
@@ -1756,7 +1756,7 @@ def forgot_password():
     if request.method == 'POST':
         if not RESEND_API_KEY or not RESEND_FROM:
             app.logger.error("Password reset requested while Resend email settings are incomplete")
-            flash("Password reset email is temporarily unavailable. Please contact Clavis support.", "danger")
+            flash("Password reset email is temporarily unavailable. Please contact Mentis support.", "danger")
             return redirect(url_for('login'))
 
         email = request.form.get('email', '').strip().lower()
@@ -1776,7 +1776,7 @@ def forgot_password():
             except Exception as e:
                 app.logger.error(f"Failed to send reset email to {email}: {e}")
 
-        flash("If that email belongs to an account and email delivery is available, a reset link will be sent. If you don't receive it, contact Clavis support.", "warning")
+        flash("If that email belongs to an account and email delivery is available, a reset link will be sent. If you don't receive it, contact Mentis support.", "warning")
         return redirect(url_for('login'))
 
     return render_template('auth.html', mode='forgot')
@@ -1838,7 +1838,7 @@ def verify_email(token):
         user.email_verified = True
         db.session.commit()
     if user.account_type == 'school_pending':
-        flash("Email verified. Your school registration is awaiting Clavis admin approval.", "success")
+        flash("Email verified. Your school registration is awaiting Mentis admin approval.", "success")
     else:
         flash("Email verified — you're all set!", "success")
     return redirect(url_for('home') if current_user.is_authenticated else url_for('login'))
@@ -1912,7 +1912,7 @@ def home():
 
     return render_template(
         'landing.html',
-        title='Clavis',
+        title='Mentis',
         description='A friendly AI study tutor for students in Kenya, with help for Mathematics, English, and more.',
     )
 
@@ -2263,13 +2263,13 @@ def api_support():
         return jsonify({"error": "Invalid conversation history."}), 400
 
     system_prompt = (
-        "You are the Clavis support assistant for the website and learning platform. "
-        "Answer only about Clavis, Kenyan CBC learning, account signup/login, schools, subscriptions, "
+        "You are the Mentis support assistant for the website and learning platform. "
+        "Answer only about Mentis, Kenyan CBC learning, account signup/login, schools, subscriptions, "
         "M-Pesa, AI tutoring, exams, discussions, and certificates. Be warm, concise, and practical. "
         "Use correct Kenyan terminology. Never claim to have viewed an account or payment status. "
         "For account-specific, payment, or technical problems, advise the user to sign in or retry once, "
-        "and say that the Clavis team can verify or fix it. Do not invent prices, deadlines, policies, "
-        "school data, or support contacts. If the question is unrelated to Clavis, politely redirect it."
+        "and say that the Mentis team can verify or fix it. Do not invent prices, deadlines, policies, "
+        "school data, or support contacts. If the question is unrelated to Mentis, politely redirect it."
     )
     groq_messages = [{"role": "system", "content": system_prompt}]
     for item in history[-8:]:
@@ -2529,7 +2529,7 @@ def _send_team_push(user_id, payload, ttl=45):
     public_key = os.environ.get('VAPID_PUBLIC_KEY', '')
     if not private_key or not public_key or webpush is None:
         return
-    subject = os.environ.get('VAPID_SUBJECT', 'mailto:admin@clavis.local')
+    subject = os.environ.get('VAPID_SUBJECT', 'mailto:admin@mentis.local')
     body = json.dumps(payload)
 
     def worker():
@@ -2563,7 +2563,7 @@ def _ring(call, caller, callee):
     _send_team_push(callee.id, {
         'type': 'incoming',
         'title': f"{_team_name(caller)} is calling",
-        'body': f"Incoming {call.kind} call from the Clavis team",
+        'body': f"Incoming {call.kind} call from the Mentis team",
         'url': f"/team-chat?answer={invite.id}",
         'inviteId': invite.id,
         'tag': f"team-call-{invite.id}",
@@ -2667,7 +2667,7 @@ def api_team_start_call():
     if busy:
         return jsonify({"error": busy}), 409
 
-    call = TeamCall(room_name=f"Clavis-Team-{secrets.token_hex(8)}", kind=kind, started_by_id=current_user.id)
+    call = TeamCall(room_name=f"Mentis-Team-{secrets.token_hex(8)}", kind=kind, started_by_id=current_user.id)
     db.session.add(call)
     db.session.flush()
     db.session.add(TeamCallParticipant(call_id=call.id, user_id=current_user.id))
@@ -3509,7 +3509,7 @@ def api_schools():
         func.lower(func.trim(School.county)) == county.lower(),
     ).first()
     if duplicate:
-        return jsonify({"error": "A listing for this school is already pending or approved. Contact Clavis support if it needs updating."}), 409
+        return jsonify({"error": "A listing for this school is already pending or approved. Contact Mentis support if it needs updating."}), 409
     existing_request = School.query.filter_by(
         admin_user_id=current_user.id,
         status='pending',
@@ -3527,14 +3527,14 @@ def api_schools():
     )
     db.session.add(school)
     db.session.commit()
-    return jsonify({"message": "School request submitted for Clavis review.", "schoolId": school.id}), 201
+    return jsonify({"message": "School request submitted for Mentis review.", "schoolId": school.id}), 201
 
 
 @app.route('/api/schools/<int:school_id>/listing-review', methods=['POST'])
 @login_required
 def api_review_school_listing(school_id):
     if not is_full_admin(current_user):
-        return jsonify({"error": "Clavis platform admin access is required."}), 403
+        return jsonify({"error": "Mentis platform admin access is required."}), 403
     school = School.query.filter(
         School.id == school_id,
         School.status == 'pending',
@@ -3973,8 +3973,8 @@ def render_certificate_pdf(application):
     page_width, page_height = landscape(A4)
     output = io.BytesIO()
     document = canvas.Canvas(output, pagesize=(page_width, page_height), pageCompression=1)
-    document.setTitle(f"Clavis Campus Certificate {application.certificate_number}")
-    document.setAuthor("Clavis Campus")
+    document.setTitle(f"Mentis Campus Certificate {application.certificate_number}")
+    document.setAuthor("Mentis Campus")
 
     forest = HexColor('#183D2D')
     deep_forest = HexColor('#102C20')
@@ -4081,7 +4081,7 @@ def render_certificate_pdf(application):
         course_baseline -= course_font_size + 2
     document.setFillColor(muted)
     document.setFont('Times-Italic', 11)
-    document.drawCentredString(center_x, course_baseline - 7, "through the Clavis Campus learning programme.")
+    document.drawCentredString(center_x, course_baseline - 7, "through the Mentis Campus learning programme.")
 
     photo_data = getattr(application, 'photo_data', None)
     if photo_data:
@@ -4118,7 +4118,7 @@ def render_certificate_pdf(application):
     document.circle(seal_x, seal_y, 24, fill=0, stroke=1)
     document.setFillColor(forest)
     document.setFont('Times-Bold', 7)
-    document.drawCentredString(seal_x, seal_y + 5, "CLAVIS")
+    document.drawCentredString(seal_x, seal_y + 5, "MENTIS")
     document.setFont('Helvetica', 5.5)
     document.drawCentredString(seal_x, seal_y - 5, "CAMPUS")
     document.setFillColor(gold)
@@ -4130,7 +4130,7 @@ def render_certificate_pdf(application):
     document.line(455, 104, 620, 104)
     document.setFillColor(ink)
     document.setFont('Helvetica-Bold', 8)
-    document.drawCentredString(272.5, 89, "ISSUED BY CLAVIS CAMPUS")
+    document.drawCentredString(272.5, 89, "ISSUED BY MENTIS CAMPUS")
     document.setFillColor(muted)
     document.setFont('Helvetica', 7)
     document.drawCentredString(272.5, 76, application.reviewed_at.strftime('%d %B %Y') if application.reviewed_at else '')
@@ -4142,7 +4142,7 @@ def render_certificate_pdf(application):
     document.drawCentredString(537.5, 76, _certificate_text(application.certificate_number))
     document.setFillColor(muted)
     document.setFont('Helvetica', 6)
-    document.drawCentredString(center_x, 49, "A Clavis Campus record of learning and achievement")
+    document.drawCentredString(center_x, 49, "A Mentis Campus record of learning and achievement")
 
     document.showPage()
     document.save()
@@ -4298,7 +4298,7 @@ def admin_certificate_preview():
         'photo_data': None,
     })()
     response = Response(render_certificate_pdf(preview_application), mimetype='application/pdf')
-    response.headers['Content-Disposition'] = 'inline; filename="clavis-certificate-preview.pdf"'
+    response.headers['Content-Disposition'] = 'inline; filename="mentis-certificate-preview.pdf"'
     response.headers['Cache-Control'] = 'private, no-store'
     response.headers['X-Content-Type-Options'] = 'nosniff'
     return response
@@ -4328,7 +4328,7 @@ def download_certificate(application_id):
         return jsonify({"error": "This certificate is not available for download."}), 404
 
     pdf_data = render_certificate_pdf(application)
-    filename = f"{application.certificate_number or 'clavis-campus-certificate'}.pdf"
+    filename = f"{application.certificate_number or 'mentis-campus-certificate'}.pdf"
     response = Response(pdf_data, mimetype='application/pdf')
     response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
     response.headers['Cache-Control'] = 'private, no-store'
@@ -4725,7 +4725,7 @@ def extract_wikiquote_quote(extract):
             'the quotation', 'another translation', 'repeated throughout',
         )):
             continue
-        return line.strip('“”" ')
+        return line.strip('""" ')
     return None
 
 
@@ -4750,7 +4750,7 @@ def get_campus_daily_fact(today):
 
     wikipedia_api = 'https://en.wikipedia.org/w/api.php'
     wikiquote_api = 'https://en.wikiquote.org/w/api.php'
-    headers = {'User-Agent': 'ClavisLearningApp/1.0 (educational daily facts)'}
+    headers = {'User-Agent': 'MentisLearningApp/1.0 (educational daily facts)'}
 
     for _ in range(6):
         category, config = secrets.choice(list(DAILY_FACT_CATEGORIES.items()))
@@ -4805,7 +4805,7 @@ def get_campus_daily_fact(today):
                 continue
         except (requests.RequestException, ValueError, AttributeError) as error:
             app.logger.error('Campus daily fact source request failed: %s', error)
-            return jsonify({'error': 'Today’s Campus fact is temporarily unavailable. Please try again shortly.'}), 503
+            return jsonify({'error': "Today's Campus fact is temporarily unavailable. Please try again shortly."}), 503
 
         pages = [page for page in bio_pages.values() if isinstance(page, dict)]
         secrets.SystemRandom().shuffle(pages)
@@ -4942,7 +4942,7 @@ def api_daily_fact():
             response = requests.get(
                 api_url,
                 params=params,
-                headers={"User-Agent": "ClavisLearningApp/1.0 (daily educational fact)"},
+                headers={"User-Agent": "MentisLearningApp/1.0 (daily educational fact)"},
                 timeout=(3, 8),
             )
             response.raise_for_status()
@@ -5218,7 +5218,7 @@ def run_database_backup():
     buf.seek(0)
 
     msg = MIMEMultipart()
-    msg['Subject'] = f"Clavis database backup — {datetime.now().strftime('%Y-%m-%d')}"
+    msg['Subject'] = f"Mentis database backup — {datetime.now().strftime('%Y-%m-%d')}"
     msg['From'] = MAIL_FROM
     msg['To'] = backup_to
     summary = ', '.join(f"{name} ({len(rows)})" for name, rows in data.items())

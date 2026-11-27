@@ -1,4 +1,4 @@
-// Clavis service worker: installable PWA + team call ringing.
+// Mentis service worker: installable PWA + team call ringing.
 // v2026-11-27-plain-chat
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -36,7 +36,7 @@ self.addEventListener('push', (event) => {
     }
 
     const tag = data.tag || 'team-call';
-    await self.registration.showNotification(data.title || 'Clavis team call', {
+    await self.registration.showNotification(data.title || 'Mentis team call', {
       body: data.body || 'Incoming team call',
       icon: '/static/images/icon-192.png',
       badge: '/static/images/icon-192.png',

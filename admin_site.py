@@ -1,4 +1,4 @@
-"""Clavis Admin site (owner admin + co-admins).
+"""Mentis Admin site (owner admin + co-admins).
 
 Step 1 of the role-based sites: a dedicated /admin home with its own layout.
 Everything here is read-only, so it cannot change existing data.
@@ -132,7 +132,7 @@ def register_admin_site(app, db, models, helpers):
             history = []
 
         system_prompt = (
-            "You are Clavis, an experienced Kenyan secondary-school teacher helping a school administrator learn and teach. "
+            "You are Mentis, an experienced Kenyan secondary-school teacher helping a school administrator learn and teach. "
             f"The class level is {form}. The subject is {subject}. "
             "Explain concepts in a clear, practical, adult-to-adult way, while keeping all content accurate for "
             f"the {form} Kenyan secondary curriculum. Use worked examples, key definitions, teaching points, "
