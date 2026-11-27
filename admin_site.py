@@ -5,7 +5,7 @@ Everything here is read-only, so it cannot change existing data.
 """
 from datetime import datetime, timedelta
 
-from flask import render_template, redirect, url_for, flash, request
+from flask import render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required, current_user
 from sqlalchemy import func, or_
 
@@ -30,6 +30,7 @@ def register_admin_site(app, db, models, helpers):
     get_admin_emails = helpers['get_admin_emails']
     CO_ADMIN_EMAILS = helpers['CO_ADMIN_EMAILS']
     default_display_name = helpers['default_display_name']
+    call_groq = helpers.get('call_groq')
 
     def name_of(user):
         return user.display_name or default_display_name(user.email)
@@ -105,6 +106,54 @@ def register_admin_site(app, db, models, helpers):
         for w in out:
             w['height'] = max(4, round(w['amount'] / peak * 100)) if w['amount'] else 4
         return out
+
+    @app.route('/api/admin/brainstorm', methods=['POST'])
+    @login_required
+    def admin_brainstorm():
+        if not (is_full_admin(current_user) or is_co_admin(current_user)):
+            return jsonify({'error': 'Admin access required.'}), 403
+
+        data = request.get_json(silent=True) or {}
+        form = str(data.get('form') or '').strip()
+        subject = str(data.get('subject') or '').strip()
+        message = str(data.get('message') or '').strip()
+
+        if form not in {'Form 1', 'Form 2', 'Form 3', 'Form 4'}:
+            return jsonify({'error': 'Choose Form 1, 2, 3, or 4.'}), 400
+        if not subject:
+            return jsonify({'error': 'Choose a subject.'}), 400
+        if not message:
+            return jsonify({'error': 'Enter a question or topic.'}), 400
+        if not call_groq:
+            return jsonify({'error': 'The AI service is not available.'}), 503
+
+        history = data.get('messages', [])
+        if not isinstance(history, list):
+            history = []
+
+        system_prompt = (
+            "You are Clavis, an experienced Kenyan secondary-school teacher helping a school administrator learn and teach. "
+            f"The class level is {form}. The subject is {subject}. "
+            "Explain concepts in a clear, practical, adult-to-adult way, while keeping all content accurate for "
+            f"the {form} Kenyan secondary curriculum. Use worked examples, key definitions, teaching points, "
+            "common learner misconceptions, and a short classroom activity. Teach in small steps and end with a "
+            "question or prompt for the administrator. Do not claim to replace the official curriculum or textbook."
+        )
+        groq_messages = [{'role': 'system', 'content': system_prompt}]
+        for item in history[-12:]:
+            if not isinstance(item, dict):
+                continue
+            role = 'assistant' if item.get('role') == 'assistant' else 'user'
+            content = str(item.get('content') or '').strip()
+            if content:
+                groq_messages.append({'role': role, 'content': content[:4000]})
+
+        groq_messages.append({'role': 'user', 'content': message[:4000]})
+        try:
+            answer = call_groq(groq_messages, max_tokens=1800)
+        except RuntimeError as exc:
+            return jsonify({'error': str(exc)}), 502
+        return jsonify({'answer': answer})
 
     def team_members():
         managed = get_admin_emails() | CO_ADMIN_EMAILS

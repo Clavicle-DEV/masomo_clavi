@@ -5427,6 +5427,7 @@ register_admin_site(
         'is_full_admin': is_full_admin, 'is_co_admin': is_co_admin,
         'get_admin_emails': get_admin_emails, 'CO_ADMIN_EMAILS': CO_ADMIN_EMAILS,
         'default_display_name': default_display_name,
+        'call_groq': call_groq,
     },
 )
 

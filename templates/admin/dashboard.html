@@ -14,6 +14,7 @@
   <a href="{{ url_for('team_chat') }}"><span class="ico">&#x1F4AC;</span>Communication</a>
   {% if owner %}<a href="{{ url_for('admin_analytics') }}"><span class="ico">&#x1F4DA;</span>Library</a>{% endif %}
   {% if owner %}<a href="{{ url_for('admin_analytics') }}"><span class="ico">&#x1F4CA;</span>Reports</a>{% endif %}
+  <a href="#brainstorming"><span class="ico">&#x2728;</span>Brainstorming</a>
   <div class="sep">Shortcuts</div>
   {% if owner %}<a href="{{ url_for('admin_school_applications') }}"><span class="ico">&#x002B;</span>Approve requests</a>{% endif %}
   <a href="{{ url_for('team_chat') }}"><span class="ico">&#x002B;</span>Schedule a session</a>
@@ -79,7 +80,9 @@
   <div class="card">
     <h3>Fee Collection Summary <a href="{{ url_for('admin_mpesa_requests') }}">This Month</a></h3>
     <div class="fee-bars">
-      {% for w in revenue_weeks %}<div><b>{{ '{:,}'.format(w.amount) if w.amount else '' }}</b><i style="height:{{ w.height if w.height else 8 }}%"></i><small>{{ w.label }}</small></div>{% endfor %}
+      {% for w in revenue_weeks %}
+      <div><b>{{ '{:,}'.format(w.amount) if w.amount else '' }}</b><i class="fee-bar-fill" data-height="{{ w.height if w.height else 8 }}"></i><small>{{ w.label }}</small></div>
+      {% endfor %}
     </div>
   </div>
   {% endif %}
@@ -89,8 +92,12 @@
       <h3>Student Performance <a href="{{ url_for('admin_analytics') }}">This Term</a></h3>
       {% if exams.total %}
       <div class="performance">
-        <div class="donut" style="background:conic-gradient({{ exams.gradient }})"><div>{{ exams.average }}%<small>average</small></div></div>
-        <div class="rows">{% for r in exams.rows %}<div><span><i style="background:{{ r.color }}"></i>{{ r.label }}</span><b>{{ r.share }}%</b></div>{% endfor %}</div>
+        <div class="donut" data-gradient="{{ exams.gradient }}"><div>{{ exams.average }}%<small>average</small></div></div>
+        <div class="rows">
+          {% for r in exams.rows %}
+          <div><span><i data-color="{{ r.color }}"></i>{{ r.label }}</span><b>{{ r.share }}%</b></div>
+          {% endfor %}
+        </div>
       </div>
       {% else %}<div class="empty">No exam results yet.</div>{% endif %}
     </div>
@@ -111,9 +118,127 @@
     </div>
   </div>
 </section>
+
+<section class="card brainstorming-card" id="brainstorming">
+  <div class="brainstorm-head">
+    <div>
+      <h3>Brainstorming</h3>
+      <p>Choose a class and subject. The AI will teach you so you can guide your school team.</p>
+    </div>
+  </div>
+  <div class="brainstorm-grid">
+    <aside class="brainstorm-controls">
+      <label>Class</label>
+      <div class="form-options" id="brainstormForms">
+        {% for form in ['Form 1', 'Form 2', 'Form 3', 'Form 4'] %}
+        <button type="button" class="form-option{% if form == 'Form 1' %} active{% endif %}" data-form="{{ form }}">{{ form }}</button>
+        {% endfor %}
+      </div>
+      <label for="brainstormSubject">Subject</label>
+      <select id="brainstormSubject">
+        <option>Mathematics</option><option>English</option><option>Kiswahili</option>
+        <option>Biology</option><option>Chemistry</option><option>Physics</option>
+        <option>Geography</option><option>History</option><option>CRE</option>
+        <option>IRE</option><option>Business Studies</option><option>Computer Studies</option>
+      </select>
+      <label for="brainstormTopic">Starting topic</label>
+      <input id="brainstormTopic" type="text" placeholder="Example: Quadratic equations">
+      <button type="button" class="brainstorm-start" id="brainstormStart">Start teaching</button>
+    </aside>
+    <div class="brainstorm-chat">
+      <div class="brainstorm-messages" id="brainstormMessages" role="log" aria-live="polite">
+        <div class="brain-message assistant"><b>Clavis</b><p>Select a Form and subject, enter a topic, then start. You can ask follow-up questions in this chat.</p></div>
+      </div>
+      <form class="brainstorm-compose" id="brainstormForm">
+        <input id="brainstormQuestion" type="text" autocomplete="off" placeholder="Ask a follow-up question...">
+        <button type="submit" aria-label="Send message">&#8594;</button>
+      </form>
+    </div>
+  </div>
+</section>
 {% endblock %}
 
 {% block scripts %}
 <script src="{{ static_versioned('js/team_ring.js') }}"></script>
 <script src="{{ static_versioned('js/permissions.js') }}"></script>
+<script>
+(function () {
+  document.querySelectorAll('.fee-bar-fill').forEach(function (bar) {
+    bar.style.height = bar.dataset.height + '%';
+  });
+  document.querySelectorAll('.performance .donut[data-gradient]').forEach(function (donut) {
+    donut.style.background = 'conic-gradient(' + donut.dataset.gradient + ')';
+  });
+  document.querySelectorAll('.rows i[data-color]').forEach(function (dot) {
+    dot.style.background = dot.dataset.color;
+  });
+  const formButtons = document.querySelectorAll('.form-option');
+  const subject = document.getElementById('brainstormSubject');
+  const topic = document.getElementById('brainstormTopic');
+  const question = document.getElementById('brainstormQuestion');
+  const messages = document.getElementById('brainstormMessages');
+  const form = document.getElementById('brainstormForm');
+  const start = document.getElementById('brainstormStart');
+  let selectedForm = 'Form 1';
+  let history = [];
+  let busy = false;
+
+  formButtons.forEach((button) => button.addEventListener('click', () => {
+    formButtons.forEach((item) => item.classList.remove('active'));
+    button.classList.add('active');
+    selectedForm = button.dataset.form;
+  }));
+
+  function addMessage(role, text) {
+    const item = document.createElement('div');
+    item.className = 'brain-message ' + role;
+    const name = document.createElement('b');
+    name.textContent = role === 'user' ? 'You' : 'Clavis';
+    const body = document.createElement('p');
+    body.textContent = text;
+    item.append(name, body);
+    messages.appendChild(item);
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  async function send(message) {
+    if (busy || !message.trim()) return;
+    busy = true;
+    start.disabled = true;
+    addMessage('user', message);
+    history.push({ role: 'user', content: message });
+    addMessage('assistant', 'Thinking...');
+    const thinking = messages.lastElementChild;
+
+    try {
+      const response = await fetch('/api/admin/brainstorm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ form: selectedForm, subject: subject.value, message: message, messages: history.slice(0, -1) })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Could not start the AI lesson.');
+      thinking.remove();
+      addMessage('assistant', data.answer);
+      history.push({ role: 'assistant', content: data.answer });
+    } catch (error) {
+      thinking.remove();
+      addMessage('assistant', error.message);
+    } finally {
+      busy = false;
+      start.disabled = false;
+      question.value = '';
+    }
+  }
+
+  start.addEventListener('click', () => {
+    const lesson = topic.value.trim();
+    send(lesson ? `Teach me ${lesson} for ${selectedForm}.` : `Teach me a useful introductory topic in ${subject.value} for ${selectedForm}.`);
+  });
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    send(question.value);
+  });
+})();
+</script>
 {% endblock %}
